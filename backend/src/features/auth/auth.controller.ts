@@ -19,7 +19,7 @@ interface FirebaseErrorResponse {
 // Sign up - Create new user with Firebase Auth
 export const signUp = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { email, password, displayName } = req.body;
+        const { email, password, displayName, phone } = req.body;
 
         // Validate input
         if (!email || !password) {
@@ -44,6 +44,7 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
             firebaseUid: userRecord.uid,
             email: userRecord.email,
             displayName: displayName || undefined,
+            phone: phone || undefined,
         });
         await newUser.save();
         console.log(`✓ User created in MongoDB: ${userRecord.uid}`);

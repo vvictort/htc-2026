@@ -12,6 +12,7 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
+    phone: "",
     enableCustomVoice: true,
     notifications: { email: true, sms: false, push: true },
   });
@@ -34,6 +35,34 @@ export default function ProfilePage() {
       notifications: { ...prev.notifications, [id]: !prev.notifications[id] },
     }));
   };
+
+  // Load notification prefs + phone on mount
+  useEffect(() => {
+    if (authLoading || !token) return;
+    const fetchPrefs = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+        const res = await fetch(`${apiUrl}/notifications/preferences`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setFormData((prev) => ({
+            ...prev,
+            phone: data.phone || "",
+            notifications: {
+              email: data.notificationPreferences?.email ?? true,
+              sms: data.notificationPreferences?.sms ?? false,
+              push: data.notificationPreferences?.push ?? true,
+            },
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch notification prefs:", err);
+      }
+    };
+    fetchPrefs();
+  }, [token, authLoading]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -150,7 +179,7 @@ export default function ProfilePage() {
         body: JSON.stringify({ enableCustomVoice: formData.enableCustomVoice }),
       });
 
-      // 3. Save notification preferences
+      // 3. Save notification preferences + phone
       await fetch(`${apiUrl}/notifications/preferences`, {
         method: "PUT",
         headers: {
@@ -161,6 +190,7 @@ export default function ProfilePage() {
           email: formData.notifications.email,
           sms: formData.notifications.sms,
           push: formData.notifications.push,
+          phone: formData.phone || undefined,
         }),
       });
 
@@ -218,6 +248,17 @@ export default function ProfilePage() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-warm-white border border-warm-cream focus:outline-none focus:ring-2 focus:ring-coral"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-charcoal mb-2">Phone Number <span className="text-mid-gray font-normal">(for SMS alerts)</span></label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="+1 (555) 123-4567"
                     className="w-full px-4 py-3 rounded-xl bg-warm-white border border-warm-cream focus:outline-none focus:ring-2 focus:ring-coral"
                   />
                 </div>
