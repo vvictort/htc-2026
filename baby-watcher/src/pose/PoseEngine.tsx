@@ -269,16 +269,20 @@ export class PoseEngine {
         const movementSpeed = limbSpeedNorm != null && torsoLen ? limbSpeedNorm * torsoLen : undefined;
         const movementSpeedNorm = limbSpeedNorm;
 
-        // ---- tolerant activity score: moving if centroid OR limbs indicate motion ----
+        // ---- immediate motion detection: moving if centroid OR limbs indicate motion ----
+        const centroidMoving = centroidSpeed != null && centroidSpeed >= this.cfg.activeSpeedPxPerSec;
+        const limbThr = this.cfg.activeLimbSpeedNormPerSec ?? 0.06;
+        const limbsMoving = limbSpeedNorm != null && limbSpeedNorm >= limbThr;
+        const movingNow = centroidMoving || limbsMoving;
+
+        // State is ACTIVE immediately when either centroid or limbs are moving
+        const nextState = poseOk ? (movingNow ? "ACTIVE" : "STILL") : "UNKNOWN";
+
+        // Activity score (5s window) is used only for the 5s sustained API timer
         const windowMs = this.cfg.activityWindowMs ?? 5000;
         const minT = now - windowMs;
 
         if (poseOk) {
-            const centroidMoving = centroidSpeed != null && centroidSpeed >= this.cfg.activeSpeedPxPerSec;
-            const limbThr = this.cfg.activeLimbSpeedNormPerSec ?? 0.06;
-            const limbsMoving = limbSpeedNorm != null && limbSpeedNorm >= limbThr;
-
-            const movingNow = centroidMoving || limbsMoving;
             this.activityHistory.push({ t: now, moving: movingNow });
         }
 
@@ -289,8 +293,6 @@ export class PoseEngine {
         const activeScore = this.activityHistory.length
             ? this.activityHistory.filter((h) => h.moving).length / this.activityHistory.length
             : 0;
-
-        const nextState = classifyState(poseOk, activeScore, this.cfg);
         if (nextState !== this.state) {
             this.state = nextState;
             this.onStateChange?.(nextState);
@@ -363,12 +365,6 @@ export class PoseEngine {
         this.lastAlertAt = Date.now();
         this.onAlert({ type, tEpochMs: this.lastAlertAt });
     }
-}
-
-function classifyState(poseOk: boolean, activeScore: number | undefined, cfg: PoseEngineConfig): MonitorState {
-    if (!poseOk || activeScore == null) return "UNKNOWN";
-    const thr = cfg.activeRatioThreshold ?? 0.6;
-    return activeScore >= thr ? "ACTIVE" : "STILL";
 }
 
 function pointInPoly(pt: { x: number; y: number }, poly: RoiPoint[]) {

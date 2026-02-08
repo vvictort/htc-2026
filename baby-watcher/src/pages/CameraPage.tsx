@@ -28,6 +28,7 @@ export function CameraPage() {
     const lastTriggerAtRef = useRef<number>(0);
     const activeSinceRef = useRef<number | null>(null);
     const activeNotifiedRef = useRef(false);
+    const [lastApiCall, setLastApiCall] = useState<{ reason: string; at: number } | null>(null);
 
     useEffect(() => {
         let stream: MediaStream | null = null;
@@ -199,6 +200,9 @@ export function CameraPage() {
         if (now - lastTriggerAtRef.current < COOLDOWN_MS) return;
         lastTriggerAtRef.current = now;
 
+        // Update UI to show API call was sent
+        setLastApiCall({ reason, at: now });
+
         try {
             await fetch("/api/monitor-event", {
                 method: "POST",
@@ -285,6 +289,9 @@ export function CameraPage() {
                             // reset active timers when toggling
                             activeSinceRef.current = null;
                             activeNotifiedRef.current = false;
+                            if (next === false) {
+                                setLastApiCall(null); // Clear API call indicator when stopping
+                            }
                             return next;
                         });
                         // reset cooldown so first event after starting is immediate
@@ -303,8 +310,20 @@ export function CameraPage() {
                     {isMonitoring ? "Stop" : "Start"}
                 </button>
                 <span style={{ fontSize: 12, opacity: 0.75 }}>
-                    When started, we’ll call the API if pose becomes UNKNOWN or crosses a boundary.
+                    When started, we'll call the API if pose becomes UNKNOWN or crosses a boundary.
                 </span>
+                {lastApiCall && (
+                    <div style={{
+                        padding: '6px 12px',
+                        background: '#3b82f6',
+                        color: 'white',
+                        borderRadius: 4,
+                        fontSize: 12,
+                        fontWeight: 600
+                    }}>
+                        🔔 API called: {lastApiCall.reason} @ {new Date(lastApiCall.at).toLocaleTimeString()}
+                    </div>
+                )}
             </div>
 
             <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
