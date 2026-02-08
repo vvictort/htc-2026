@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import CVMonitor from "./CVMonitor";
 
 const BACKEND_URL = "http://localhost:5000";
 
@@ -208,6 +209,14 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
                 <div className="text-center text-gray-500">
                   <i className="fa-solid fa-video-slash text-6xl mb-4"></i>
                   <p>Camera off</p>
+                </div>
+              </div>
+            )}
+            {isStreaming && (
+              <div className="absolute inset-0 p-4 pointer-events-none">
+                {/* Mount CVMonitor in the corner when streaming for local monitoring/debug */}
+                <div style={{ width: 360, marginLeft: 'auto' }}>
+                  <CVMonitor externalVideoRef={videoRef} />
                 </div>
               </div>
             )}
