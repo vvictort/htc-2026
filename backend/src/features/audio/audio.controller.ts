@@ -32,12 +32,13 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
 
     if (!voice && req.user?.uid) {
       const user = await User.findOne({ firebaseUid: req.user.uid });
-      if (user?.customVoiceId) {
+      if (user?.customVoiceId && user.enableCustomVoice !== false) {
         voice = user.customVoiceId;
         console.log(`🎤 Using custom voice for user ${req.user.email}`);
+      } else if (user?.customVoiceId && user.enableCustomVoice === false) {
+        console.log(`⚠️ Custom voice disabled by user ${req.user.email}, using default`);
       }
     }
-
     // Fallback to default voice
     voice = voice || process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
 
@@ -87,8 +88,52 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
 
     // Send audio buffer
     res.send(buffer);
+
+    // Async logging after response (fire and forget pattern for performance?)
+    // Or await it.
+    if (req.user?.uid) {
+      // We need 'User' model which is already imported.
+      User.findOne({ firebaseUid: req.user.uid })
+        .then(async (user) => {
+          if (user) {
+            // Dynamically import AudioLog or use if available
+            const AudioLog = (await import("../../shared/models/AudioLog")).default;
+
+            await AudioLog.create({
+              userId: user._id,
+              babyDeviceId,
+              text: text.substring(0, 1000), // Cap length
+              voiceId: voice,
+              characterCount: text.length,
+              status: "success",
+            });
+            console.log(`📝 Audio log saved for user ${user.email}`);
+          }
+        })
+        .catch((err) => console.error("Error saving audio log:", err));
+    }
   } catch (error: any) {
     console.error("❌ Stream audio error:", error);
+
+    // Log failure
+    if (req.user?.uid) {
+      User.findOne({ firebaseUid: req.user.uid })
+        .then(async (user) => {
+          if (user) {
+            const AudioLog = (await import("../../shared/models/AudioLog")).default;
+            await AudioLog.create({
+              userId: user._id,
+              babyDeviceId: req.body.babyDeviceId || "unknown",
+              text: (req.body.text || "").substring(0, 1000),
+              voiceId: "unknown",
+              characterCount: (req.body.text || "").length,
+              status: "failed",
+            });
+          }
+        })
+        .catch(() => {});
+    }
+
     res.status(500).json({
       error: "Failed to stream audio",
       details: error.message,
@@ -290,7 +335,7 @@ export const getCustomVoice = async (req: Request, res: Response): Promise<void>
     }
 
     const voiceData = await response.json();
-    res.status(200).json(voiceData);
+    res.status(200).json({ ...(voiceData as any), enableCustomVoice: user.enableCustomVoice });
   } catch (error: any) {
     console.error("❌ Get custom voice error:", error);
     res.status(500).json({
@@ -389,6 +434,39 @@ export const setVoice = async (req: Request, res: Response): Promise<void> => {
     console.error("❌ Set voice error:", error);
     res.status(500).json({
       error: "Failed to update voice",
+      details: error.message,
+    });
+  }
+};
+
+export const updateAudioSettings = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { enableCustomVoice } = req.body;
+
+    if (typeof enableCustomVoice !== "boolean") {
+      res.status(400).json({ error: "enableCustomVoice must be a boolean" });
+      return;
+    }
+
+    if (!req.user?.uid) {
+      res.status(401).json({ error: "User not authenticated" });
+      return;
+    }
+
+    const user = await User.findOneAndUpdate({ firebaseUid: req.user.uid }, { enableCustomVoice }, { new: true });
+
+    console.log(`✓ Audio settings updated for user ${req.user.email}: enableCustomVoice=${enableCustomVoice}`);
+
+    res.status(200).json({
+      message: "Audio settings updated",
+      user: {
+        enableCustomVoice: user?.enableCustomVoice,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Update audio settings error:", error);
+    res.status(500).json({
+      error: "Failed to update audio settings",
       details: error.message,
     });
   }

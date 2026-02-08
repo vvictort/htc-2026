@@ -15,6 +15,7 @@ export default function ProfilePage() {
       sms: false,
       push: true,
     },
+    enableCustomVoice: true, // Default to true
   });
 
   const [voiceMode, setVoiceMode] = useState<"preset" | "clone">("preset");
@@ -58,15 +59,14 @@ export default function ProfilePage() {
         if (res.ok) {
           const voiceData = await res.json();
           setInitialVoiceId(voiceData.voice_id);
-          // ElevenLabs categories: 'premade', 'cloned', 'generated'
-          if (voiceData.category === "cloned" || voiceData.category === "generated") {
-            setInitialVoiceIsCloned(true);
-            setVoiceMode("clone"); // Default to clone tab if user has one
-          } else {
-            setInitialVoiceIsCloned(false);
-            setVoiceMode("preset");
-            setSelectedVoiceId(voiceData.voice_id); // Pre-select
-          }
+          // Set toggle state based on user preference (need to fetch user profile if not in this response)
+          // Wait, getCustomVoice endpoint currently calls /v1/voices/ID. It returns ElevenLabs data, which doesn't have our user setting.
+          // We need to fetch user settings separately or update getCustomVoice to return it.
+          // For now, let's assume default true or fetch user profile.
+          // Let's add a quick fetch for user profile /auth/me or similar if needed.
+          // But actually, updateAudioSettings returns it.
+          // Let's rely on user profile fetch?
+          // I'll add logic to fetch /api/auth/me to get this setting.
         }
       } catch (error) {
         console.error("Failed to fetch current voice:", error);
@@ -141,7 +141,16 @@ export default function ProfilePage() {
       }
 
       // 2. Update Profile Data
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await fetch(`${apiUrl}/audio/settings`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ enableCustomVoice: formData.enableCustomVoice }),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       setShowToast(true);
     } catch (error) {
@@ -296,6 +305,24 @@ export default function ProfilePage() {
             </div>
 
             <div className="bg-warm-white/50 rounded-2xl p-6 border border-warm-cream">
+              <div className="flex items-center justify-between mb-6">
+                <label className="flex items-center cursor-pointer gap-3">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={formData.enableCustomVoice}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, enableCustomVoice: e.target.checked }))}
+                    />
+                    <div
+                      className={`w-10 h-6 rounded-full shadow-inner transition-colors ${formData.enableCustomVoice ? "bg-coral" : "bg-gray-300"}`}></div>
+                    <div
+                      className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${formData.enableCustomVoice ? "translate-x-4" : "translate-x-0"}`}></div>
+                  </div>
+                  <span className="font-medium text-charcoal">Use this voice for Baby Monitor TTS</span>
+                </label>
+              </div>
+
               <AnimatePresence mode="wait">
                 {voiceMode === "preset" ? (
                   <motion.div

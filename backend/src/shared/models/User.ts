@@ -1,42 +1,47 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IUser extends Document {
-    firebaseUid: string;
-    email: string;
-    displayName?: string;
-    customVoiceId?: string;
-    createdAt: Date;
-    updatedAt: Date;
+  firebaseUid: string;
+  email: string;
+  displayName?: string;
+  customVoiceId?: string;
+  enableCustomVoice?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const userSchema = new Schema<IUser>(
-    {
-        firebaseUid: {
-            type: String,
-            required: true,
-            unique: true,
-            index: true,
-        },
-        email: {
-            type: String,
-            required: true,
-            unique: true,
-            lowercase: true,
-            trim: true,
-        },
-        displayName: {
-            type: String,
-            trim: true,
-        },
-        customVoiceId: {
-            type: String,
-            trim: true,
-        },
+  {
+    firebaseUid: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
     },
-    {
-        timestamps: true,
-    }
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    displayName: {
+      type: String,
+      trim: true,
+    },
+    customVoiceId: {
+      type: String,
+      trim: true,
+    },
+    enableCustomVoice: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  {
+    timestamps: true,
+  },
 );
-const User = mongoose.model<IUser>('User', userSchema);
+const User = mongoose.model<IUser>("User", userSchema);
 
 export default User;

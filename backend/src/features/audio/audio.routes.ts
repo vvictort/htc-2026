@@ -6,6 +6,7 @@ import {
   getCustomVoice,
   deleteCustomVoice,
   setVoice,
+  updateAudioSettings,
 } from "./audio.controller";
 import { verifyFirebaseToken } from "../../shared/middleware/authMiddleware";
 
@@ -20,5 +21,6 @@ router.post("/voice/clone", verifyFirebaseToken, createCustomVoice);
 router.get("/voice/custom", verifyFirebaseToken, getCustomVoice);
 router.delete("/voice/custom", verifyFirebaseToken, deleteCustomVoice);
 router.put("/voice", verifyFirebaseToken, setVoice);
+router.put("/settings", verifyFirebaseToken, updateAudioSettings);
 
 export default router;
