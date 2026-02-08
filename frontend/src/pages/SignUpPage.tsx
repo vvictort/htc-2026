@@ -14,7 +14,7 @@ export default function SignUpPage() {
         <Link to="/" className="flex items-center gap-2 no-underline">
           <span className="text-4xl">👶</span>
           <span className="text-2xl font-extrabold text-charcoal tracking-tight">
-            Baby<span className="text-coral">Watcher</span>
+            Lulla<span className="text-coral">link</span>
           </span>
         </Link>
       </motion.div>

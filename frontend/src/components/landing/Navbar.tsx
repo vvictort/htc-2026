@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion, AnimatePresence, easeInOut, easeOut } from 'framer-motion';
-import { isAuthenticated, logout } from '../../utils/auth';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { motion, AnimatePresence, easeInOut, easeOut } from "framer-motion";
+import { isAuthenticated, logout } from "../../utils/auth";
 
 const navLinks = [
   { label: "Features", href: "/#features" },
@@ -23,10 +23,10 @@ export default function Navbar() {
 
   const isLoggedIn = isAuthenticated();
 
-    const handleLogout = () => {
-        logout();
-        window.location.href = '/';
-    };
+  const handleLogout = () => {
+    logout();
+    window.location.href = "/";
+  };
 
   return (
     <motion.nav
@@ -44,13 +44,13 @@ export default function Navbar() {
         <Link to="/" className="flex items-center gap-2 no-underline">
           <motion.img
             src="/logo.svg"
-            alt="BabyWatcher"
+            alt="Lullalink"
             className="w-8 h-8"
             whileHover={{ rotate: [0, -5, 5, 0] }}
             transition={{ duration: 0.4 }}
           />
-          <span className="text-lg font-bold text-charcoal">
-            Baby<span className="text-coral">Watcher</span>
+          <span className="text-2xl font-extrabold text-charcoal tracking-tight">
+            Lulla<span className="text-coral">link</span>
           </span>
         </Link>
 

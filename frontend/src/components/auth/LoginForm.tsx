@@ -38,7 +38,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     password: "",
   });
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
-  const [apiError, setApiError] = useState<string>("");  const [apiHelp, setApiHelp] = useState<string>("");
+  const [apiError, setApiError] = useState<string>("");
+  const [apiHelp, setApiHelp] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -252,7 +253,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       className="w-full max-w-md mx-auto">
       <div className="bg-white rounded-card border border-white/60 shadow-[0_20px_50px_rgba(31,29,43,0.15)] p-8">
         <h2 className="text-3xl font-extrabold text-charcoal mb-2 text-center">Welcome Back</h2>
-        <p className="text-mid-gray text-center mb-6">Log in to your BabyWatcher account</p>
+        <p className="text-mid-gray text-center mb-6">Log in to your Lullalink account</p>
 
         {/* Error Message */}
         {apiError && (
@@ -410,9 +411,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span className="text-sm font-medium">
-              {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
-            </span>
+            <span className="text-sm font-medium">{isGoogleLoading ? "Signing in..." : "Sign in with Google"}</span>
           </button>
         </div>
       </div>

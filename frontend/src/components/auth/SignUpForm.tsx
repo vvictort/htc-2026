@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent, ChangeEvent } from "react";
 import { motion } from "framer-motion";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithCustomToken, signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../../config/firebase";
 
 interface SignUpFormData {
@@ -158,6 +158,10 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
         }),
       });
 
+      // ... (imports remain)
+
+      // ... inside SignUpForm component ...
+
       const data: ApiError | ApiSuccess = await response.json();
 
       if (!response.ok) {
@@ -169,14 +173,23 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
         const successData = data as ApiSuccess;
         setApiSuccess(successData.message || "Account created successfully!");
 
-        // Store tokens if provided (for immediate login)
-        if (successData.idToken || successData.customToken) {
-          const token = successData.idToken || successData.customToken;
-          localStorage.setItem("idToken", token!);
-          if (successData.refreshToken) {
-            localStorage.setItem("refreshToken", successData.refreshToken);
+        // If we got a custom token, sign in with it to get a real ID token
+        if (successData.customToken) {
+          try {
+            const userCredential = await signInWithCustomToken(auth, successData.customToken);
+            const idToken = await userCredential.user.getIdToken();
+
+            localStorage.setItem("idToken", idToken);
+            if (successData.refreshToken) {
+              localStorage.setItem("refreshToken", successData.refreshToken);
+            }
+            localStorage.setItem("user", JSON.stringify(successData.user));
+
+            console.log("✅ Successfully swapped custom token for ID token");
+          } catch (authError) {
+            console.error("Failed to sign in with custom token:", authError);
+            setApiError("Account created, but auto-login failed. Please log in manually.");
           }
-          localStorage.setItem("user", JSON.stringify(successData.user));
         }
 
         // Clear form
@@ -191,12 +204,12 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
         // Mark as new user for onboarding redirection after login
         sessionStorage.setItem("isNewUser", "true");
 
-        // Redirect to login after 2 seconds
+        // Redirect
         if (onSuccess) {
           setTimeout(onSuccess, 1000);
         } else {
           setTimeout(() => {
-            window.location.href = "/dashboard";
+            window.location.href = "/onboarding"; // Redirect to onboarding directly
           }, 1000);
         }
       }
@@ -287,7 +300,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
       className="w-full max-w-md mx-auto">
       <div className="bg-white rounded-card border border-white/60 shadow-[0_20px_50px_rgba(31,29,43,0.15)] p-8">
         <h2 className="text-3xl font-extrabold text-charcoal mb-2 text-center">Create Account</h2>
-        <p className="text-mid-gray text-center mb-6">Join BabyWatcher today</p>
+        <p className="text-mid-gray text-center mb-6">Join Lullalink today</p>
         {/* Success Message */}
         {apiSuccess && (
           <motion.div

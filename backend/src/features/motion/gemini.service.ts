@@ -12,8 +12,8 @@
 import { MotionCategory, ThreatLevel } from "../../shared/models/MotionLog";
 
 interface GeminiClassification {
-    threatLevel: ThreatLevel;
-    reason: string;
+  threatLevel: ThreatLevel;
+  reason: string;
 }
 
 const GEMINI_MODEL = "gemini-2.0-flash";
@@ -23,14 +23,10 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
  * Build the prompt for Gemini. We give it structured context so the
  * response is deterministic and parseable.
  */
-function buildPrompt(
-    category: MotionCategory,
-    confidence: number,
-    metadata?: Record<string, unknown>
-): string {
-    const metaStr = metadata ? `\nAdditional sensor data: ${JSON.stringify(metadata)}` : "";
+function buildPrompt(category: MotionCategory, confidence: number, metadata?: Record<string, unknown>): string {
+  const metaStr = metadata ? `\nAdditional sensor data: ${JSON.stringify(metadata)}` : "";
 
-    return `You are a baby safety AI assistant integrated into a smart baby monitor.
+  return `You are a baby safety AI assistant integrated into a smart baby monitor.
 
 An OpenCV camera module has detected the following baby motion category:
   Category: "${category}"
@@ -61,130 +57,82 @@ Respond with ONLY a valid JSON object (no markdown, no code fences):
  * Falls back to a rule-based classifier if Gemini is unavailable.
  */
 export async function classifyMotion(
-    category: MotionCategory,
-    confidence: number,
-    metadata?: Record<string, unknown>
+  category: MotionCategory,
+  confidence: number,
+  metadata?: Record<string, unknown>,
 ): Promise<GeminiClassification> {
-    const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) {
-        console.warn("⚠️  GEMINI_API_KEY not set — using rule-based fallback classifier");
-        return fallbackClassify(category, confidence);
+  if (!apiKey) {
+    console.error("❌ GEMINI_API_KEY not set — cannot classify motion");
+    return {
+      threatLevel: "caution",
+      reason: "GEMINI_API_KEY missing. Cannot classify.",
+    };
+  }
+
+  try {
+    const prompt = buildPrompt(category, confidence, metadata);
+
+    console.log("🚀 Calling Gemini API for motion classification...");
+    const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1, // near-deterministic
+          maxOutputTokens: 150,
+          responseMimeType: "application/json",
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`❌ Gemini API error (${res.status}):`, errText);
+      return {
+        threatLevel: "caution",
+        reason: `Gemini API error: ${res.status}`,
+      };
     }
 
-    try {
-        const prompt = buildPrompt(category, confidence, metadata);
+    const data = (await res.json()) as {
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+      }>;
+    };
 
-        const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [{ text: prompt }],
-                    },
-                ],
-                generationConfig: {
-                    temperature: 0.1,       // near-deterministic
-                    maxOutputTokens: 150,
-                    responseMimeType: "application/json",
-                },
-            }),
-        });
+    // Extract the text from Gemini's response
+    const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-        if (!res.ok) {
-            const errText = await res.text();
-            console.error(`❌ Gemini API error (${res.status}):`, errText);
-            return fallbackClassify(category, confidence);
-        }
+    // Strip potential markdown fences just in case
+    const cleaned = text.replace(/```json\s*|```/g, "").trim();
+    const parsed = JSON.parse(cleaned) as {
+      threatLevel?: string;
+      reason?: string;
+    };
 
-        const data = (await res.json()) as {
-            candidates?: Array<{
-                content?: { parts?: Array<{ text?: string }> };
-            }>;
-        };
+    const validLevels: ThreatLevel[] = ["safe", "caution", "danger"];
+    const level = validLevels.includes(parsed.threatLevel as ThreatLevel)
+      ? (parsed.threatLevel as ThreatLevel)
+      : "caution";
 
-        // Extract the text from Gemini's response
-        const text: string =
-            data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    console.log("✨ Gemini API called successfully and returned classification.");
 
-        // Strip potential markdown fences just in case
-        const cleaned = text.replace(/```json\s*|```/g, "").trim();
-        const parsed = JSON.parse(cleaned) as {
-            threatLevel?: string;
-            reason?: string;
-        };
-
-        const validLevels: ThreatLevel[] = ["safe", "caution", "danger"];
-        const level = validLevels.includes(parsed.threatLevel as ThreatLevel)
-            ? (parsed.threatLevel as ThreatLevel)
-            : "caution";
-
-        return {
-            threatLevel: level,
-            reason: parsed.reason || "Classified by Gemini.",
-        };
-    } catch (err) {
-        console.error("❌ Gemini classification failed, using fallback:", err);
-        return fallbackClassify(category, confidence);
-    }
-}
-
-/**
- * Rule-based fallback when Gemini is unavailable.
- */
-function fallbackClassify(
-    category: MotionCategory,
-    _confidence: number
-): GeminiClassification {
-    switch (category) {
-        case "still":
-        case "slight_movement":
-            return { threatLevel: "safe", reason: "Normal resting behaviour." };
-
-        case "rolling":
-        case "crawling":
-        case "sitting_up":
-            return {
-                threatLevel: "safe",
-                reason: "Normal developmental movement detected.",
-            };
-
-        case "standing":
-            return {
-                threatLevel: "caution",
-                reason: "Baby is standing — potential fall risk in crib.",
-            };
-
-        case "flailing":
-            return {
-                threatLevel: "caution",
-                reason: "Erratic movement detected — may indicate discomfort.",
-            };
-
-        case "crying_motion":
-            return {
-                threatLevel: "caution",
-                reason: "Crying motion detected — baby may need attention.",
-            };
-
-        case "face_covered":
-            return {
-                threatLevel: "danger",
-                reason: "Face appears covered — possible suffocation risk.",
-            };
-
-        case "out_of_frame":
-            return {
-                threatLevel: "caution",
-                reason: "Baby moved out of camera view.",
-            };
-
-        case "unknown":
-        default:
-            return {
-                threatLevel: "caution",
-                reason: "Unrecognised motion pattern detected.",
-            };
-    }
+    return {
+      threatLevel: level,
+      reason: parsed.reason || "Classified by Gemini.",
+    };
+  } catch (err) {
+    console.error("❌ Gemini classification failed:", err);
+    return {
+      threatLevel: "caution",
+      reason: "Gemini classification threw an exception.",
+    };
+  }
 }

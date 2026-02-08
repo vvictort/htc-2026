@@ -88,7 +88,7 @@ export default function OnboardingPage() {
         <div className="bg-coral/10 p-6 md:p-8 md:w-1/3 flex flex-col justify-between border-b md:border-b-0 md:border-r border-warm-cream">
           <div>
             <div className="text-3xl md:text-4xl mb-4 md:mb-6">👶</div>
-            <h1 className="text-xl md:text-2xl font-extrabold text-charcoal mb-2">Welcome to BabyWatcher!</h1>
+            <h1 className="text-xl md:text-2xl font-extrabold text-charcoal mb-2">Welcome to Lullalink!</h1>
             <p className="text-mid-gray text-xs md:text-sm">
               Let's get everything set up perfectly for you and your little one.
             </p>

@@ -1,6 +1,12 @@
-# HTC-2026 — BabyWatcher 👶🎵
+# HTC-2026 —# Lullalink 👶🤖
 
-A modern baby monitor application with real-time video monitoring, AI-powered pose detection, voice cloning, lullaby generation, and multi-channel notifications (email, SMS, push). Parents can watch their baby live from anywhere using cross-network WebRTC streaming with TURN server support, receive instant alerts with snapshots, and send personalized audio messages using their own cloned voice.
+**AI-Powered Baby Monitor for Generation Alpha Parents**
+
+Lullalink is a smart baby monitoring system that uses computer vision (OpenCV) and Generative AI (Google Gemini 2.0 Flash) to detect potential threats in real-time. It doesn't just tell you _that_ your baby is moving—it tells you _why_ success is a threat.
+
+## 🚀 Features
+
+Parents can watch their baby live from anywhere using cross-network WebRTC streaming with TURN server support, receive instant alerts with snapshots, and send personalized audio messages using their own cloned voice.
 
 ## Architecture
 
@@ -222,7 +228,7 @@ htc-2026/
 │   │   │   ├── OnboardingPage.tsx   # New user onboarding flow
 │   │   │   ├── AboutPage.tsx        # About page
 │   │   │   └── AuthShowcase.tsx     # Auth UI demo
-│   │   ├── context/
+│   │   │   ├── context/
 │   │   │   ├── AuthContext.tsx      # Firebase + storage fallback auth
 │   │   │   └── useAuth.ts          # Auth hook
 │   │   ├── config/
@@ -234,7 +240,7 @@ htc-2026/
 │   │       └── fonts.css
 │   └── .env
 │
-├── baby-watcher/                     # Pose detection engine (TensorFlow.js)
+├── lullalink/                     # Pose detection engine (TensorFlow.js)
 │   └── src/pose/PoseEngine.tsx
 │
 └── README.md
@@ -284,13 +290,15 @@ htc-2026/
 ### Key Frontend Features
 
 #### Baby Device Mode (`/baby`)
+
 - **Full-screen camera broadcaster** with mirrored video preview (CSS `scaleX(-1)`)
-- HUD overlay: BabyWatcher branding + red pulse "Live" indicator + Stop button
+- HUD overlay: Lullalink branding + red pulse "Live" indicator + Stop button
 - Floating status pills: viewer count, last notification event
 - Automatic room pairing via Firebase UID
 - **Screen Wake Lock API** — keeps screen on while broadcasting, re-acquires on tab visibility change
 
 #### Parent Monitor (`/monitor`)
+
 - **Full-screen stream viewer** with connection status indicators
 - Tap-to-toggle HUD with gradient overlays
 - **Right-edge floating action buttons:**
@@ -300,6 +308,7 @@ htc-2026/
 - Auto-connects to baby device on the same account
 
 #### Dashboard (`/dashboard`)
+
 - **Live stats row**: active monitors (polled every 10s from `/api/status`), unread notification count, server status indicator
 - **Daily parenting quote**
 - **Baby Monitor card** with live badge + direct link to `/monitor`
@@ -308,12 +317,14 @@ htc-2026/
 - Framer Motion stagger animations
 
 #### Notifications (`/notifications`)
+
 - Paginated notification list with color-coded types (motion/sound/boundary/unknown)
 - Inline snapshot thumbnails from baby camera
 - Mark single or all as read
 - Real-time push via Socket.IO (`subscribe-notifications` → `new-notification`)
 
 #### Profile & Settings (`/profile`)
+
 - Profile details: display name, email, phone (for SMS alerts)
 - Notification preferences: email / SMS / push toggle cards
 - **Voice Dubbing** (tabbed UI):
@@ -321,6 +332,7 @@ htc-2026/
   - **My Voice Clone** tab — record audio samples, upload for cloning
 
 ### Auth System
+
 - `AuthProvider` wraps the app, exposes `currentUser`, `token`, `loading`
 - Primary: Firebase `onAuthStateChanged` → `getIdToken(user, true)` for fresh JWT
 - Fallback: reads `idToken` + `user` from `localStorage`/`sessionStorage` for backend-API-only login
@@ -334,6 +346,7 @@ htc-2026/
 Base URL: `http://localhost:5000/api`
 
 All protected routes require:
+
 ```
 Authorization: Bearer <firebase-id-token>
 ```
@@ -343,6 +356,7 @@ Authorization: Bearer <firebase-id-token>
 ### 🔐 Authentication (`/api/auth`)
 
 #### Sign Up
+
 ```http
 POST /api/auth/signup
 Content-Type: application/json
@@ -354,7 +368,9 @@ Content-Type: application/json
   "phone": "+15551234567"           // optional, for SMS alerts
 }
 ```
+
 **Response (201):**
+
 ```json
 {
   "message": "User created successfully",
@@ -369,6 +385,7 @@ Content-Type: application/json
 ```
 
 #### Login
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -378,7 +395,9 @@ Content-Type: application/json
   "password": "securePassword123"
 }
 ```
+
 **Response (200):**
+
 ```json
 {
   "message": "Login successful",
@@ -395,6 +414,7 @@ Content-Type: application/json
 ```
 
 #### Google OAuth Login
+
 ```http
 POST /api/auth/google
 Content-Type: application/json
@@ -403,14 +423,18 @@ Content-Type: application/json
   "idToken": "google_id_token_from_popup"
 }
 ```
+
 **Response (200):** Same shape as login response with `customToken`.
 
 #### Get Current User
+
 ```http
 GET /api/auth/me
 Authorization: Bearer <token>
 ```
+
 **Response (200):**
+
 ```json
 {
   "user": {
@@ -427,6 +451,7 @@ Authorization: Bearer <token>
 ### 🎵 Audio / Text-to-Speech (`/api/audio`)
 
 #### Stream TTS Audio
+
 ```http
 POST /api/audio/stream
 Authorization: Bearer <token>
@@ -438,6 +463,7 @@ Content-Type: application/json
   "voiceId": "optional-voice-id"
 }
 ```
+
 **Response:** `audio/mpeg` binary stream (MP3)
 
 **Voice priority:** `voiceId` param → user's custom cloned voice (if `enableCustomVoice` is true) → default ElevenLabs voice
@@ -445,7 +471,9 @@ Content-Type: application/json
 **Model:** `eleven_turbo_v2`
 
 #### Generate Lullaby (Music Generation)
+
 AI-generated instrumental music, ambient sounds, and humming via ElevenLabs Music Generation API (`music_v1`).
+
 ```http
 POST /api/audio/lullaby
 Authorization: Bearer <token>
@@ -457,31 +485,35 @@ Content-Type: application/json
   "length": "medium"
 }
 ```
+
 **Response:** `audio/mpeg` binary stream
 
 **Vibes:**
-| Vibe      | Description                                                     |
+| Vibe | Description |
 | --------- | --------------------------------------------------------------- |
 | `lullaby` | Soft singing vocals, gentle humming & warm melody (with vocals) |
-| `classic` | Music box melody, soft piano arpeggios & warm humming           |
-| `nature`  | Birdsong, crickets, flowing streams with celeste melody         |
-| `cosmic`  | Ethereal synth pads, twinkling chimes, weightless drones        |
-| `ocean`   | Gentle waves, harp glissandos & acoustic guitar                 |
-| `rainy`   | Rain on glass, distant thunder & solo piano                     |
+| `classic` | Music box melody, soft piano arpeggios & warm humming |
+| `nature` | Birdsong, crickets, flowing streams with celeste melody |
+| `cosmic` | Ethereal synth pads, twinkling chimes, weightless drones |
+| `ocean` | Gentle waves, harp glissandos & acoustic guitar |
+| `rainy` | Rain on glass, distant thunder & solo piano |
 
 **Durations:**
-| Length   | Duration |
+| Length | Duration |
 | -------- | -------- |
-| `short`  | 30s      |
-| `medium` | 60s      |
-| `long`   | 120s     |
+| `short` | 30s |
+| `medium` | 60s |
+| `long` | 120s |
 
 #### Get Available Voices
+
 ```http
 GET /api/audio/voices
 Authorization: Bearer <token>
 ```
+
 **Response (200):**
+
 ```json
 {
   "voices": [
@@ -500,6 +532,7 @@ Authorization: Bearer <token>
 ### 🎤 Voice Cloning (`/api/audio/voice`)
 
 #### Clone Voice from Audio Samples
+
 ```http
 POST /api/audio/voice/clone
 Authorization: Bearer <token>
@@ -509,7 +542,9 @@ Form Fields:
   name:    "Mom's Voice"        (required)
   samples: audio_file.webm      (required, 1-3 files)
 ```
+
 **Response (201):**
+
 ```json
 {
   "message": "Custom voice created successfully",
@@ -519,18 +554,21 @@ Form Fields:
 ```
 
 #### Get Custom Voice Details
+
 ```http
 GET /api/audio/voice/custom
 Authorization: Bearer <token>
 ```
 
 #### Delete Custom Voice
+
 ```http
 DELETE /api/audio/voice/custom
 Authorization: Bearer <token>
 ```
 
 #### Set Active Voice (Preset)
+
 ```http
 PUT /api/audio/voice
 Authorization: Bearer <token>
@@ -542,6 +580,7 @@ Content-Type: application/json
 ```
 
 #### Update Audio Settings
+
 ```http
 PUT /api/audio/settings
 Authorization: Bearer <token>
@@ -557,7 +596,9 @@ Content-Type: application/json
 ### 🔔 Notifications (`/api/notifications`)
 
 #### Create Notification (Trigger Alert)
+
 Called by the baby monitor camera when an event is detected (via `Broadcaster.tsx` `sendMonitorEvent`).
+
 ```http
 POST /api/notifications
 Authorization: Bearer <token>
@@ -569,9 +610,11 @@ Content-Type: application/json
   "details": { "side": "left" }
 }
 ```
+
 **Reason codes:** `ACTIVE` → motion, `BOUNDARY` → boundary, `UNKNOWN` → unknown, `SOUND` → sound
 
 **Response (201):**
+
 ```json
 {
   "id": "notification_id",
@@ -584,16 +627,20 @@ Content-Type: application/json
 ```
 
 **Side effects (fire-and-forget):**
+
 - Emits `new-notification` via Socket.IO to `user:<firebaseUid>` room
 - Sends email via SendGrid (if `notificationPreferences.email` is `true`)
 - Sends SMS via Twilio (if `notificationPreferences.sms` is `true` and `phone` is set)
 
 #### List Notifications (Paginated)
+
 ```http
 GET /api/notifications?page=1&limit=30
 Authorization: Bearer <token>
 ```
+
 **Response (200):**
+
 ```json
 {
   "notifications": [ ... ],
@@ -605,23 +652,28 @@ Authorization: Bearer <token>
 ```
 
 #### Mark Single as Read
+
 ```http
 PUT /api/notifications/:id/read
 Authorization: Bearer <token>
 ```
 
 #### Mark All as Read
+
 ```http
 PUT /api/notifications/read-all
 Authorization: Bearer <token>
 ```
 
 #### Get Notification Preferences
+
 ```http
 GET /api/notifications/preferences
 Authorization: Bearer <token>
 ```
+
 **Response (200):**
+
 ```json
 {
   "notificationPreferences": {
@@ -634,6 +686,7 @@ Authorization: Bearer <token>
 ```
 
 #### Update Notification Preferences
+
 ```http
 PUT /api/notifications/preferences
 Authorization: Bearer <token>
@@ -649,11 +702,12 @@ Content-Type: application/json
 
 ---
 
-### � Motion Events (`/api/motion`)
+### Motion Events (`/api/motion`)
 
 Receives motion categories from the OpenCV camera monitor, classifies threat level via Gemini AI, logs the event, and triggers notifications for caution/danger events.
 
 #### Log Motion Event
+
 ```http
 POST /api/motion
 Authorization: Bearer <token>
@@ -668,21 +722,22 @@ Content-Type: application/json
 ```
 
 **Valid categories:**
-| Category          | Description                         |
+| Category | Description |
 | ----------------- | ----------------------------------- |
-| `still`           | Baby lying still / sleeping         |
-| `slight_movement` | Minor twitching, subtle shifts      |
-| `rolling`         | Rolling over                        |
-| `crawling`        | Crawling movement                   |
-| `sitting_up`      | Sitting up from lying position      |
-| `standing`        | Pulling to stand / standing         |
-| `flailing`        | Erratic arm/leg flailing            |
-| `crying_motion`   | Body shaking associated with crying |
-| `face_covered`    | Face covered by blanket/object      |
-| `out_of_frame`    | Baby moved out of camera frame      |
-| `unknown`         | Unclassifiable motion               |
+| `still` | Baby lying still / sleeping |
+| `slight_movement` | Minor twitching, subtle shifts |
+| `rolling` | Rolling over |
+| `crawling` | Crawling movement |
+| `sitting_up` | Sitting up from lying position |
+| `standing` | Pulling to stand / standing |
+| `flailing` | Erratic arm/leg flailing |
+| `crying_motion` | Body shaking associated with crying |
+| `face_covered` | Face covered by blanket/object |
+| `out_of_frame` | Baby moved out of camera frame |
+| `unknown` | Unclassifiable motion |
 
 **Response (201):**
+
 ```json
 {
   "id": "motion_log_id",
@@ -696,13 +751,14 @@ Content-Type: application/json
 ```
 
 **Threat classification (Gemini AI):**
-| Threat Level | Meaning                                    | Notification              |
+| Threat Level | Meaning | Notification |
 | ------------ | ------------------------------------------ | ------------------------- |
-| `safe`       | Normal behaviour, no concern               | No                        |
-| `caution`    | Unusual but not immediately dangerous      | Yes (email/SMS per prefs) |
-| `danger`     | Potentially dangerous, immediate attention | Yes (email/SMS per prefs) |
+| `safe` | Normal behaviour, no concern | No |
+| `caution` | Unusual but not immediately dangerous | Yes (email/SMS per prefs) |
+| `danger` | Potentially dangerous, immediate attention | Yes (email/SMS per prefs) |
 
 **Side effects (caution/danger only):**
+
 - Creates a `Notification` record
 - Emits `new-notification` via Socket.IO
 - Sends email via SendGrid (if `notificationPreferences.email`)
@@ -711,11 +767,14 @@ Content-Type: application/json
 **Fallback:** If `GEMINI_API_KEY` is not set, a rule-based classifier is used (e.g. `face_covered` → always `danger`).
 
 #### List Motion Logs (Paginated)
+
 ```http
 GET /api/motion?page=1&limit=50&threatLevel=danger&category=face_covered
 Authorization: Bearer <token>
 ```
+
 **Response (200):**
+
 ```json
 {
   "logs": [
@@ -739,13 +798,28 @@ Authorization: Bearer <token>
 ```
 
 #### List Valid Categories (Public)
+
 ```http
 GET /api/motion/categories
 ```
+
 **Response (200):**
+
 ```json
 {
-  "categories": ["still", "slight_movement", "rolling", "crawling", "sitting_up", "standing", "flailing", "crying_motion", "face_covered", "out_of_frame", "unknown"]
+  "categories": [
+    "still",
+    "slight_movement",
+    "rolling",
+    "crawling",
+    "sitting_up",
+    "standing",
+    "flailing",
+    "crying_motion",
+    "face_covered",
+    "out_of_frame",
+    "unknown"
+  ]
 }
 ```
 
@@ -759,21 +833,23 @@ GET /                →  { "message": "Welcome to the TypeScript Express API", 
 ```
 
 #### Live Server Status
+
 ```http
 GET /api/status
 ```
+
 **Response (200):**
+
 ```json
 {
   "activeMonitors": 1,
   "totalViewers": 2,
-  "activeRooms": [
-    { "roomId": "baby-HCL0S7LxnW", "hasCamera": true, "viewers": 2 }
-  ],
+  "activeRooms": [{ "roomId": "baby-HCL0S7LxnW", "hasCamera": true, "viewers": 2 }],
   "serverStatus": "online",
   "uptime": 3600.5
 }
 ```
+
 Data is ephemeral (in-memory via Socket.IO rooms), not persisted in MongoDB. Dashboard polls this every 10 seconds.
 
 ---
@@ -781,10 +857,13 @@ Data is ephemeral (in-memory via Socket.IO rooms), not persisted in MongoDB. Das
 ### 📡 WebRTC (`/api/webrtc`)
 
 #### Get ICE Servers (STUN + TURN)
+
 ```http
 GET /api/webrtc/ice-servers
 ```
+
 **Response (200):**
+
 ```json
 {
   "iceServers": [
@@ -798,6 +877,7 @@ GET /api/webrtc/ice-servers
   ]
 }
 ```
+
 - Custom TURN server via env vars: `TURN_SERVER_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`
 - Falls back to free openrelay.metered.ca TURN servers if env vars are not set
 - Both Broadcaster and Viewer fetch ICE servers at mount
@@ -842,9 +922,11 @@ Connect to `http://localhost:5000` via Socket.IO.
 ### WebRTC Room Pairing
 
 Both devices auto-derive the room ID from the user's Firebase UID:
+
 ```
 roomId = `baby-${user.uid.slice(0, 12)}`
 ```
+
 Devices on the **same account** connect automatically without manual room entry.
 
 ### Two-Device Setup
@@ -865,6 +947,7 @@ Devices on the **same account** connect automatically without manual room entry.
 ## Database Schemas
 
 ### User
+
 ```typescript
 {
   firebaseUid: string;              // Firebase Auth UID (unique, indexed)
@@ -884,6 +967,7 @@ Devices on the **same account** connect automatically without manual room entry.
 ```
 
 ### Notification
+
 ```typescript
 {
   userId: ObjectId;                  // Ref → User (indexed)
@@ -899,6 +983,7 @@ Devices on the **same account** connect automatically without manual room entry.
 ```
 
 ### AudioLog
+
 ```typescript
 {
   userId: ObjectId;                  // Ref → User
@@ -913,6 +998,7 @@ Devices on the **same account** connect automatically without manual room entry.
 ```
 
 ### MotionLog
+
 ```typescript
 {
   userId: ObjectId;                  // Ref → User (indexed)
@@ -934,6 +1020,7 @@ Devices on the **same account** connect automatically without manual room entry.
 ## Setup & Installation
 
 ### Prerequisites
+
 - Node.js 18+
 - MongoDB Atlas account
 - Firebase project (Admin SDK + Web API key)
@@ -945,6 +1032,7 @@ Devices on the **same account** connect automatically without manual room entry.
 ### Environment Variables
 
 Create `backend/.env`:
+
 ```env
 # Server
 PORT=5000
@@ -982,6 +1070,7 @@ TURN_CREDENTIAL=your-credential
 ```
 
 Create `frontend/.env`:
+
 ```env
 VITE_API_URL=http://localhost:5000/api
 VITE_FIREBASE_API_KEY=AIzaSyXXXX

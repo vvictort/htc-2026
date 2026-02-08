@@ -11,7 +11,7 @@ const footerLinks = {
   right: [
     { label: "Our Team", href: "/about" },
     { label: "Events", href: "#" },
-    { label: "Contact Us", href: "mailto:hello@babywatcher.com" },
+    { label: "Contact Us", href: "mailto:hello@lullalink.com" },
   ],
 };
 
@@ -55,12 +55,14 @@ export default function Footer() {
               viewport={{ once: true }}
               className="flex flex-col items-center">
               <div className="flex items-center gap-2 mb-2">
-                <img src="/logo.svg" alt="BabyWatcher Logo" className="w-10 h-10" />
-                <span className="text-2xl font-bold text-charcoal">
-                  Baby<span className="text-coral">Watcher</span>
+                <span className="text-3xl">👶</span>
+                <span className="text-2xl font-extrabold text-charcoal tracking-tight">
+                  Lulla<span className="text-coral">link</span>
                 </span>
               </div>
-              <span className="text-xs text-mid-gray">Watch with Love & Care</span>
+              <p className="text-mid-gray text-sm md:text-base mb-6 max-w-sm">
+                AI-powered peace of mind for modern parents. Watch over your little ones with love and technology.
+              </p>
 
               {/* Social Icons */}
               <div className="flex items-center gap-4 mt-4">
@@ -115,9 +117,7 @@ export default function Footer() {
 
           {/* Bottom Bar */}
           <div className="border-t border-charcoal/10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <span className="text-xs text-mid-gray">
-              © {new Date().getFullYear()} BabyWatcher. All rights reserved.
-            </span>
+            <p className="text-sm text-mid-gray/80">© {new Date().getFullYear()} Lullalink. All rights reserved.</p>
             <div className="flex items-center gap-2">
               <BabyFootprints className="w-6 h-4 text-coral/50" />
               <span className="text-xs text-mid-gray">Designed for parents who care</span>

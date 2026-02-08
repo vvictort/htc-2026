@@ -65,10 +65,11 @@ export default function AboutPage() {
             viewport={{ once: true }}
             className="mb-16">
             <div className="bg-soft-yellow/30 rounded-4xl p-8 md:p-12">
-              <h2 className="text-2xl md:text-3xl font-bold text-charcoal mb-4">Our Mission 💛</h2>
-              <p className="text-mid-gray leading-relaxed">
-                To empower parents with technology that keeps them connected to their babies, wherever they are. We
-                believe every parent deserves real-time peace of mind without complexity or compromise.
+              <h2 className="text-3xl font-bold text-charcoal mb-6">Our Mission</h2>
+              <p className="text-lg text-mid-gray mb-6 leading-relaxed">
+                Lullalink was born from a simple question: "How can we give parents peace of mind without compromising
+                their baby's privacy?" We believe every parent deserves real-time peace of mind without complexity or
+                compromise.
               </p>
             </div>
           </motion.section>

@@ -35,14 +35,12 @@ export default function CTA() {
               <span className="text-3xl">💛</span>
             </motion.div>
 
-            <h2 className="text-charcoal mb-4">
-              Ready to keep your
-              <br />
-              <span className="text-italic text-coral">little one safe?</span>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-charcoal mb-6 leading-tight">
+              Ready to experience <br />
+              <span className="text-coral">Lullalink?</span>
             </h2>
-
-            <p className="text-mid-gray text-base mb-8 max-w-lg mx-auto">
-              Join thousands of parents who trust BabyWatcher for real-time monitoring. Free to start, no credit card
+            <p className="text-lg md:text-xl text-mid-gray mb-8 max-w-2xl mx-auto">
+              Join thousands of parents who trust Lullalink for real-time monitoring. Free to start, no credit card
               required.
             </p>
 
