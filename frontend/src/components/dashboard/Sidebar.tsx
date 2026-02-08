@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { logout } from "../../utils/auth";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -13,9 +14,18 @@ export default function Sidebar() {
     { label: "Settings", path: "/profile", icon: "⚙️" },
   ];
 
-  const handleLogout = () => {
-    // Add logout logic here (clear tokens, etc.)
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      // Use centralized logout utility
+      await logout();
+      
+      // Redirect to home page
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Redirect anyway
+      navigate("/");
+    }
   };
 
   return (
@@ -32,8 +42,10 @@ export default function Sidebar() {
         className={`peer fixed inset-y-0 left-0 z-40 bg-white/95 backdrop-blur-xl border-r border-warm-cream shadow-2xl flex flex-col transition-all duration-300 ease-in-out ${
           isMobileMenuOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0 lg:w-28 lg:hover:w-72"
         } rounded-r-3xl my-2 ml-2 h-[calc(100vh-16px)] group overflow-hidden`}>
-        {/* Logo Area */}
-        <div className="p-8 border-b border-warm-cream/50 flex items-center gap-3 overflow-hidden whitespace-nowrap">
+        {/* Logo Area - Clickable to go home */}
+        <button
+          onClick={() => navigate("/")}
+          className="p-8 border-b border-warm-cream/50 flex items-center gap-3 overflow-hidden whitespace-nowrap hover:bg-warm-cream/30 transition-colors duration-300 w-full text-left cursor-pointer">
           <span className="text-4xl animate-bounce-slow shrink-0">👶</span>
           <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-x-10 group-hover:translate-x-0">
             <h1 className="font-extrabold text-2xl text-charcoal leading-none tracking-tight">
@@ -43,7 +55,7 @@ export default function Sidebar() {
               Dashboard
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Navigation */}
         <nav className="flex-1 p-4 overflow-y-auto no-scrollbar overflow-x-hidden">
@@ -86,7 +98,7 @@ export default function Sidebar() {
             className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-mid-gray hover:bg-red-50 hover:text-red-500 transition-all duration-300 font-bold group/logout">
             <span className="text-2xl group-hover/logout:-translate-x-1 transition-transform shrink-0">🚪</span>
             <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-10 group-hover:translate-x-0">
-              Sign Out
+              Log Out
             </span>
           </button>
         </div>
