@@ -22,7 +22,11 @@ interface ApiSuccess {
     uid: string;
     email: string;
     displayName?: string;
+    mongoId?: string;
   };
+  idToken?: string;
+  refreshToken?: string;
+  customToken?: string;
 }
 
 interface SignUpFormProps {
@@ -152,11 +156,20 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
       if (!response.ok) {
         // Handle error response
         const errorData = data as ApiError;
-        setApiError(errorData.error || "Sign up failed");
-      } else {
+        setApiError(errorData.error || "Sign up failed");      } else {
         // Handle success response
         const successData = data as ApiSuccess;
         setApiSuccess(successData.message || "Account created successfully!");
+
+        // Store tokens if provided (for immediate login)
+        if (successData.idToken || successData.customToken) {
+          const token = successData.idToken || successData.customToken;
+          localStorage.setItem("idToken", token!);
+          if (successData.refreshToken) {
+            localStorage.setItem("refreshToken", successData.refreshToken);
+          }
+          localStorage.setItem("user", JSON.stringify(successData.user));
+        }
 
         // Clear form
         setFormData({
@@ -166,13 +179,13 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
           displayName: "",
         });
 
-        // Redirect to login after 2 seconds
+        // Redirect to dashboard after brief delay
         if (onSuccess) {
-          setTimeout(onSuccess, 2000);
+          setTimeout(onSuccess, 1000);
         } else {
           setTimeout(() => {
-            window.location.href = "/login";
-          }, 2000);
+            window.location.href = "/dashboard";
+          }, 1000);
         }
       }
     } catch (error) {
@@ -216,22 +229,27 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
         const errorData = data as ApiError;
         setApiError(errorData.error || "Google sign-up failed");
         return;
-      }
-
-      // Handle success response
+      }      // Handle success response
       const successData = data as ApiSuccess;
 
       // Store tokens in localStorage
       localStorage.setItem("idToken", idToken);
+      if (successData.refreshToken) {
+        localStorage.setItem("refreshToken", successData.refreshToken);
+      }
       localStorage.setItem("user", JSON.stringify(successData.user));
 
       console.log("Google sign-up successful:", successData.user);
 
-      // Show success message briefly then redirect
+      // Show success message briefly then redirect to dashboard
       setApiSuccess("Account created successfully! Redirecting...");
-      setTimeout(() => {
-        window.location.href = "/monitor";
-      }, 1000);
+      if (onSuccess) {
+        setTimeout(onSuccess, 1000);
+      } else {
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 1000);
+      }
     } catch (error: any) {
       console.error("Google sign-up error:", error);
 

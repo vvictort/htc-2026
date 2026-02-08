@@ -48,13 +48,18 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
         await newUser.save();
         console.log(`✓ User created in MongoDB: ${userRecord.uid}`);
 
+        // Generate custom token for immediate login
+        const customToken = await admin.auth().createCustomToken(userRecord.uid);
+
         res.status(201).json({
             message: 'User created successfully',
             user: {
                 uid: userRecord.uid,
                 email: userRecord.email,
                 displayName: userRecord.displayName,
+                mongoId: newUser._id,
             },
+            customToken: customToken,
         });
     } catch (error: any) {
         console.error('Sign up error:', error);
