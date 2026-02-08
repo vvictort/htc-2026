@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Notification from "../../shared/models/Notification";
 import User from "../../shared/models/User";
-import { sendEmail, sendSms, buildNotificationEmail } from "./notification.service";
+import { sendEmail, sendSms, buildNotificationEmail, createSnapshotAttachment } from "./notification.service";
 
 // Shared reference to Socket.IO instance — set from index.ts
 let ioInstance: any = null;
@@ -96,9 +96,13 @@ export const createNotification = async (req: Request, res: Response): Promise<v
     const timeStr = new Date().toLocaleTimeString();
 
     if (prefs.email && user.email) {
-      sendEmail(user.email, `🍼 Lullalink: ${message}`, buildNotificationEmail(type, message, timeStr, snapshot)).catch(
-        (e) => console.error("Email send error:", e),
-      );
+      const attachments = snapshot ? [createSnapshotAttachment(snapshot)] : undefined;
+      sendEmail(
+        user.email,
+        `🍼 Lullalink: ${message}`,
+        buildNotificationEmail(type, message, timeStr, !!snapshot),
+        attachments,
+      ).catch((e) => console.error("Email send error:", e));
     }
 
     if (prefs.sms && user.phone) {

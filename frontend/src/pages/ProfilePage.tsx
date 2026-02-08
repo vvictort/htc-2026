@@ -36,6 +36,17 @@ export default function ProfilePage() {
     }));
   };
 
+  // Validate phone number format (accepts various formats, will be normalized on backend)
+  const validatePhone = (phone: string): { valid: boolean; normalized: string | null } => {
+    if (!phone) return { valid: true, normalized: null }; // Empty is OK
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) return { valid: false, normalized: null };
+    if (digits.length === 10) return { valid: true, normalized: `+1${digits}` };
+    if (digits.length === 11 && digits.startsWith("1")) return { valid: true, normalized: `+${digits}` };
+    if (digits.length >= 10 && phone.startsWith("+")) return { valid: true, normalized: `+${digits}` };
+    return { valid: false, normalized: null };
+  };
+
   // Load notification prefs + phone on mount
   useEffect(() => {
     if (authLoading || !token) return;
@@ -252,15 +263,31 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-charcoal mb-2">Phone Number <span className="text-mid-gray font-normal">(for SMS alerts)</span></label>
+                  <label className="block text-sm font-semibold text-charcoal mb-2">
+                    Phone Number <span className="text-mid-gray font-normal">(for SMS alerts)</span>
+                  </label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="+1 (555) 123-4567"
-                    className="w-full px-4 py-3 rounded-xl bg-warm-white border border-warm-cream focus:outline-none focus:ring-2 focus:ring-coral"
+                    placeholder="(555) 123-4567"
+                    className={`w-full px-4 py-3 rounded-xl bg-warm-white border focus:outline-none focus:ring-2 transition-all ${
+                      formData.phone
+                        ? validatePhone(formData.phone).valid
+                          ? "border-soft-green focus:ring-soft-green/50 focus:border-soft-green"
+                          : "border-coral focus:ring-coral/50 focus:border-coral"
+                        : "border-warm-cream focus:ring-coral"
+                    }`}
                   />
+                  {formData.phone && (
+                    <p
+                      className={`text-xs mt-1 ${validatePhone(formData.phone).valid ? "text-soft-green" : "text-coral"}`}>
+                      {validatePhone(formData.phone).valid
+                        ? `✓ Will be saved as ${validatePhone(formData.phone).normalized}`
+                        : "Enter at least 10 digits (e.g., (555) 123-4567 or +15551234567)"}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -296,22 +323,25 @@ export default function ProfilePage() {
               ].map((item) => (
                 <label
                   key={item.id}
-                  className={`flex flex-col p-5 border rounded-2xl cursor-pointer transition-all ${formData.notifications[item.id as keyof typeof formData.notifications]
-                    ? "border-coral bg-coral/5"
-                    : "border-warm-cream hover:bg-warm-white"
-                    }`}>
+                  className={`flex flex-col p-5 border rounded-2xl cursor-pointer transition-all ${
+                    formData.notifications[item.id as keyof typeof formData.notifications]
+                      ? "border-coral bg-coral/5"
+                      : "border-warm-cream hover:bg-warm-white"
+                  }`}>
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-2xl">{item.icon}</span>
                     <div
-                      className={`w-12 h-6 rounded-full p-1 transition-colors ${formData.notifications[item.id as keyof typeof formData.notifications]
-                        ? "bg-coral"
-                        : "bg-gray-300"
-                        }`}>
+                      className={`w-12 h-6 rounded-full p-1 transition-colors ${
+                        formData.notifications[item.id as keyof typeof formData.notifications]
+                          ? "bg-coral"
+                          : "bg-gray-300"
+                      }`}>
                       <div
-                        className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${formData.notifications[item.id as keyof typeof formData.notifications]
-                          ? "translate-x-6"
-                          : "translate-x-0"
-                          }`}
+                        className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                          formData.notifications[item.id as keyof typeof formData.notifications]
+                            ? "translate-x-6"
+                            : "translate-x-0"
+                        }`}
                       />
                     </div>
                     <input
@@ -340,15 +370,17 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => setVoiceMode("preset")}
-                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${voiceMode === "preset" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
-                    }`}>
+                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+                    voiceMode === "preset" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
+                  }`}>
                   Preset Voices
                 </button>
                 <button
                   type="button"
                   onClick={() => setVoiceMode("clone")}
-                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${voiceMode === "clone" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
-                    }`}>
+                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+                    voiceMode === "clone" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
+                  }`}>
                   My Voice Clone
                 </button>
               </div>

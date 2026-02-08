@@ -76,6 +76,17 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     return null;
   };
 
+  // Validate phone number format (accepts various formats, will be normalized on backend)
+  const validatePhone = (phone: string): { valid: boolean; normalized: string | null } => {
+    if (!phone) return { valid: true, normalized: null }; // Empty is OK (optional field)
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) return { valid: false, normalized: null };
+    if (digits.length === 10) return { valid: true, normalized: `+1${digits}` };
+    if (digits.length === 11 && digits.startsWith("1")) return { valid: true, normalized: `+${digits}` };
+    if (digits.length >= 10 && phone.startsWith("+")) return { valid: true, normalized: `+${digits}` };
+    return { valid: false, normalized: null };
+  };
+
   // Handle input change with sanitization
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -125,6 +136,11 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     // Display name validation (optional but sanitized)
     if (formData.displayName && formData.displayName.length > 100) {
       newErrors.displayName = "Display name is too long";
+    }
+
+    // Phone validation (optional)
+    if (formData.phone && !validatePhone(formData.phone).valid) {
+      newErrors.phone = "Please enter a valid phone number (e.g., (555) 123-4567)";
     }
 
     setErrors(newErrors);
@@ -366,9 +382,23 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="+1 (555) 123-4567"
-              className="w-full px-4 py-2.5 rounded-lg border border-warm-cream bg-white/50 text-charcoal placeholder:text-light-gray focus:outline-none focus:ring-2 focus:ring-coral/50 focus:border-coral transition-all"
+              placeholder="(555) 123-4567"
+              className={`w-full px-4 py-2.5 rounded-lg border bg-white/50 text-charcoal placeholder:text-light-gray focus:outline-none focus:ring-2 transition-all ${
+                formData.phone
+                  ? validatePhone(formData.phone).valid
+                    ? "border-soft-green focus:ring-soft-green/50 focus:border-soft-green"
+                    : "border-coral focus:ring-coral/50 focus:border-coral"
+                  : "border-warm-cream focus:ring-coral/50 focus:border-coral"
+              }`}
             />
+            {formData.phone && (
+              <p className={`text-xs mt-1 ${validatePhone(formData.phone).valid ? "text-soft-green" : "text-coral"}`}>
+                {validatePhone(formData.phone).valid
+                  ? `✓ Will be saved as ${validatePhone(formData.phone).normalized}`
+                  : "Enter at least 10 digits (e.g., (555) 123-4567 or +15551234567)"}
+              </p>
+            )}
+            {errors.phone && <p className="text-xs text-coral mt-1">{errors.phone}</p>}
           </div>
 
           {/* Password */}

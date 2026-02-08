@@ -86,7 +86,7 @@ export async function classifyMotion(
         ],
         generationConfig: {
           temperature: 0.1, // near-deterministic
-          maxOutputTokens: 150,
+          maxOutputTokens: 256,
         },
       }),
     });
@@ -102,9 +102,10 @@ export async function classifyMotion(
         };
       }
 
+      // Return safe to avoid notifying users about API errors
       return {
-        threatLevel: "caution",
-        reason: `Gemini API error: ${res.status}`,
+        threatLevel: "safe",
+        reason: "Classification temporarily unavailable. Assumed safe.",
       };
     }
 
@@ -136,35 +137,49 @@ export async function classifyMotion(
 
       return {
         threatLevel: level,
-        reason: parsed.reason || "Classified by Gemini.",
+        reason: parsed.reason || "Baby activity detected.",
       };
     } catch {
+      // Try to extract threatLevel from partial/truncated JSON like `{"threatLevel": "safe`
+      const partialMatch = text.match(/"threatLevel"\s*:\s*"?(safe|caution|danger)/i);
+      if (partialMatch) {
+        const level = partialMatch[1].toLowerCase() as ThreatLevel;
+        console.log(`⚠️ Parsed threat level from partial JSON: ${level}`);
+        // Return user-friendly messages based on threat level
+        const friendlyReasons: Record<ThreatLevel, string> = {
+          danger: "Potential safety concern detected. Please check on your baby.",
+          caution: "Unusual activity detected. You may want to check in.",
+          safe: "Normal baby behaviour detected.",
+        };
+        return { threatLevel: level, reason: friendlyReasons[level] };
+      }
       // Fallback: extract threat level from prose response
       console.warn("⚠️ Gemini returned non-JSON response, attempting to extract threat level...");
       const lowerText = text.toLowerCase();
 
       if (lowerText.includes("danger") || lowerText.includes("suffocation") || lowerText.includes("face covered")) {
-        return { threatLevel: "danger", reason: "Gemini detected a dangerous situation (parsed from prose)." };
+        return { threatLevel: "danger", reason: "Potential safety concern detected. Please check on your baby." };
       }
       if (lowerText.includes("caution") || lowerText.includes("unusual") || lowerText.includes("attention")) {
-        return { threatLevel: "caution", reason: "Gemini suggests caution (parsed from prose)." };
+        return { threatLevel: "caution", reason: "Unusual activity detected. You may want to check in." };
       }
       if (lowerText.includes("safe") || lowerText.includes("normal") || lowerText.includes("no concern")) {
-        return { threatLevel: "safe", reason: "Gemini determined situation is safe (parsed from prose)." };
+        return { threatLevel: "safe", reason: "Normal baby behaviour detected." };
       }
 
       // Default to safe for slight_movement and still categories
       if (category === "slight_movement" || category === "still") {
-        return { threatLevel: "safe", reason: "Normal baby behaviour (default for slight_movement/still)." };
+        return { threatLevel: "safe", reason: "Baby is resting peacefully." };
       }
 
-      return { threatLevel: "caution", reason: "Unable to parse Gemini response." };
+      return { threatLevel: "caution", reason: "Activity detected. You may want to check in." };
     }
   } catch (err) {
     console.error("❌ Gemini classification failed:", err);
+    // Return safe to avoid notifying users about internal errors
     return {
-      threatLevel: "caution",
-      reason: "Gemini classification threw an exception.",
+      threatLevel: "safe",
+      reason: "Classification temporarily unavailable. Assumed safe.",
     };
   }
 }
