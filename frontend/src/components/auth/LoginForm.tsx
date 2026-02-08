@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { FormEvent, ChangeEvent } from "react";
 import { motion } from "framer-motion";
+import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider } from "../../config/firebase";
 
 interface LoginFormData {
   email: string;
@@ -36,9 +38,9 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     password: "",
   });
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
-  const [apiError, setApiError] = useState<string>("");
-  const [apiHelp, setApiHelp] = useState<string>("");
+  const [apiError, setApiError] = useState<string>("");  const [apiHelp, setApiHelp] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
   // Sanitize input - remove any potentially harmful characters
@@ -157,6 +159,82 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     }
   };
 
+  // Handle Google Sign-In
+  const handleGoogleSignIn = async () => {
+    setApiError("");
+    setApiHelp("");
+    setIsGoogleLoading(true);
+
+    try {
+      // Sign in with Google popup
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      // Get the ID token from Firebase
+      const idToken = await user.getIdToken();
+
+      // Send token to backend for verification and MongoDB user creation
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/auth/google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          idToken: idToken,
+        }),
+      });
+
+      const data: ApiError | ApiSuccess = await response.json();
+
+      if (!response.ok) {
+        // Handle error response
+        const errorData = data as ApiError;
+        setApiError(errorData.error || "Google sign-in failed");
+        if (errorData.help) {
+          setApiHelp(errorData.help);
+        }
+        return;
+      }
+
+      // Handle success response
+      const successData = data as ApiSuccess;
+
+      // Store tokens (use localStorage for Google sign-in by default)
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem("idToken", successData.idToken);
+      if (successData.refreshToken) {
+        storage.setItem("refreshToken", successData.refreshToken);
+      }
+      storage.setItem("user", JSON.stringify(successData.user));
+
+      console.log("Google sign-in successful:", successData.user);
+
+      // Redirect to dashboard
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        setTimeout(() => {
+          window.location.href = "/monitor";
+        }, 500);
+      }
+    } catch (error: any) {
+      console.error("Google sign-in error:", error);
+
+      if (error.code === "auth/popup-closed-by-user") {
+        setApiError("Sign-in cancelled");
+      } else if (error.code === "auth/network-request-failed") {
+        setApiError("Network error. Please check your connection.");
+      } else if (error.code === "auth/popup-blocked") {
+        setApiError("Popup blocked. Please allow popups for this site.");
+      } else {
+        setApiError("Google sign-in failed. Please try again.");
+      }
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -264,7 +342,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         <div className="flex justify-center">
           <button
             type="button"
-            disabled
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-warm-cream bg-white/50 text-charcoal hover:bg-warm-cream/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full">
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -284,7 +363,9 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span className="text-sm font-medium">Google</span>
+            <span className="text-sm font-medium">
+              {isGoogleLoading ? "Signing in..." : "Sign in with Google"}
+            </span>
           </button>
         </div>
       </div>

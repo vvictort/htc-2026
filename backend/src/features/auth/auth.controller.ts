@@ -197,3 +197,70 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
         res.status(500).json({ error: 'Failed to get user info' });
     }
 };
+
+// Google OAuth Login/Sign-Up - Verify Google ID token and return custom token
+export const googleLogin = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { idToken } = req.body;
+
+        // Validate input
+        if (!idToken) {
+            res.status(400).json({ error: 'Google ID token is required' });
+            return;
+        }
+
+        // Verify the Google ID token using Firebase Admin
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const uid = decodedToken.uid;
+
+        // Get user details from Firebase
+        const userRecord = await admin.auth().getUser(uid);
+
+        // Get or create MongoDB user record
+        let mongoUser = await User.findOne({ firebaseUid: uid });
+        let isNewUser = false;
+
+        if (!mongoUser) {
+            // Create MongoDB record for new Google user
+            mongoUser = new User({
+                firebaseUid: uid,
+                email: userRecord.email,
+                displayName: userRecord.displayName || userRecord.email?.split('@')[0],
+            });
+            await mongoUser.save();
+            isNewUser = true;
+            console.log(`✓ Created MongoDB record for Google user: ${uid}`);
+        }
+
+        // Generate a custom token (optional, for refresh purposes)
+        const customToken = await admin.auth().createCustomToken(uid);
+
+        res.status(200).json({
+            message: isNewUser ? 'Account created successfully' : 'Google login successful',
+            user: {
+                uid: userRecord.uid,
+                email: userRecord.email,
+                displayName: userRecord.displayName,
+                photoURL: userRecord.photoURL,
+                mongoId: mongoUser._id,
+            },
+            idToken: idToken, // Return the same token
+            customToken: customToken,
+            expiresIn: '3600', // Google tokens expire in 1 hour
+        });
+    } catch (error: any) {
+        console.error('Google auth error:', error);
+
+        if (error.code === 'auth/id-token-expired') {
+            res.status(401).json({ error: 'Google token expired. Please sign in again.' });
+            return;
+        }
+
+        if (error.code === 'auth/invalid-id-token') {
+            res.status(401).json({ error: 'Invalid Google token' });
+            return;
+        }
+
+        res.status(500).json({ error: 'Google authentication failed', details: error.message });
+    }
+};
