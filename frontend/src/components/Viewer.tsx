@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { WEBRTC_ENDPOINTS } from "../utils/api";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 interface ViewerProps {
   roomId: string;
+  fullscreen?: boolean;
 }
 
-export default function Viewer({ roomId }: ViewerProps) {
+export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<RTCPeerConnectionState>("new");
   const [error, setError] = useState<string | null>(null);
@@ -17,10 +19,25 @@ export default function Viewer({ roomId }: ViewerProps) {
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const broadcasterIdRef = useRef<string | null>(null);
+  const iceServersRef = useRef<RTCIceServer[]>([
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ]);
+
+  // Fetch TURN/STUN servers from backend for cross-network connectivity
+  useEffect(() => {
+    fetch(WEBRTC_ENDPOINTS.ICE_SERVERS)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.iceServers) iceServersRef.current = data.iceServers;
+        console.log(`[ICE] Loaded ${data.iceServers?.length ?? 0} ICE servers`);
+      })
+      .catch((err) => console.warn("[ICE] Failed to fetch ICE servers, using STUN-only fallback:", err));
+  }, []);
 
   const createPeerConnection = (): RTCPeerConnection => {
     const peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+      iceServers: iceServersRef.current,
     });
 
     peerConnection.onicecandidate = (event) => {
@@ -174,6 +191,52 @@ export default function Viewer({ roomId }: ViewerProps) {
         return "⚪";
     }
   };
+  /* ── Fullscreen mode: video fills entire container ── */
+  if (fullscreen) {
+    return (
+      <div className="relative w-full h-full bg-black">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        {/* Waiting / error overlay */}
+        {!isConnected && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="text-center space-y-4">
+              {error ? (
+                <>
+                  <span className="text-4xl block">⚠️</span>
+                  <p className="text-white/80 text-sm">{error}</p>
+                </>
+              ) : (
+                <>
+                  <div className="inline-block w-10 h-10 border-[3px] border-white/20 border-t-coral rounded-full animate-spin" />
+                  <p className="text-white/60 text-sm">
+                    {waitingForBroadcaster
+                      ? "Waiting for baby camera to come online…"
+                      : "Connecting…"}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Connection indicator pill (top-right, over video) */}
+        {isConnected && (
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
+            <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-[0.65rem] text-white/80 font-medium">Connected</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ── Default card layout (legacy) ── */
   return (
     <div className="flex flex-col gap-4 p-6 max-w-4xl w-full">
       <div className="bg-gray-800 rounded-xl shadow-2xl">
@@ -238,40 +301,6 @@ export default function Viewer({ roomId }: ViewerProps) {
               </span>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Talk to Baby (TTS) Section */}
-      <div className="bg-gray-800 rounded-xl shadow-xl overflow-hidden">
-        <div className="p-6">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-comment-dots text-coral"></i>
-            Talk to Baby
-          </h3>
-
-          <div className="flex gap-4">
-            <input
-              type="text"
-              placeholder="Type a message to say..."
-              className="flex-1 px-4 py-3 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  // Handle send logic
-                  console.log("Sending TTS:", e.currentTarget.value);
-                  e.currentTarget.value = "";
-                }
-              }}
-            />
-            <button
-              className="px-6 py-3 rounded-xl bg-coral hover:bg-coral-dark text-white font-bold transition-colors flex items-center gap-2"
-              onClick={() => {
-                // Handle send logic
-                console.log("Sending TTS");
-              }}>
-              <span>Speak</span>
-              <i className="fa-solid fa-volume-high"></i>
-            </button>
-          </div>
         </div>
       </div>
     </div>

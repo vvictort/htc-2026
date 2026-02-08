@@ -9,6 +9,7 @@ interface SignUpFormData {
   password: string;
   confirmPassword: string;
   displayName: string;
+  phone: string;
 }
 
 interface ApiError {
@@ -39,6 +40,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     password: "",
     confirmPassword: "",
     displayName: "",
+    phone: "",
   });
   const [errors, setErrors] = useState<Partial<SignUpFormData>>({});
   const [apiError, setApiError] = useState<string>("");
@@ -152,6 +154,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
           email: formData.email,
           password: formData.password,
           displayName: formData.displayName || undefined,
+          phone: formData.phone || undefined,
         }),
       });
 
@@ -182,6 +185,7 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
           password: "",
           confirmPassword: "",
           displayName: "",
+          phone: "",
         });
 
         // Mark as new user for onboarding redirection after login
@@ -336,6 +340,22 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
               className="w-full px-4 py-2.5 rounded-lg border border-warm-cream bg-white/50 text-charcoal placeholder:text-light-gray focus:outline-none focus:ring-2 focus:ring-coral/50 focus:border-coral transition-all"
             />
             {errors.email && <p className="text-xs text-coral mt-1">{errors.email}</p>}
+          </div>
+
+          {/* Phone Number */}
+          <div className="mb-4">
+            <label htmlFor="phone" className="block text-sm font-semibold text-charcoal mb-1.5">
+              Phone Number <span className="text-mid-gray font-normal">(optional, for SMS alerts)</span>
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="+1 (555) 123-4567"
+              className="w-full px-4 py-2.5 rounded-lg border border-warm-cream bg-white/50 text-charcoal placeholder:text-light-gray focus:outline-none focus:ring-2 focus:ring-coral/50 focus:border-coral transition-all"
+            />
           </div>
 
           {/* Password */}

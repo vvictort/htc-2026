@@ -9,6 +9,105 @@ interface TextToSpeechRequest {
   babyDeviceId: string;
 }
 
+type LullabyVibe = "lullaby" | "classic" | "nature" | "cosmic" | "ocean" | "rainy";
+type LullabyLength = "short" | "medium" | "long";
+
+interface LullabyRequest {
+  babyName?: string;
+  babyDeviceId: string;
+  vibe?: LullabyVibe;
+  length?: LullabyLength;
+}
+
+// Music generation prompts for each vibe — to help baby sleep
+const MUSIC_PROMPTS: Record<LullabyVibe, { prompt: string; instrumental: boolean }> = {
+  lullaby: {
+    prompt:
+      "A tender, warm female voice softly singing a gentle lullaby to a baby. " +
+      "Sweet humming and soft 'la la la' melodies layered over a delicate music box, " +
+      "light acoustic guitar fingerpicking and warm piano chords. Very slow tempo, " +
+      "breathy and intimate vocals like a mother singing her baby to sleep. " +
+      "Nursery lullaby, deeply soothing, minimal instrumentation.",
+    instrumental: false,
+  },
+  classic: {
+    prompt:
+      "A very gentle, slow, soft instrumental lullaby with a soothing music box melody, soft humming, " +
+      "delicate piano arpeggios and warm pad synths. Calm, peaceful, dreamy nursery atmosphere. " +
+      "No vocals, no drums, no percussion. Perfect for helping a baby fall asleep.",
+    instrumental: true,
+  },
+  nature: {
+    prompt:
+      "A calming ambient soundscape for a baby to fall asleep: gentle birdsong fading into soft crickets, " +
+      "a quiet flowing stream in the background, light breeze through leaves, layered with a barely-there " +
+      "celeste melody humming a lullaby. Ultra-soothing, natural, no drums, no vocals.",
+    instrumental: true,
+  },
+  cosmic: {
+    prompt:
+      "A dreamy, ethereal ambient lullaby with soft synthesizer pads, twinkling chimes like distant stars, " +
+      "warm low drone tones like floating through space, gentle rising and falling arpeggios. " +
+      "Slow, weightless, deeply relaxing. No vocals, no beats. For a baby drifting to sleep.",
+    instrumental: true,
+  },
+  ocean: {
+    prompt:
+      "Soft ocean waves gently lapping on shore, combined with a warm, slow acoustic guitar lullaby " +
+      "and light harp glissandos. Distant seagulls fading away. Peaceful, sleepy, waterfront nursery vibes. " +
+      "No drums, no vocals, purely instrumental and calming.",
+    instrumental: true,
+  },
+  rainy: {
+    prompt:
+      "Gentle rain falling on a window pane with soft thunder rumbling far away, mixed with a slow " +
+      "solo piano lullaby in a minor key, warm and cozy atmosphere. Lo-fi warmth, " +
+      "no percussion, no vocals. Deeply relaxing for a baby to fall asleep.",
+    instrumental: true,
+  },
+};
+
+const DURATION_MS: Record<LullabyLength, number> = {
+  short: 30000,    // 30 seconds
+  medium: 60000,   // 1 minute
+  long: 120000,    // 2 minutes
+};
+
+const streamFromElevenLabs = async ({
+  text,
+  voice,
+  elevenLabsApiKey,
+}: {
+  text: string;
+  voice: string;
+  elevenLabsApiKey: string;
+}): Promise<{ buffer: Buffer; status: number; error?: string }> => {
+  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+    method: "POST",
+    headers: {
+      Accept: "audio/mpeg",
+      "Content-Type": "application/json",
+      "xi-api-key": elevenLabsApiKey,
+    },
+    body: JSON.stringify({
+      text,
+      model_id: "eleven_turbo_v2",
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    return { buffer: Buffer.alloc(0), status: response.status, error: errorData };
+  }
+
+  const audioBuffer = await response.arrayBuffer();
+  return { buffer: Buffer.from(audioBuffer), status: 200 };
+};
+
 // Generate and stream audio directly (no storage)
 export const streamAudio = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -44,39 +143,21 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
 
     console.log(`🎵 Streaming audio for device ${babyDeviceId}: "${text}"`);
 
-    // Call ElevenLabs API
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
-      method: "POST",
-      headers: {
-        Accept: "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": elevenLabsApiKey,
-      },
-      body: JSON.stringify({
-        text,
-        model_id: "eleven_turbo_v2",
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-        },
-      }),
+    const { buffer, status, error } = await streamFromElevenLabs({
+      text,
+      voice,
+      elevenLabsApiKey,
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error("❌ ElevenLabs API error:", errorData);
-
-      res.status(response.status).json({
+    if (error) {
+      console.error("❌ ElevenLabs API error:", error);
+      res.status(status).json({
         error: "Failed to generate audio",
-        status: response.status,
-        details: errorData,
+        status,
+        details: error,
       });
       return;
     }
-
-    // Stream audio directly to client
-    const audioBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(audioBuffer);
 
     console.log(`✓ Audio generated (${buffer.length} bytes) - streaming to client`);
 
@@ -131,13 +212,81 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
             });
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     res.status(500).json({
       error: "Failed to stream audio",
       details: error.message,
     });
+  }
+};
+
+// Generate a soothing lullaby using ElevenLabs Music Generation API
+export const streamLullaby = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { babyDeviceId, vibe, length } = req.body as LullabyRequest;
+
+    if (!babyDeviceId) {
+      res.status(400).json({ error: "babyDeviceId is required" });
+      return;
+    }
+
+    const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+    if (!elevenLabsApiKey) {
+      res.status(500).json({ error: "ElevenLabs API key not configured" });
+      return;
+    }
+
+    const allowedVibes: LullabyVibe[] = ["lullaby", "classic", "nature", "cosmic", "ocean", "rainy"];
+    const allowedLengths: LullabyLength[] = ["short", "medium", "long"];
+
+    const resolvedVibe: LullabyVibe = allowedVibes.includes(vibe as LullabyVibe)
+      ? (vibe as LullabyVibe)
+      : "classic";
+    const resolvedLength: LullabyLength = allowedLengths.includes(length as LullabyLength)
+      ? (length as LullabyLength)
+      : "medium";
+
+    const { prompt, instrumental } = MUSIC_PROMPTS[resolvedVibe];
+    const durationMs = DURATION_MS[resolvedLength];
+
+    console.log(`🎶 Generating ${resolvedVibe} lullaby (${resolvedLength}, instrumental=${instrumental}) for device ${babyDeviceId}`);
+
+    const response = await fetch("https://api.elevenlabs.io/v1/music", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": elevenLabsApiKey,
+      },
+      body: JSON.stringify({
+        prompt,
+        music_length_ms: durationMs,
+        model_id: "music_v1",
+        force_instrumental: instrumental,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("❌ ElevenLabs Music Gen error:", errorData);
+      res.status(response.status).json({ error: "Failed to generate lullaby", details: errorData });
+      return;
+    }
+
+    const audioBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(audioBuffer);
+
+    console.log(`✓ Lullaby generated (${buffer.length} bytes)`);
+
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Content-Disposition", `attachment; filename="lullaby-${Date.now()}.mp3"`);
+    res.setHeader("X-Baby-Device-Id", babyDeviceId);
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("❌ Stream lullaby error:", error);
+    res.status(500).json({ error: "Failed to stream lullaby", details: error.message });
   }
 };
 

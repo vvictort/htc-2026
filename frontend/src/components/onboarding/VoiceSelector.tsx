@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/useAuth";
+import { getAuthToken } from "../../utils/api";
 
 interface Voice {
   voice_id: string;
@@ -30,23 +31,27 @@ export default function VoiceSelector({ onSelect }: VoiceSelectorProps) {
 
     const fetchVoices = async () => {
       try {
-        if (!token) {
-          console.warn("No auth token available, skipping fetchVoices");
+        const authToken = token || getAuthToken();
+        if (!authToken) {
+          setError("Please log in to view voices");
+          setLoading(false);
           return;
         }
 
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
         const res = await fetch(`${apiUrl}/audio/voices`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${authToken}` },
         });
+
         if (!res.ok) {
           const errText = await res.text();
           throw new Error(`Failed to fetch voices: ${res.status} ${errText}`);
         }
         const data = await res.json();
         setVoices(data.voices || []);
+        setError(null);
       } catch (err) {
-        console.error(err);
+        console.error("VoiceSelector: Error fetching voices", err);
         setError("Could not load voices. Please try again.");
       } finally {
         setLoading(false);
@@ -69,6 +74,15 @@ export default function VoiceSelector({ onSelect }: VoiceSelectorProps) {
 
   if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
 
+  if (voices.length === 0) {
+    return (
+      <div className="text-center p-8 text-mid-gray">
+        <p className="text-lg mb-2">🎤</p>
+        <p>No voices available. Please check your ElevenLabs API configuration.</p>
+      </div>
+    );
+  }
+
   const categories = Array.from(new Set(voices.map((v) => v.category))).sort();
 
   return (
@@ -87,11 +101,10 @@ export default function VoiceSelector({ onSelect }: VoiceSelectorProps) {
                 <button
                   key={voice.voice_id}
                   onClick={() => handleSelect(voice.voice_id)}
-                  className={`p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
-                    selectedId === voice.voice_id
+                  className={`p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${selectedId === voice.voice_id
                       ? "border-coral bg-coral/5 shadow-md"
                       : "border-warm-cream hover:border-coral/50 hover:bg-white"
-                  }`}>
+                    }`}>
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-lg shadow-sm border border-warm-cream shrink-0">
                     {voice.labels?.gender === "female" ? "👩" : "👨"}
                   </div>
@@ -111,9 +124,8 @@ export default function VoiceSelector({ onSelect }: VoiceSelectorProps) {
                     </div>
                   </div>
                   <div
-                    className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      selectedId === voice.voice_id ? "border-coral bg-coral" : "border-mid-gray/30"
-                    }`}>
+                    className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedId === voice.voice_id ? "border-coral bg-coral" : "border-mid-gray/30"
+                      }`}>
                     {selectedId === voice.voice_id && <div className="w-2 h-2 bg-white rounded-full" />}
                   </div>
                 </button>

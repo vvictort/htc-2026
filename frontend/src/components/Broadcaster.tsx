@@ -1,28 +1,141 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import CVMonitor from "./CVMonitor";
+import { getAuthToken, NOTIFICATION_ENDPOINTS, WEBRTC_ENDPOINTS } from "../utils/api";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 interface BroadcasterProps {
   roomId: string;
+  /** When true, renders as full-screen video with HUD overlay instead of the legacy card UI */
+  fullscreen?: boolean;
+  /** Called when user taps "Stop" inside the fullscreen HUD */
+  onStop?: () => void;
 }
 
-export default function Broadcaster({ roomId }: BroadcasterProps) {
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
+export default function Broadcaster({ roomId, fullscreen = false, onStop }: BroadcasterProps) {
+  const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
-  const [permissionGranted, setPermissionGranted] = useState(false);
-  const [mirror, setMirror] = useState(true);
-
-  const [leftPct, setLeftPct] = useState(0.08);
-  const [rightPct, setRightPct] = useState(0.92);
+  const [lastEvent, setLastEvent] = useState<{ reason: string; at: number } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const streamRef = useRef<MediaStream | null>(null);
+  const lastEventAtRef = useRef<number>(0);
+  const canvasSnapRef = useRef<HTMLCanvasElement | null>(null);
+  const iceServersRef = useRef<RTCIceServer[]>([
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ]);
 
+  // Fetch TURN/STUN servers from backend for cross-network connectivity
+  useEffect(() => {
+    fetch(WEBRTC_ENDPOINTS.ICE_SERVERS)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.iceServers) iceServersRef.current = data.iceServers;
+        console.log(`[ICE] Loaded ${data.iceServers?.length ?? 0} ICE servers`);
+      })
+      .catch((err) => console.warn("[ICE] Failed to fetch ICE servers, using STUN-only fallback:", err));
+  }, []);
+
+  // Capture a JPEG snapshot from the live video element
+  const captureSnapshot = (): string | undefined => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return undefined;
+
+    if (!canvasSnapRef.current) {
+      canvasSnapRef.current = document.createElement("canvas");
+    }
+    const canvas = canvasSnapRef.current;
+    // Thumbnail size to keep payload small
+    const scale = 320 / video.videoWidth;
+    canvas.width = 320;
+    canvas.height = Math.round(video.videoHeight * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return undefined;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Return raw base64 without the data-url prefix
+    return canvas.toDataURL("image/jpeg", 0.7).replace(/^data:image\/jpeg;base64,/, "");
+  };
+
+  // Send a monitor event to the backend notifications endpoint
+  const sendMonitorEvent = async (
+    reason: "ACTIVE" | "BOUNDARY" | "UNKNOWN" | "SOUND",
+    details?: Record<string, unknown>
+  ) => {
+    const now = Date.now();
+    const COOLDOWN_MS = 10_000; // 10s cooldown between events
+    if (now - lastEventAtRef.current < COOLDOWN_MS) return;
+    lastEventAtRef.current = now;
+
+    setLastEvent({ reason, at: now });
+
+    const snapshot = captureSnapshot();
+    const token = getAuthToken();
+
+    try {
+      await fetch(NOTIFICATION_ENDPOINTS.CREATE, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reason, snapshot, details }),
+      });
+      console.log(`[monitor-event] ${reason} → notification sent`);
+    } catch (err) {
+      console.error("[monitor-event] failed to send:", err);
+    }
+  };
+
+  const createPeerConnection = (viewerId: string): RTCPeerConnection => {
+    const peerConnection = new RTCPeerConnection({
+      iceServers: iceServersRef.current,
+    });
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        socketRef.current?.emit("ice-candidate", viewerId, event.candidate);
+      }
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+      console.log(`Connection state with ${viewerId}:`, peerConnection.connectionState);
+      if (
+        peerConnection.connectionState === "disconnected" ||
+        peerConnection.connectionState === "failed" ||
+        peerConnection.connectionState === "closed"
+      ) {
+        peerConnectionsRef.current.delete(viewerId);
+        setViewerCount((prev) => Math.max(0, prev - 1));
+      }
+    };
+
+    return peerConnection;
+  };
+
+  const stopStreaming = () => {
+    // Stop all tracks
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    // Close all peer connections
+    peerConnectionsRef.current.forEach((pc) => pc.close());
+    peerConnectionsRef.current.clear();
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setIsStreaming(false);
+    setViewerCount(0);
+    console.log("Broadcasting stopped");
+  };
   useEffect(() => {
     console.log("Broadcaster component mounted for room:", roomId);
     socketRef.current = io(BACKEND_URL);
@@ -43,140 +156,185 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
 
       setViewerCount((prev) => prev + 1);
 
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
-      });
+      const peerConnection = createPeerConnection(viewerId);
+      peerConnectionsRef.current.set(viewerId, peerConnection);
 
-      pc.onicecandidate = (event) => {
-        if (event.candidate) socketRef.current?.emit("ice-candidate", viewerId, event.candidate);
-      };
-
-      pc.onconnectionstatechange = () => {
-        if (
-          pc.connectionState === "disconnected" ||
-          pc.connectionState === "failed" ||
-          pc.connectionState === "closed"
-        ) {
-          peerConnectionsRef.current.delete(viewerId);
-          setViewerCount((p) => Math.max(0, p - 1));
-        }
-      };
-
-      // Add current stream tracks (preview stream) to the peer
+      // Add stream tracks to peer connection
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => pc.addTrack(t, streamRef.current!));
+        streamRef.current.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, streamRef.current!);
+        });
       }
 
-      peerConnectionsRef.current.set(viewerId, pc);
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+      // Create and send offer
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
       socketRef.current?.emit("offer", viewerId, offer);
     });
 
     socketRef.current.on("viewer-disconnected", (viewerId: string) => {
       console.log("Viewer disconnected:", viewerId);
-      const pc = peerConnectionsRef.current.get(viewerId);
-      if (pc) {
-        pc.close();
+
+      // Close and remove peer connection
+      const peerConnection = peerConnectionsRef.current.get(viewerId);
+      if (peerConnection) {
+        peerConnection.close();
         peerConnectionsRef.current.delete(viewerId);
-        setViewerCount((p) => Math.max(0, p - 1));
+        setViewerCount((prev) => Math.max(0, prev - 1));
       }
     });
 
     socketRef.current.on("answer", async (viewerId: string, answer: RTCSessionDescriptionInit) => {
-      const pc = peerConnectionsRef.current.get(viewerId);
-      if (pc) await pc.setRemoteDescription(answer);
+      console.log("Received answer from viewer:", viewerId);
+      const peerConnection = peerConnectionsRef.current.get(viewerId);
+      if (peerConnection) {
+        await peerConnection.setRemoteDescription(answer);
+      }
     });
 
     socketRef.current.on("ice-candidate", (viewerId: string, candidate: RTCIceCandidateInit) => {
-      const pc = peerConnectionsRef.current.get(viewerId);
-      if (pc) pc.addIceCandidate(new RTCIceCandidate(candidate));
+      console.log("Received ICE candidate from viewer:", viewerId);
+      const peerConnection = peerConnectionsRef.current.get(viewerId);
+      if (peerConnection) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
     });
 
-    // request camera & mic permission immediately and attach preview
-    const openPreview = async () => {
-      try {
-        const s = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
-        });
-        streamRef.current = s;
-        if (videoRef.current) {
-          videoRef.current.srcObject = s;
-          // keep muted preview
-          videoRef.current.play().catch(() => {});
-        }
-        setPermissionGranted(true);
-      } catch (err) {
-        console.error("Permission request failed:", err);
-        setError("Failed to access camera/microphone. Please grant permissions.");
-      }
-    };
-
-    openPreview();
-
+    // Cleanup function
     return () => {
-      console.log("Broadcaster unmounting - cleanup");
-      // cleanup peers but keep stream alive only if we want
-      peerConnectionsRef.current.forEach((pc) => pc.close());
-      peerConnectionsRef.current.clear();
+      console.log("Broadcaster component unmounting - cleaning up for room:", roomId);
+      stopStreaming();
       if (socketRef.current) {
+        console.log("Disconnecting broadcaster socket:", socketRef.current.id);
         socketRef.current.disconnect();
         socketRef.current = null;
       }
-      // do not stop preview stream here, leave it to explicit user action
     };
   }, [roomId]);
 
-  const startBroadcasting = () => {
-    if (!permissionGranted) return;
-    socketRef.current?.emit("broadcaster", roomId);
-    setIsBroadcasting(true);
+  const startStreaming = async () => {
+    try {
+      setError(null);
+
+      // Get user media (camera)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: true,
+      });
+
+      streamRef.current = stream;
+
+      // Display local video
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      // Announce as broadcaster
+      socketRef.current?.emit("broadcaster", roomId);
+      setIsStreaming(true);
+
+      console.log("Broadcasting started");
+    } catch (err) {
+      console.error("Error starting stream:", err);
+      setError("Failed to access camera. Please grant camera permissions.");
+    }
   };
+  /* ── Fullscreen HUD mode ── */
+  if (fullscreen) {
+    return (
+      <div className="absolute inset-0 bg-black">
+        {/* Video fills entire container */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
+        />
 
-  const stopBroadcasting = () => {
-    // Close peer connections only; keep preview stream active
-    peerConnectionsRef.current.forEach((pc) => pc.close());
-    peerConnectionsRef.current.clear();
-    socketRef.current?.emit("stop-broadcast", roomId);
-    setIsBroadcasting(false);
-  };
+        {/* Camera-off placeholder */}
+        {!isStreaming && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-charcoal/90 z-10">
+            <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
+              <span className="text-5xl opacity-40">📹</span>
+            </div>
+            <p className="text-white/50 text-sm mb-8">Camera is off</p>
+            <button
+              onClick={startStreaming}
+              className="px-8 py-4 bg-coral hover:bg-coral-dark active:scale-95 text-white font-bold text-base rounded-2xl transition-all shadow-lg flex items-center gap-3">
+              <span className="text-xl">▶️</span>
+              Start Camera
+            </button>
+          </div>
+        )}
 
-  // draggable boundary handles
-  useEffect(() => {
-    // ensure pct bounds
-    setLeftPct((v) => Math.min(Math.max(v, 0), 1));
-    setRightPct((v) => Math.min(Math.max(v, 0), 1));
-  }, []);
+        {/* ── HUD overlay (only visible when streaming) ── */}
+        {isStreaming && (
+          <div className="absolute inset-0 z-20 pointer-events-none">
+            {/* Top gradient bar */}
+            <div className="pointer-events-auto flex items-center justify-between px-4 py-3 bg-linear-to-b from-black/70 to-transparent">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">👶</span>
+                <span className="text-white font-bold text-sm tracking-wide">
+                  Baby<span className="text-coral">Watcher</span>
+                </span>
+                <span className="ml-1 flex items-center gap-1.5 text-xs text-white/60">
+                  <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  Live
+                </span>
+              </div>
 
-  const startDrag = (which: "left" | "right", e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    const move = (pageX: number) => {
-      const rect = videoRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const rel = (pageX - rect.left) / rect.width;
-      if (which === "left") setLeftPct(Math.min(Math.max(rel, 0), rightPct - 0.02));
-      else setRightPct(Math.max(Math.min(rel, 1), leftPct + 0.02));
-    };
+              <button
+                onClick={() => { stopStreaming(); onStop?.(); }}
+                className="px-4 py-1.5 text-sm text-white/80 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-full backdrop-blur-sm transition-all">
+                ⏹ Stop
+              </button>
+            </div>
 
-    const onMove = (ev: MouseEvent) => move(ev.pageX);
-    const onTouch = (ev: TouchEvent) => move(ev.touches[0].pageX);
-    const up = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("touchmove", onTouch);
-      window.removeEventListener("mouseup", up);
-      window.removeEventListener("touchend", up);
-      // notify CVMonitor of boundary change
-      // note CVMonitor reads values from Broadcaster props
-    };
+            {/* ── Floating status pills (right edge) ── */}
+            <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 items-end">
+              {/* Viewer count */}
+              <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-md rounded-full border border-white/10">
+                <span className="text-base">👁️</span>
+                <span className="text-white font-semibold text-sm">{viewerCount}</span>
+                <span className="text-white/50 text-xs">{viewerCount === 1 ? "viewer" : "viewers"}</span>
+              </div>
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("touchmove", onTouch, { passive: true } as any);
-    window.addEventListener("mouseup", up);
-    window.addEventListener("touchend", up);
-  };
+              {/* Last event indicator */}
+              {lastEvent && (
+                <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-soft-blue/20 backdrop-blur-md rounded-full border border-soft-blue/30">
+                  <span className="text-base">🔔</span>
+                  <span className="text-white/80 text-xs font-medium">{lastEvent.reason}</span>
+                </div>
+              )}
+            </div>
 
+            {/* Error toast */}
+            {error && (
+              <div className="pointer-events-auto absolute top-16 left-1/2 -translate-x-1/2 max-w-sm w-full mx-4">
+                <div className="bg-red-500/80 backdrop-blur-md text-white text-sm rounded-xl px-4 py-3 flex items-center gap-2 shadow-lg border border-red-400/30">
+                  <span>⚠️</span>
+                  <span className="flex-1">{error}</span>
+                  <button onClick={() => setError(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom gradient bar */}
+            <div className="pointer-events-auto absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-linear-to-t from-black/70 to-transparent">
+              <span className="text-xs text-white/40 font-mono">Room: {roomId}</span>
+              <span className="text-[0.6rem] text-white/30">Baby Device Mode</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ── Legacy card mode (fallback) ── */
   return (
     <div className="flex flex-col gap-4 p-6 max-w-4xl w-full">
       <div className="bg-gray-800 rounded-xl shadow-2xl">
@@ -190,10 +348,10 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
             <div className="bg-gray-700 rounded-lg p-4">
               <div className="text-sm text-gray-400 mb-1">Status</div>
               <div className="text-lg font-semibold">
-                {isBroadcasting ? (
+                {isStreaming ? (
                   <span className="text-green-500">🔴 Live</span>
                 ) : (
-                  <span className="text-gray-300">Preview</span>
+                  <span className="text-gray-300">Offline</span>
                 )}
               </div>
             </div>
@@ -203,6 +361,13 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
             </div>
           </div>
 
+          {lastEvent && (
+            <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-3 mb-4 flex items-center gap-2 text-sm text-blue-200">
+              🔔 Notification sent: <strong>{lastEvent.reason}</strong> at{" "}
+              {new Date(lastEvent.at).toLocaleTimeString()}
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-4 flex items-center gap-2">
               <i className="fa-solid fa-circle-exclamation text-red-400"></i>
@@ -211,78 +376,29 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
           )}
 
           <div className="relative bg-black rounded-lg overflow-hidden mb-4" style={{ aspectRatio: "16/9" }}>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-contain"
-              style={{ transform: mirror ? 'scaleX(-1)' : undefined }}
-            />
-
-            {/* CV Monitor visible while previewing; pass videoRef and boundary props; allow interactions */}
-            <div className="absolute top-4 right-4" style={{ width: 360, zIndex: 1003 }}>
-              <CVMonitor
-                externalVideoRef={videoRef}
-                leftPct={leftPct}
-                rightPct={rightPct}
-                mirror={mirror}
-                sendApi={isBroadcasting}
-                onBoundariesChange={(l, r) => { setLeftPct(l); setRightPct(r); }}
-              />
-            </div>
-
-            {/* bottom draggable boundary bars */}
-            <div style={{ position: 'absolute', bottom: 12, left: 12, right: 12, height: 80, pointerEvents: 'auto' }}>
-              <div style={{ color: 'white', marginBottom: 6, fontWeight: 700 }}>Set the baby's left/right borders</div>
-              <div style={{ position: 'relative', height: 48, background: 'rgba(255,255,255,0.06)', borderRadius: 8 }}>
-                {/* draggable left and right handles */}
-                <div
-                  onMouseDown={(e) => startDrag('left', e)}
-                  onTouchStart={(e) => startDrag('left', e)}
-                  style={{
-                    position: 'absolute', top: 0, bottom: 0,
-                    left: `${Math.round(leftPct * 100)}%`, width: 12, transform: 'translateX(-50%)', cursor: 'ew-resize',
-                    background: '#ff9900', borderRadius: 6,
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-                  }}
-                />
-                <div
-                  onMouseDown={(e) => startDrag('right', e)}
-                  onTouchStart={(e) => startDrag('right', e)}
-                  style={{
-                    position: 'absolute', top: 0, bottom: 0,
-                    left: `${Math.round(rightPct * 100)}%`, width: 12, transform: 'translateX(-50%)', cursor: 'ew-resize',
-                    background: '#ff9900', borderRadius: 6,
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-                  }}
-                />
-
-                {/* shaded region between bars (allowed play area) */}
-                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.round(leftPct * 100)}%`, right: `${100 - Math.round(rightPct * 100)}%`, background: 'rgba(34,197,94,0.12)', borderRadius: 6 }} />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
+            {!isStreaming && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <i className="fa-solid fa-video-slash text-6xl mb-4"></i>
+                  <p>Camera off</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="flex justify-end gap-3">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'white' }}>
-              <input type="checkbox" checked={mirror} onChange={(e) => setMirror(e.target.checked)} /> Mirror preview
-            </label>
-
-            {!isBroadcasting ? (
+          <div className="flex justify-end">
+            {!isStreaming ? (
               <button
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg flex items-center gap-2 transition-colors"
-                onClick={startBroadcasting}
-                disabled={!permissionGranted}
-              >
+                onClick={startStreaming}>
                 <i className="fa-solid fa-play"></i>
                 Start Broadcasting
               </button>
             ) : (
               <button
                 className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg flex items-center gap-2 transition-colors"
-                onClick={stopBroadcasting}
-              >
+                onClick={stopStreaming}>
                 <i className="fa-solid fa-stop"></i>
                 Stop Broadcasting
               </button>

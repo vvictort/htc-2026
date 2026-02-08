@@ -1,69 +1,311 @@
-# HTC-2026 - Baby Monitor Application 👶🎵
+# HTC-2026 — BabyWatcher 👶🎵
 
-A modern baby monitor application with real-time audio messaging and voice cloning capabilities. Parents can send text messages that are converted to audio using their own voice, creating a personalized and comforting experience for babies.
+A modern baby monitor application with real-time video monitoring, AI-powered pose detection, voice cloning, lullaby generation, and multi-channel notifications (email, SMS, push). Parents can watch their baby live from anywhere using cross-network WebRTC streaming with TURN server support, receive instant alerts with snapshots, and send personalized audio messages using their own cloned voice.
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend — React + Vite + Tailwind"
+        LP["🏠 Landing Page"]
+        AUTH["🔐 Login / Signup"]
+        DASH["📊 Dashboard"]
+        BABY["👶 Baby Device<br/><i>Broadcaster.tsx</i>"]
+        PARENT["👀 Parent Monitor<br/><i>Viewer.tsx</i>"]
+        NOTIF["🔔 Notifications"]
+        PROFILE["👤 Profile & Settings"]
+    end
+
+    subgraph "Backend — Node.js + Express + Socket.IO"
+        API["REST API<br/><i>:5000/api</i>"]
+        SIG["WebRTC Signaling<br/><i>Socket.IO</i>"]
+        NCTRL["Notification<br/>Controller"]
+        ACTRL["Audio<br/>Controller"]
+        AUTHCTRL["Auth<br/>Controller"]
+    end
+
+    subgraph "External Services"
+        FB["🔥 Firebase Auth"]
+        MONGO[("🍃 MongoDB Atlas")]
+        ELEVEN["🎵 ElevenLabs<br/><i>TTS · Cloning · Music</i>"]
+        SG["📧 SendGrid"]
+        TW["📱 Twilio"]
+        TURN["🌐 TURN Server"]
+    end
+
+    BABY <--->|"WebRTC P2P<br/>Video + Audio"| PARENT
+    BABY <-->|"Signaling<br/>(offer/answer/ICE)"| SIG
+    PARENT <-->|"Signaling"| SIG
+
+    BABY -->|"POST /notifications<br/>(snapshot)"| NCTRL
+    PARENT -->|"POST /audio/stream<br/>POST /audio/lullaby"| ACTRL
+    AUTH -->|"POST /auth/signup<br/>POST /auth/login"| AUTHCTRL
+    DASH -->|"GET /status<br/>GET /notifications"| API
+    NOTIF <-->|"Socket.IO<br/>subscribe + push"| SIG
+    PROFILE -->|"PUT /notifications/preferences<br/>PUT /audio/voice"| API
+
+    AUTHCTRL <--> FB
+    AUTHCTRL <--> MONGO
+    NCTRL <--> MONGO
+    NCTRL --> SG
+    NCTRL --> TW
+    NCTRL --> SIG
+    ACTRL --> ELEVEN
+    ACTRL <--> MONGO
+    BABY -.->|"ICE Servers"| TURN
+    PARENT -.->|"ICE Servers"| TURN
+
+    style BABY fill:#FF6F61,color:#fff,stroke:#e85d50
+    style PARENT fill:#4A90D9,color:#fff,stroke:#3a7bc8
+    style ELEVEN fill:#8B5CF6,color:#fff,stroke:#7c4ddb
+    style FB fill:#FFA000,color:#fff,stroke:#e69000
+    style MONGO fill:#47A248,color:#fff,stroke:#3a8a3c
+    style SG fill:#1A82E2,color:#fff,stroke:#1570c6
+    style TW fill:#F22F46,color:#fff,stroke:#d92a3f
+```
+
+## Workflow
+
+```mermaid
+sequenceDiagram
+    actor Parent as 👩 Parent Device
+    actor Baby as 📱 Baby Device
+    participant BE as Backend<br/>(Express + Socket.IO)
+    participant DB as MongoDB
+    participant FB as Firebase Auth
+    participant EL as ElevenLabs
+    participant SG as SendGrid
+    participant TW as Twilio
+
+    Note over Parent, Baby: 1️⃣ Authentication
+    Parent->>BE: POST /api/auth/signup {email, password, phone}
+    BE->>FB: createUser()
+    FB-->>BE: uid + customToken
+    BE->>DB: Create User document
+    BE-->>Parent: {user, idToken}
+    Baby->>Parent: Same account login
+
+    Note over Parent, Baby: 2️⃣ Start Baby Camera
+    Baby->>BE: Socket: join-room(baby-{uid})
+    Baby->>Baby: getUserMedia(video + audio)
+    Baby->>BE: Socket: broadcaster(roomId)
+    BE-->>Baby: ✓ Registered as broadcaster
+
+    Note over Parent, Baby: 3️⃣ Parent Connects
+    Parent->>BE: Socket: join-room(baby-{uid})
+    Parent->>BE: Socket: viewer(roomId)
+    BE-->>Baby: Socket: viewer-joined(viewerId)
+    Baby->>Parent: SDP Offer (via Socket.IO)
+    Parent->>Baby: SDP Answer (via Socket.IO)
+    Baby->>Parent: ICE Candidates ↔️
+    Note over Parent, Baby: 🎥 WebRTC P2P Video Stream Established
+
+    Note over Parent, Baby: 4️⃣ Monitor Event Detected
+    Baby->>Baby: Pose detection / Sound
+    Baby->>BE: POST /api/notifications {reason, snapshot}
+    BE->>DB: Save notification
+    BE-->>Parent: Socket: new-notification
+    BE->>SG: Send email alert (async)
+    BE->>TW: Send SMS alert (async)
+
+    Note over Parent, Baby: 5️⃣ Parent Interacts
+    Parent->>BE: POST /api/audio/stream {text}
+    BE->>EL: TTS (eleven_turbo_v2)
+    EL-->>BE: audio/mpeg stream
+    BE-->>Parent: Audio blob → plays on speaker
+
+    Parent->>BE: POST /api/audio/lullaby {vibe, length}
+    BE->>EL: Music Generation (music_v1)
+    EL-->>BE: audio/mpeg stream
+    BE-->>Parent: Audio blob → plays lullaby
+```
 
 ## Project Structure
 
 ```
 htc-2026/
-├── backend/                      # TypeScript Node.js API server
+├── backend/                          # TypeScript Node.js API server
 │   ├── src/
-│   │   ├── features/            # Feature-based modules
-│   │   │   ├── auth/           # Authentication feature
+│   │   ├── features/
+│   │   │   ├── auth/                # Authentication (Firebase + MongoDB)
 │   │   │   │   ├── auth.controller.ts
 │   │   │   │   └── auth.routes.ts
-│   │   │   └── audio/          # Audio/TTS feature
-│   │   │       ├── audio.controller.ts
-│   │   │       └── audio.routes.ts
-│   │   │
-│   │   ├── shared/             # Shared resources
-│   │   │   ├── config/         # Configuration files
-│   │   │   │   ├── database.ts
-│   │   │   │   └── firebase.ts
-│   │   │   ├── middleware/     # Express middleware
-│   │   │   │   └── authMiddleware.ts
-│   │   │   └── models/         # MongoDB models
-│   │   │       └── User.ts
-│   │   │
-│   │   └── index.ts            # Main app entry point
-│   │
-│   ├── dist/                   # Compiled JavaScript output
-│   ├── .env                    # Environment variables
-│   ├── .gitignore             # Git ignore rules
-│   ├── package.json           # Dependencies & scripts
-│   ├── tsconfig.json          # TypeScript configuration
-│   └── node_modules/          # Installed packages
+│   │   │   ├── audio/               # TTS, lullaby music gen, voice cloning
+│   │   │   │   ├── audio.controller.ts
+│   │   │   │   └── audio.routes.ts
+│   │   │   └── notifications/       # Alerts, email, SMS delivery
+│   │   │       ├── notification.controller.ts
+│   │   │       ├── notification.routes.ts
+│   │   │       └── notification.service.ts
+│   │   ├── shared/
+│   │   │   ├── config/
+│   │   │   │   ├── database.ts      # MongoDB Atlas connection
+│   │   │   │   └── firebase.ts      # Firebase Admin SDK init
+│   │   │   ├── middleware/
+│   │   │   │   └── authMiddleware.ts # Firebase JWT verification
+│   │   │   └── models/
+│   │   │       ├── User.ts          # User profile + prefs
+│   │   │       ├── Notification.ts  # Alert history + snapshots
+│   │   │       └── AudioLog.ts      # TTS usage tracking
+│   │   └── index.ts                 # Express + Socket.IO + WebRTC signaling
+│   └── .env
 │
-└── README.md                   # This file
+├── frontend/                         # React + Vite + Tailwind SPA
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Broadcaster.tsx      # WebRTC camera broadcaster (fullscreen HUD + legacy)
+│   │   │   ├── Viewer.tsx           # WebRTC stream viewer (fullscreen + legacy)
+│   │   │   ├── SmoothScroll.tsx     # Lenis smooth scrolling wrapper
+│   │   │   ├── auth/
+│   │   │   │   ├── LoginForm.tsx    # Email/password + Google login
+│   │   │   │   └── SignUpForm.tsx   # Registration with phone support
+│   │   │   ├── dashboard/
+│   │   │   │   ├── DashboardLayout.tsx # Sidebar + content layout
+│   │   │   │   ├── Sidebar.tsx      # Navigation sidebar
+│   │   │   │   └── DailyQuote.tsx   # Random parenting quote
+│   │   │   ├── landing/             # Landing page sections
+│   │   │   │   ├── Navbar.tsx
+│   │   │   │   ├── Hero.tsx
+│   │   │   │   ├── Features.tsx
+│   │   │   │   ├── HowItWorks.tsx
+│   │   │   │   ├── Stats.tsx
+│   │   │   │   ├── CTA.tsx
+│   │   │   │   ├── Footer.tsx
+│   │   │   │   └── BabyIcons.tsx
+│   │   │   ├── onboarding/
+│   │   │   │   ├── VoiceRecorder.tsx # Record audio samples for cloning
+│   │   │   │   └── VoiceSelector.tsx # Select preset ElevenLabs voice
+│   │   │   └── ui/
+│   │   │       └── Toast.tsx        # Toast notification component
+│   │   ├── pages/
+│   │   │   ├── LandingPage.tsx      # Marketing / landing page
+│   │   │   ├── SignUpPage.tsx       # Registration page
+│   │   │   ├── LoginPage.tsx        # Login page
+│   │   │   ├── BabyDevicePage.tsx   # Baby mode — fullscreen camera broadcaster
+│   │   │   ├── MonitorPage.tsx      # Parent mode — stream viewer + TTS/lullaby HUD
+│   │   │   ├── DashboardPage.tsx    # Dashboard with live stats + alerts
+│   │   │   ├── NotificationsPage.tsx # Notification history (real-time)
+│   │   │   ├── ProfilePage.tsx      # Profile + notification prefs + voice settings
+│   │   │   ├── OnboardingPage.tsx   # New user onboarding flow
+│   │   │   ├── AboutPage.tsx        # About page
+│   │   │   └── AuthShowcase.tsx     # Auth UI demo
+│   │   ├── context/
+│   │   │   ├── AuthContext.tsx      # Firebase + storage fallback auth
+│   │   │   └── useAuth.ts          # Auth hook
+│   │   ├── config/
+│   │   │   └── firebase.ts         # Firebase client SDK config
+│   │   ├── utils/
+│   │   │   ├── api.ts              # Endpoint constants + fetch helpers
+│   │   │   └── auth.ts             # Auth utility functions
+│   │   └── styles/
+│   │       └── fonts.css
+│   └── .env
+│
+├── baby-watcher/                     # Pose detection engine (TensorFlow.js)
+│   └── src/pose/PoseEngine.tsx
+│
+└── README.md
 ```
 
-## Backend Overview
+## Technology Stack
 
-### Technology Stack
+| Technology          | Purpose                                                        |
+| ------------------- | -------------------------------------------------------------- |
+| **Node.js**         | Backend runtime                                                |
+| **TypeScript**      | Type-safe development (frontend & backend)                     |
+| **Express**         | REST API framework                                             |
+| **MongoDB Atlas**   | User profiles, notifications, audio logs                       |
+| **Mongoose**        | MongoDB ODM with schemas & validation                          |
+| **Firebase**        | Authentication (Admin SDK + client SDK + REST API)             |
+| **Socket.IO**       | Real-time notification push + WebRTC signaling                 |
+| **WebRTC**          | Peer-to-peer video streaming (STUN + TURN)                     |
+| **ElevenLabs**      | TTS (`eleven_turbo_v2`), voice cloning, music gen (`music_v1`) |
+| **SendGrid**        | Email notification delivery                                    |
+| **Twilio**          | SMS notification delivery                                      |
+| **React 19 + Vite** | Frontend SPA                                                   |
+| **Tailwind CSS v4** | Utility-first styling                                          |
+| **Framer Motion**   | Page & component animations                                    |
+| **Lenis**           | Smooth scrolling                                               |
+| **TensorFlow.js**   | Baby pose detection                                            |
 
-| Technology     | Version   | Purpose                          |
-| -------------- | --------- | -------------------------------- |
-| **Node.js**    | 18+       | JavaScript runtime               |
-| **TypeScript** | 5.3.3     | Type-safe development            |
-| **Express**    | 4.18.2    | Web framework                    |
-| **MongoDB**    | Atlas     | Database (Mongoose 8.0.3)        |
-| **Firebase**   | Admin SDK | Authentication & user management |
-| **ElevenLabs** | API v1    | Text-to-speech & voice cloning   |
-| **Formidable** | Latest    | Multipart file uploads           |
+---
 
-### Additional Packages
-- **helmet** - Security headers
-- **cors** - Cross-origin resource sharing
-- **morgan** - HTTP request logging
-- **dotenv** - Environment variable management
-- **ts-node-dev** - Development hot reload
-- **formidable** - Multipart form data parsing
+## Frontend Routes
+
+| Route            | Page              | Description                                    |
+| ---------------- | ----------------- | ---------------------------------------------- |
+| `/`              | LandingPage       | Marketing page with hero, features, CTA        |
+| `/signup`        | SignUpPage        | Registration (email/password + Google OAuth)   |
+| `/login`         | LoginPage         | Login (email/password + Google OAuth)          |
+| `/baby`          | BabyDevicePage    | Baby device — fullscreen camera broadcaster    |
+| `/monitor`       | MonitorPage       | Parent device — stream viewer with HUD         |
+| `/dashboard`     | DashboardPage     | Dashboard with live stats, alerts, lullaby gen |
+| `/notifications` | NotificationsPage | Full notification history with real-time push  |
+| `/profile`       | ProfilePage       | Profile, notification prefs, voice settings    |
+| `/onboarding`    | OnboardingPage    | New user onboarding flow                       |
+| `/about`         | AboutPage         | About page                                     |
+| `/auth-showcase` | AuthShowcase      | Auth component demo                            |
+
+### Key Frontend Features
+
+#### Baby Device Mode (`/baby`)
+- **Full-screen camera broadcaster** with mirrored video preview (CSS `scaleX(-1)`)
+- HUD overlay: BabyWatcher branding + red pulse "Live" indicator + Stop button
+- Floating status pills: viewer count, last notification event
+- Automatic room pairing via Firebase UID
+- **Screen Wake Lock API** — keeps screen on while broadcasting, re-acquires on tab visibility change
+
+#### Parent Monitor (`/monitor`)
+- **Full-screen stream viewer** with connection status indicators
+- Tap-to-toggle HUD with gradient overlays
+- **Right-edge floating action buttons:**
+  - 🎤 **Talk to Baby** — TTS panel: type a message, sends to ElevenLabs, plays audio on baby device
+  - 🎶 **Generate Lullaby** — 6 vibes × 3 durations, inline audio player + download
+  - 📊 **Dashboard** — quick link
+- Auto-connects to baby device on the same account
+
+#### Dashboard (`/dashboard`)
+- **Live stats row**: active monitors (polled every 10s from `/api/status`), unread notification count, server status indicator
+- **Daily parenting quote**
+- **Baby Monitor card** with live badge + direct link to `/monitor`
+- **Recent Alerts** with snapshot thumbnails, real-time updates via Socket.IO
+- **Lullaby Generator** widget (vibe + duration picker)
+- Framer Motion stagger animations
+
+#### Notifications (`/notifications`)
+- Paginated notification list with color-coded types (motion/sound/boundary/unknown)
+- Inline snapshot thumbnails from baby camera
+- Mark single or all as read
+- Real-time push via Socket.IO (`subscribe-notifications` → `new-notification`)
+
+#### Profile & Settings (`/profile`)
+- Profile details: display name, email, phone (for SMS alerts)
+- Notification preferences: email / SMS / push toggle cards
+- **Voice Dubbing** (tabbed UI):
+  - **Preset Voices** tab — browse & select from ElevenLabs voice library
+  - **My Voice Clone** tab — record audio samples, upload for cloning
+
+### Auth System
+- `AuthProvider` wraps the app, exposes `currentUser`, `token`, `loading`
+- Primary: Firebase `onAuthStateChanged` → `getIdToken(user, true)` for fresh JWT
+- Fallback: reads `idToken` + `user` from `localStorage`/`sessionStorage` for backend-API-only login
+- `getAuthToken()` / `setAuthToken()` / `removeAuthToken()` helpers in `utils/api.ts`
+- Google OAuth via `signInWithPopup` → backend `POST /api/auth/google`
+
+---
 
 ## RESTful API Endpoints
 
-Base URL: `http://localhost:5000`
+Base URL: `http://localhost:5000/api`
 
-### 🔐 Authentication
+All protected routes require:
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+---
+
+### 🔐 Authentication (`/api/auth`)
 
 #### Sign Up
 ```http
@@ -73,16 +315,21 @@ Content-Type: application/json
 {
   "email": "parent@example.com",
   "password": "securePassword123",
-  "displayName": "Parent Name"
+  "displayName": "Parent Name",
+  "phone": "+15551234567"           // optional, for SMS alerts
 }
 ```
-**Response:**
+**Response (201):**
 ```json
 {
   "message": "User created successfully",
-  "firebaseUid": "firebase_uid_here",
-  "mongoUserId": "mongodb_id_here",
-  "email": "parent@example.com"
+  "user": {
+    "uid": "firebase_uid",
+    "email": "parent@example.com",
+    "displayName": "Parent Name",
+    "mongoId": "mongodb_id"
+  },
+  "customToken": "firebase_custom_token"
 }
 ```
 
@@ -96,66 +343,110 @@ Content-Type: application/json
   "password": "securePassword123"
 }
 ```
-**Response:**
+**Response (200):**
 ```json
 {
   "message": "Login successful",
-  "token": "firebase_jwt_token",
   "user": {
     "uid": "firebase_uid",
     "email": "parent@example.com",
-    "mongoUserId": "mongodb_id"
-  }
+    "displayName": "Parent Name",
+    "mongoId": "mongodb_id"
+  },
+  "idToken": "firebase_jwt_token",
+  "refreshToken": "firebase_refresh_token",
+  "expiresIn": "3600"
 }
 ```
+
+#### Google OAuth Login
+```http
+POST /api/auth/google
+Content-Type: application/json
+
+{
+  "idToken": "google_id_token_from_popup"
+}
+```
+**Response (200):** Same shape as login response with `customToken`.
 
 #### Get Current User
 ```http
 GET /api/auth/me
-Authorization: Bearer <firebase-token>
+Authorization: Bearer <token>
 ```
-**Response:**
+**Response (200):**
 ```json
 {
-  "_id": "mongodb_id",
-  "firebaseUid": "firebase_uid",
-  "email": "parent@example.com",
-  "displayName": "Parent Name",
-  "customVoiceId": "elevenlabs_voice_id",
-  "createdAt": "2026-02-07T...",
-  "updatedAt": "2026-02-07T..."
+  "user": {
+    "uid": "firebase_uid",
+    "email": "parent@example.com",
+    "displayName": "Parent Name",
+    "mongoId": "mongodb_id"
+  }
 }
 ```
 
 ---
 
-### 🎵 Audio / Text-to-Speech
+### 🎵 Audio / Text-to-Speech (`/api/audio`)
 
-#### Generate & Stream Audio
+#### Stream TTS Audio
 ```http
 POST /api/audio/stream
-Authorization: Bearer <firebase-token>
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
   "text": "Hello sweetie, time for your nap!",
   "babyDeviceId": "device123",
-  "voiceId": "optional-voice-id"  // Optional: Override voice
+  "voiceId": "optional-voice-id"
 }
 ```
-**Response:** MP3 audio file (streamed directly)
+**Response:** `audio/mpeg` binary stream (MP3)
 
-**Behavior:**
-- If user has `customVoiceId` → uses custom voice automatically
-- If `voiceId` provided → uses specified voice
-- Otherwise → uses default voice
+**Voice priority:** `voiceId` param → user's custom cloned voice (if `enableCustomVoice` is true) → default ElevenLabs voice
+
+**Model:** `eleven_turbo_v2`
+
+#### Generate Lullaby (Music Generation)
+AI-generated instrumental music, ambient sounds, and humming via ElevenLabs Music Generation API (`music_v1`).
+```http
+POST /api/audio/lullaby
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "babyDeviceId": "device123",
+  "vibe": "lullaby",
+  "length": "medium"
+}
+```
+**Response:** `audio/mpeg` binary stream
+
+**Vibes:**
+| Vibe      | Description                                                     |
+| --------- | --------------------------------------------------------------- |
+| `lullaby` | Soft singing vocals, gentle humming & warm melody (with vocals) |
+| `classic` | Music box melody, soft piano arpeggios & warm humming           |
+| `nature`  | Birdsong, crickets, flowing streams with celeste melody         |
+| `cosmic`  | Ethereal synth pads, twinkling chimes, weightless drones        |
+| `ocean`   | Gentle waves, harp glissandos & acoustic guitar                 |
+| `rainy`   | Rain on glass, distant thunder & solo piano                     |
+
+**Durations:**
+| Length   | Duration |
+| -------- | -------- |
+| `short`  | 30s      |
+| `medium` | 60s      |
+| `long`   | 120s     |
 
 #### Get Available Voices
 ```http
 GET /api/audio/voices
-Authorization: Bearer <firebase-token>
+Authorization: Bearer <token>
 ```
-**Response:**
+**Response (200):**
 ```json
 {
   "voices": [
@@ -163,7 +454,7 @@ Authorization: Bearer <firebase-token>
       "voice_id": "abc123",
       "name": "Rachel",
       "category": "premade",
-      "description": "..."
+      "labels": { "accent": "american", "gender": "female" }
     }
   ]
 }
@@ -171,63 +462,153 @@ Authorization: Bearer <firebase-token>
 
 ---
 
-### 🎤 Voice Cloning / Dubbing
+### 🎤 Voice Cloning (`/api/audio/voice`)
 
-#### Create Custom Voice
+#### Clone Voice from Audio Samples
 ```http
 POST /api/audio/voice/clone
-Authorization: Bearer <firebase-token>
+Authorization: Bearer <token>
 Content-Type: multipart/form-data
 
 Form Fields:
-- name: "Mom's Voice" (required)
-- description: "My custom voice" (optional)
-- samples: [audio_file_1.mp3, audio_file_2.mp3] (required)
+  name:    "Mom's Voice"        (required)
+  samples: audio_file.webm      (required, 1-3 files)
 ```
-**Response:**
+**Response (201):**
 ```json
 {
   "message": "Custom voice created successfully",
   "voiceId": "elevenlabs_voice_id",
-  "voiceName": "Mom's Voice",
-  "user": {
-    "id": "mongodb_id",
-    "email": "parent@example.com",
-    "customVoiceId": "elevenlabs_voice_id"
-  }
+  "voiceName": "Mom's Voice"
 }
 ```
-
-**Requirements:**
-- Audio samples: 1-3 minutes total
-- Formats: MP3, WAV, FLAC, OGG
-- Quality: Clear audio, minimal background noise
 
 #### Get Custom Voice Details
 ```http
 GET /api/audio/voice/custom
-Authorization: Bearer <firebase-token>
-```
-**Response:**
-```json
-{
-  "voice_id": "abc123xyz",
-  "name": "Mom's Voice",
-  "category": "cloned",
-  "samples": [...],
-  "settings": {...}
-}
+Authorization: Bearer <token>
 ```
 
 #### Delete Custom Voice
 ```http
 DELETE /api/audio/voice/custom
-Authorization: Bearer <firebase-token>
+Authorization: Bearer <token>
 ```
-**Response:**
+
+#### Set Active Voice (Preset)
+```http
+PUT /api/audio/voice
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "voiceId": "elevenlabs_voice_id"
+}
+```
+
+#### Update Audio Settings
+```http
+PUT /api/audio/settings
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "enableCustomVoice": true
+}
+```
+
+---
+
+### 🔔 Notifications (`/api/notifications`)
+
+#### Create Notification (Trigger Alert)
+Called by the baby monitor camera when an event is detected (via `Broadcaster.tsx` `sendMonitorEvent`).
+```http
+POST /api/notifications
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "reason": "BOUNDARY",
+  "snapshot": "base64_jpeg_without_prefix",
+  "details": { "side": "left" }
+}
+```
+**Reason codes:** `ACTIVE` → motion, `BOUNDARY` → boundary, `UNKNOWN` → unknown, `SOUND` → sound
+
+**Response (201):**
 ```json
 {
-  "message": "Custom voice deleted successfully"
+  "id": "notification_id",
+  "type": "boundary",
+  "message": "Boundary breach detected (left side).",
+  "snapshot": true,
+  "time": "2026-02-08T12:00:00.000Z",
+  "read": false
+}
+```
+
+**Side effects (fire-and-forget):**
+- Emits `new-notification` via Socket.IO to `user:<firebaseUid>` room
+- Sends email via SendGrid (if `notificationPreferences.email` is `true`)
+- Sends SMS via Twilio (if `notificationPreferences.sms` is `true` and `phone` is set)
+
+#### List Notifications (Paginated)
+```http
+GET /api/notifications?page=1&limit=30
+Authorization: Bearer <token>
+```
+**Response (200):**
+```json
+{
+  "notifications": [ ... ],
+  "total": 42,
+  "unreadCount": 5,
+  "page": 1,
+  "pages": 2
+}
+```
+
+#### Mark Single as Read
+```http
+PUT /api/notifications/:id/read
+Authorization: Bearer <token>
+```
+
+#### Mark All as Read
+```http
+PUT /api/notifications/read-all
+Authorization: Bearer <token>
+```
+
+#### Get Notification Preferences
+```http
+GET /api/notifications/preferences
+Authorization: Bearer <token>
+```
+**Response (200):**
+```json
+{
+  "notificationPreferences": {
+    "email": true,
+    "sms": false,
+    "push": true
+  },
+  "phone": "+15551234567"
+}
+```
+
+#### Update Notification Preferences
+```http
+PUT /api/notifications/preferences
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "email": true,
+  "sms": true,
+  "push": true,
+  "phone": "+15551234567"
 }
 ```
 
@@ -235,276 +616,262 @@ Authorization: Bearer <firebase-token>
 
 ### 🏥 Health & Status
 
-#### Health Check
 ```http
-GET /health
+GET /health          →  { "status": "OK", "message": "Server is running" }
+GET /                →  { "message": "Welcome to the TypeScript Express API", "version": "1.0.0", ... }
 ```
-**Response:**
+
+#### Live Server Status
+```http
+GET /api/status
+```
+**Response (200):**
 ```json
 {
-  "status": "OK",
-  "message": "Server is running"
+  "activeMonitors": 1,
+  "totalViewers": 2,
+  "activeRooms": [
+    { "roomId": "baby-HCL0S7LxnW", "hasCamera": true, "viewers": 2 }
+  ],
+  "serverStatus": "online",
+  "uptime": 3600.5
 }
 ```
+Data is ephemeral (in-memory via Socket.IO rooms), not persisted in MongoDB. Dashboard polls this every 10 seconds.
 
-#### Root Endpoint
+---
+
+### 📡 WebRTC (`/api/webrtc`)
+
+#### Get ICE Servers (STUN + TURN)
 ```http
-GET /
+GET /api/webrtc/ice-servers
 ```
-**Response:**
+**Response (200):**
 ```json
 {
-  "message": "Welcome to the TypeScript Express API",
-  "version": "1.0.0",
-  "endpoints": {
-    "health": "/health",
-    "api": "/api"
-  }
+  "iceServers": [
+    { "urls": "stun:stun.l.google.com:19302" },
+    { "urls": "stun:stun1.l.google.com:19302" },
+    {
+      "urls": "turn:openrelay.metered.ca:80",
+      "username": "openrelayproject",
+      "credential": "openrelayproject"
+    }
+  ]
 }
 ```
+- Custom TURN server via env vars: `TURN_SERVER_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`
+- Falls back to free openrelay.metered.ca TURN servers if env vars are not set
+- Both Broadcaster and Viewer fetch ICE servers at mount
 
-## Database Schema
+---
 
-### User Model
+## Real-Time Events (Socket.IO)
+
+Connect to `http://localhost:5000` via Socket.IO.
+
+### Notification Events
+
+| Event (Client → Server)   | Payload                | Description                             |
+| ------------------------- | ---------------------- | --------------------------------------- |
+| `subscribe-notifications` | `firebaseUid` (string) | Join user-specific room for live alerts |
+
+| Event (Server → Client) | Payload                                       | Description                               |
+| ----------------------- | --------------------------------------------- | ----------------------------------------- |
+| `new-notification`      | `{ id, type, message, snapshot, time, read }` | Pushed when a new notification is created |
+
+**Used by:** DashboardPage (recent alerts card), NotificationsPage (live list updates)
+
+### WebRTC Signaling Events
+
+| Event (Client → Server) | Payload                                  | Description                        |
+| ----------------------- | ---------------------------------------- | ---------------------------------- |
+| `join-room`             | `roomId` (string)                        | Join a WebRTC room                 |
+| `broadcaster`           | `roomId` (string)                        | Register as the camera broadcaster |
+| `viewer`                | `roomId` (string)                        | Register as a stream viewer        |
+| `offer`                 | `viewerId`, `RTCSessionDescription`      | Send SDP offer to a viewer         |
+| `answer`                | `broadcasterId`, `RTCSessionDescription` | Send SDP answer to broadcaster     |
+| `ice-candidate`         | `targetId`, `RTCIceCandidate`            | Exchange ICE candidates            |
+
+| Event (Server → Client)    | Payload                  | Description                                     |
+| -------------------------- | ------------------------ | ----------------------------------------------- |
+| `broadcaster-exists`       | `broadcasterId` (string) | Sent to viewer when broadcaster is already live |
+| `broadcaster-ready`        | `broadcasterId` (string) | Sent to room when broadcaster comes online      |
+| `broadcaster-disconnected` | —                        | Sent to room when broadcaster leaves            |
+| `viewer-joined`            | `viewerId` (string)      | Sent to broadcaster when new viewer joins       |
+| `viewer-disconnected`      | `viewerId` (string)      | Sent to broadcaster when viewer leaves          |
+
+### WebRTC Room Pairing
+
+Both devices auto-derive the room ID from the user's Firebase UID:
+```
+roomId = `baby-${user.uid.slice(0, 12)}`
+```
+Devices on the **same account** connect automatically without manual room entry.
+
+### Two-Device Setup
+
+| Device Role | URL Path   | Component      | Function                                                            |
+| ----------- | ---------- | -------------- | ------------------------------------------------------------------- |
+| **Baby**    | `/baby`    | BabyDevicePage | Fullscreen camera broadcaster with mirrored preview, HUD, wake lock |
+| **Parent**  | `/monitor` | MonitorPage    | Fullscreen stream viewer with HUD (TTS talk-to-baby + lullaby gen)  |
+
+1. On the **baby device**: Navigate to `/baby`, log in, tap **Start Baby Camera**
+2. On the **parent device**: Navigate to `/monitor`, tap **Watch Baby Stream**
+3. Both devices auto-pair via the same account — no room ID needed
+4. Parent HUD provides TTS (talk to baby) and lullaby generation buttons over the live feed
+5. Baby device keeps screen on via Wake Lock API
+
+---
+
+## Database Schemas
+
+### User
 ```typescript
 {
-  firebaseUid: string;       // Unique Firebase authentication UID
-  email: string;             // User email (unique)
-  displayName?: string;      // Optional display name
-  customVoiceId?: string;    // ElevenLabs custom voice ID (optional)
-  createdAt: Date;           // Auto-generated timestamp
-  updatedAt: Date;           // Auto-updated timestamp
+  firebaseUid: string;              // Firebase Auth UID (unique, indexed)
+  email: string;                     // Unique, lowercase, trimmed
+  displayName?: string;              // Trimmed
+  phone?: string;                    // For SMS alerts (E.164 format), trimmed
+  customVoiceId?: string;            // ElevenLabs cloned voice ID
+  enableCustomVoice: boolean;        // Default: true
+  notificationPreferences: {
+    email: boolean;                  // Default: true
+    sms: boolean;                    // Default: false
+    push: boolean;                   // Default: true
+  };
+  createdAt: Date;                   // Auto (timestamps)
+  updatedAt: Date;
 }
 ```
 
-**Indexes:**
-- `firebaseUid` (unique)
-- `email` (unique)
+### Notification
+```typescript
+{
+  userId: ObjectId;                  // Ref → User (indexed)
+  type: "motion" | "sound" | "boundary" | "unknown" | "system";
+  message: string;
+  snapshot?: string;                 // Base64 JPEG (320px thumbnail)
+  read: boolean;                    // Default: false
+  details?: Record<string, unknown>; // Arbitrary metadata
+  createdAt: Date;                   // Auto (timestamps)
+  updatedAt: Date;
+}
+// Compound index: { userId: 1, createdAt: -1 }
+```
 
-## Features
+### AudioLog
+```typescript
+{
+  userId: ObjectId;                  // Ref → User
+  babyDeviceId: string;
+  text: string;                      // Capped at 1000 chars
+  voiceId: string;
+  duration?: number;
+  characterCount: number;
+  status: "success" | "failed";      // Default: "success"
+  createdAt: Date;                   // Auto (timestamps)
+}
+```
 
-### 🔐 Secure Authentication
-- Firebase Authentication with JWT tokens
-- Password hashing via Firebase (scrypt algorithm)
-- Protected routes with middleware verification
-- MongoDB user reference documents
-
-### 🎵 Text-to-Speech
-- High-quality audio generation via ElevenLabs
-- Multiple voice options
-- Direct MP3 streaming (no storage overhead)
-- Supports custom voice models
-
-### 🎤 Voice Cloning
-- Parent voice duplication from audio samples
-- Automatic voice selection for authenticated users
-- ElevenLabs voice cloning API integration
-- Per-user voice management (create, view, delete)
-
-### 📡 Audio Streaming
-- Real-time audio delivery
-- No database storage (512MB Atlas free tier optimization)
-- Direct buffer streaming to devices
-- Device-specific routing via `babyDeviceId`
+---
 
 ## Setup & Installation
 
 ### Prerequisites
-- Node.js 18 or higher
+- Node.js 18+
 - MongoDB Atlas account
-- Firebase project with Admin SDK
+- Firebase project (Admin SDK + Web API key)
 - ElevenLabs API key
+- SendGrid API key (for email alerts)
+- Twilio account (for SMS alerts)
 
 ### Environment Variables
 
 Create `backend/.env`:
-
 ```env
 # Server
 PORT=5000
 NODE_ENV=development
 
 # MongoDB Atlas
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/dbname
 
 # Firebase Admin SDK
 FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@project.iam.gserviceaccount.com
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-
-# Firebase Web API
 FIREBASE_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # ElevenLabs
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
+ELEVENLABS_API_KEY=sk_xxxxxxxxxxxxx
 ELEVENLABS_VOICE_ID=default_voice_id
+
+# SendGrid (Email)
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxx
+SENDGRID_FROM_EMAIL=noreply@yourdomain.com
+
+# Twilio (SMS)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxx
+TWILIO_FROM_NUMBER=+15551234567
+
+# TURN Server (optional — falls back to openrelay.metered.ca)
+TURN_SERVER_URL=turn:your-turn-server.com:443
+TURN_USERNAME=your-username
+TURN_CREDENTIAL=your-credential
 ```
 
-### Installation
+Create `frontend/.env`:
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_FIREBASE_API_KEY=AIzaSyXXXX
+VITE_FIREBASE_AUTH_DOMAIN=project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+```
+
+### Quick Start
 
 ```bash
-# Navigate to backend
+# Backend
 cd backend
-
-# Install dependencies
 npm install
+npm run dev          # http://localhost:5000
 
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev          # http://localhost:5173
 ```
 
-## Development
+### Dependencies
 
-```bash
-# Start with hot reload
-npm run dev
+**Backend:** `express`, `mongoose`, `firebase-admin`, `socket.io`, `cors`, `helmet`, `morgan`, `dotenv`, `formidable`
 
-# Build TypeScript
-npm run build
+**Frontend:** `react`, `react-dom`, `react-router-dom`, `firebase`, `socket.io-client`, `tailwindcss`, `@tailwindcss/vite`, `framer-motion`, `lenis`, `@tensorflow/tfjs-core`, `@tensorflow/tfjs-backend-webgl`, `@tensorflow-models/pose-detection`
 
-# Run production build
-npm start
-```
-
-Server runs on `http://localhost:5000`
+---
 
 ## API Response Codes
 
 | Code | Meaning                              |
 | ---- | ------------------------------------ |
 | 200  | Success                              |
-| 201  | Created (signup, voice clone)        |
+| 201  | Created (signup, voice clone, notif) |
 | 400  | Bad Request (missing/invalid data)   |
 | 401  | Unauthorized (invalid/missing token) |
-| 404  | Not Found (resource doesn't exist)   |
+| 404  | Not Found                            |
 | 500  | Internal Server Error                |
 
-## Security Features
+## Security
 
-✅ Firebase JWT token verification  
-✅ Helmet.js security headers  
-✅ CORS enabled for frontend  
-✅ Environment variable protection  
-✅ Firebase scrypt password hashing  
-✅ User-specific resource isolation  
-✅ Temporary file cleanup  
-
-## Limitations & Considerations
-
-### MongoDB Atlas Free Tier
-- 512MB storage limit
-- Audio NOT stored in database (streamed only)
-- User metadata only
-
-### ElevenLabs Free Tier
-- 10,000 characters/month for TTS
-- Limited voice cloning quota
-- Uses `eleven_turbo_v2` model
-
-### Firebase
-- Per-project rate limits apply
-- Authentication quotas
-
-## Documentation
-
-- **Backend README:** [backend/README.md](backend/README.md)
-- **Architecture:** [backend/STRUCTURE.md](backend/STRUCTURE.md)
-- **Voice Cloning Guide:** [backend/VOICE_DUBBING.md](backend/VOICE_DUBBING.md)
-
-## Technology Decisions
-
-### Why TypeScript?
-- Type safety reduces runtime errors
-- Better IDE support and autocomplete
-- Easier refactoring and maintenance
-
-### Why Feature-Based Architecture?
-- Clear separation of concerns
-- Scalable structure
-- Easy to locate related code
-- Supports team collaboration
-
-
-
-### Why ElevenLabs?
-- High-quality voice synthesis
-- Voice cloning capabilities
-- Simple REST API
-- Multiple voice options
-
-### Why Audio Streaming?
-- MongoDB free tier only 512MB
-- Audio files would quickly exceed storage
-- Real-time delivery to devices
-- No cleanup required
-
-## Workflow
-
-### Parent Authentication
-```
-1. Parent signs up with email/password
-   ↓
-2. Firebase creates authentication record
-   ↓
-3. Backend creates MongoDB user document
-   ↓
-4. Parent receives JWT token
-```
-
-### Voice Cloning Setup
-```
-1. Parent uploads audio samples (1-3 minutes)
-   ↓
-2. Backend sends to ElevenLabs API
-   ↓
-3. ElevenLabs creates custom voice
-   ↓
-4. Voice ID saved to user's MongoDB document
-```
-
-### Sending Audio Message
-```
-1. Parent enters text message
-   ↓
-2. Backend checks for user's custom voice
-   ↓
-3. Generates audio with ElevenLabs
-   ↓
-4. Streams MP3 to baby's device
-   ↓
-5. Baby hears parent's voice
-```
-
-## Future Enhancements
-
-- 🔄 WebSocket support for real-time notifications
-- 📱 Mobile app integration
-- 🔊 Audio playback history
-- 👥 Multiple baby device management
-- 🎨 Voice effect customization
-- 📊 Usage analytics dashboard
-
-## Contributing
-
-1. Create feature branch
-2. Make changes with TypeScript
-3. Test all endpoints
-4. Update documentation
-5. Submit pull request
-
-## License
-
-MIT
-
-## Contact
-
-For questions or support, contact the development team.
+- Firebase JWT token verification on all protected routes
+- Helmet.js security headers
+- CORS configured for frontend origin
+- Environment variable protection (`.env` + `.gitignore`)
+- User-specific resource isolation (users can only access their own data)
+- Input sanitization on signup (strips `<>`, max 255 chars, email regex, password 6-128 chars)
 
 ---
 

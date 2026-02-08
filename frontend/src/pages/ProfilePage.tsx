@@ -1,11 +1,68 @@
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/useAuth";
-// ... imports
+import DashboardLayout from "../components/dashboard/DashboardLayout";
+import Toast from "../components/ui/Toast";
+import VoiceSelector from "../components/onboarding/VoiceSelector";
+import VoiceRecorder from "../components/onboarding/VoiceRecorder";
 
 export default function ProfilePage() {
   const { token, loading: authLoading } = useAuth();
-  // ... state
 
-  // ... (handleChange, handleNotificationChange, state definitions)
+  const [formData, setFormData] = useState({
+    displayName: "",
+    email: "",
+    phone: "",
+    enableCustomVoice: true,
+    notifications: { email: true, sms: false, push: true },
+  });
+
+  const [voiceMode, setVoiceMode] = useState<"preset" | "clone">("preset");
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [initialVoiceId, setInitialVoiceId] = useState<string | null>(null);
+  const [initialVoiceIsCloned, setInitialVoiceIsCloned] = useState(false);
+  const [recordedBlobs, setRecordedBlobs] = useState<Blob[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleNotificationChange = (id: "email" | "sms" | "push") => {
+    setFormData((prev) => ({
+      ...prev,
+      notifications: { ...prev.notifications, [id]: !prev.notifications[id] },
+    }));
+  };
+
+  // Load notification prefs + phone on mount
+  useEffect(() => {
+    if (authLoading || !token) return;
+    const fetchPrefs = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+        const res = await fetch(`${apiUrl}/notifications/preferences`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setFormData((prev) => ({
+            ...prev,
+            phone: data.phone || "",
+            notifications: {
+              email: data.notificationPreferences?.email ?? true,
+              sms: data.notificationPreferences?.sms ?? false,
+              push: data.notificationPreferences?.push ?? true,
+            },
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch notification prefs:", err);
+      }
+    };
+    fetchPrefs();
+  }, [token, authLoading]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -122,6 +179,21 @@ export default function ProfilePage() {
         body: JSON.stringify({ enableCustomVoice: formData.enableCustomVoice }),
       });
 
+      // 3. Save notification preferences + phone
+      await fetch(`${apiUrl}/notifications/preferences`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.notifications.email,
+          sms: formData.notifications.sms,
+          push: formData.notifications.push,
+          phone: formData.phone || undefined,
+        }),
+      });
+
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       setShowToast(true);
@@ -179,6 +251,17 @@ export default function ProfilePage() {
                     className="w-full px-4 py-3 rounded-xl bg-warm-white border border-warm-cream focus:outline-none focus:ring-2 focus:ring-coral"
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-charcoal mb-2">Phone Number <span className="text-mid-gray font-normal">(for SMS alerts)</span></label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="+1 (555) 123-4567"
+                    className="w-full px-4 py-3 rounded-xl bg-warm-white border border-warm-cream focus:outline-none focus:ring-2 focus:ring-coral"
+                  />
+                </div>
               </div>
             </div>
           </section>
@@ -213,25 +296,22 @@ export default function ProfilePage() {
               ].map((item) => (
                 <label
                   key={item.id}
-                  className={`flex flex-col p-5 border rounded-2xl cursor-pointer transition-all ${
-                    formData.notifications[item.id as keyof typeof formData.notifications]
-                      ? "border-coral bg-coral/5"
-                      : "border-warm-cream hover:bg-warm-white"
-                  }`}>
+                  className={`flex flex-col p-5 border rounded-2xl cursor-pointer transition-all ${formData.notifications[item.id as keyof typeof formData.notifications]
+                    ? "border-coral bg-coral/5"
+                    : "border-warm-cream hover:bg-warm-white"
+                    }`}>
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-2xl">{item.icon}</span>
                     <div
-                      className={`w-12 h-6 rounded-full p-1 transition-colors ${
-                        formData.notifications[item.id as keyof typeof formData.notifications]
-                          ? "bg-coral"
-                          : "bg-gray-300"
-                      }`}>
+                      className={`w-12 h-6 rounded-full p-1 transition-colors ${formData.notifications[item.id as keyof typeof formData.notifications]
+                        ? "bg-coral"
+                        : "bg-gray-300"
+                        }`}>
                       <div
-                        className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                          formData.notifications[item.id as keyof typeof formData.notifications]
-                            ? "translate-x-6"
-                            : "translate-x-0"
-                        }`}
+                        className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${formData.notifications[item.id as keyof typeof formData.notifications]
+                          ? "translate-x-6"
+                          : "translate-x-0"
+                          }`}
                       />
                     </div>
                     <input
@@ -260,17 +340,15 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => setVoiceMode("preset")}
-                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
-                    voiceMode === "preset" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
-                  }`}>
+                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${voiceMode === "preset" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
+                    }`}>
                   Preset Voices
                 </button>
                 <button
                   type="button"
                   onClick={() => setVoiceMode("clone")}
-                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
-                    voiceMode === "clone" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
-                  }`}>
+                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${voiceMode === "clone" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
+                    }`}>
                   My Voice Clone
                 </button>
               </div>
