@@ -10,17 +10,18 @@ export default function OnboardingPage() {
   const [voiceMethod, setVoiceMethod] = useState<"clone" | "preset" | null>(null);
   const [notificationMethod, setNotificationMethod] = useState<string[]>([]);
 
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedBlobs, setRecordedBlobs] = useState<Blob[]>([]);
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const handleNext = async () => {
     // Validate Step 2 (Voice)
     if (step === 2) {
-      if (voiceMethod === "clone" && !recordedBlob) {
-        alert("Please record your voice first.");
+      if (voiceMethod === "clone" && recordedBlobs.length === 0) {
+        alert("Please record at least one sample.");
         return;
       }
+      // ... (rest of validation)
       if (voiceMethod === "preset" && !selectedVoiceId) {
         alert("Please select a voice.");
         return;
@@ -37,10 +38,13 @@ export default function OnboardingPage() {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
         // 1. Save Voice (Clone or Preset)
-        if (voiceMethod === "clone" && recordedBlob) {
+        if (voiceMethod === "clone" && recordedBlobs.length > 0) {
           const formData = new FormData();
           formData.append("name", "My Voice");
-          formData.append("samples", recordedBlob, "recording.webm");
+
+          recordedBlobs.forEach((blob, index) => {
+            formData.append("samples", blob, `sample_${index}.webm`);
+          });
 
           const response = await fetch(`${apiUrl}/audio/voice/clone`, {
             method: "POST",
@@ -49,6 +53,7 @@ export default function OnboardingPage() {
           });
           if (!response.ok) throw new Error("Failed to upload voice");
         } else if (voiceMethod === "preset" && selectedVoiceId) {
+          // ... (preset logic)
           const response = await fetch(`${apiUrl}/audio/voice`, {
             method: "PUT",
             headers: {
@@ -60,13 +65,10 @@ export default function OnboardingPage() {
           if (!response.ok) throw new Error("Failed to save voice selection");
         }
 
-        // 2. Save Notifications (TODO: Add endpoint if needed, for now just local state used)
-
-        // Redirect
         navigate("/dashboard");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error saving setup:", error);
-        alert("Failed to complete setup. Please try again.");
+        alert(`Failed to complete setup: ${error.message}`);
       } finally {
         setIsUploading(false);
       }
@@ -180,7 +182,7 @@ export default function OnboardingPage() {
                   </p>
 
                   {voiceMethod === "clone" ? (
-                    <VoiceRecorder onComplete={(blob) => setRecordedBlob(blob)} />
+                    <VoiceRecorder onSamplesChange={(blobs) => setRecordedBlobs(blobs)} />
                   ) : (
                     <VoiceSelector onSelect={(id) => setSelectedVoiceId(id)} />
                   )}

@@ -1,56 +1,19 @@
-import DashboardLayout from "../components/dashboard/DashboardLayout";
-import { useState, useEffect } from "react";
-import VoiceSelector from "../components/onboarding/VoiceSelector.tsx";
-import VoiceRecorder from "../components/onboarding/VoiceRecorder.tsx";
-import { motion, AnimatePresence } from "framer-motion";
-import Toast from "../components/ui/Toast.tsx";
+import { useAuth } from "../context/useAuth";
+// ... imports
 
 export default function ProfilePage() {
-  const [formData, setFormData] = useState({
-    displayName: "Jane Doe",
-    email: "jane@example.com",
-    theme: "light",
-    notifications: {
-      email: true,
-      sms: false,
-      push: true,
-    },
-    enableCustomVoice: true, // Default to true
-  });
+  const { token, loading: authLoading } = useAuth();
+  // ... state
 
-  const [voiceMode, setVoiceMode] = useState<"preset" | "clone">("preset");
-  const [showToast, setShowToast] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleNotificationChange = (type: "email" | "sms" | "push") => {
-    setFormData((prev) => ({
-      ...prev,
-      notifications: {
-        ...prev.notifications,
-        [type]: !prev.notifications[type],
-      },
-    }));
-  };
-
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Track initial voice state to determine if we need to delete a custom voice
-  const [initialVoiceId, setInitialVoiceId] = useState<string | null>(null);
-  const [initialVoiceIsCloned, setInitialVoiceIsCloned] = useState(false);
+  // ... (handleChange, handleNotificationChange, state definitions)
 
   useEffect(() => {
+    if (authLoading) return;
+
     const fetchCurrentVoice = async () => {
       try {
-        const token = sessionStorage.getItem("idToken") || localStorage.getItem("idToken");
+        if (!token) return;
+
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
         const res = await fetch(`${apiUrl}/audio/voice/custom`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -59,28 +22,33 @@ export default function ProfilePage() {
         if (res.ok) {
           const voiceData = await res.json();
           setInitialVoiceId(voiceData.voice_id);
-          // Set toggle state based on user preference (need to fetch user profile if not in this response)
-          // Wait, getCustomVoice endpoint currently calls /v1/voices/ID. It returns ElevenLabs data, which doesn't have our user setting.
-          // We need to fetch user settings separately or update getCustomVoice to return it.
-          // For now, let's assume default true or fetch user profile.
-          // Let's add a quick fetch for user profile /auth/me or similar if needed.
-          // But actually, updateAudioSettings returns it.
-          // Let's rely on user profile fetch?
-          // I'll add logic to fetch /api/auth/me to get this setting.
+
+          if (voiceData.enableCustomVoice !== undefined) {
+            setFormData((prev) => ({ ...prev, enableCustomVoice: voiceData.enableCustomVoice }));
+          }
+
+          if (voiceData.category === "cloned" || voiceData.category === "generated") {
+            setInitialVoiceIsCloned(true);
+            setVoiceMode("clone"); // Default to clone tab if user has one
+          } else {
+            setInitialVoiceIsCloned(false);
+            setVoiceMode("preset");
+            setSelectedVoiceId(voiceData.voice_id); // Pre-select
+          }
         }
       } catch (error) {
         console.error("Failed to fetch current voice:", error);
       }
     };
     fetchCurrentVoice();
-  }, []);
+  }, [token, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
 
     try {
-      const token = sessionStorage.getItem("idToken") || localStorage.getItem("idToken");
+      if (!token) throw new Error("Not authenticated");
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
       // Logic: If we are replacing a CLONED voice with something else (new clone or preset),
@@ -88,7 +56,7 @@ export default function ProfilePage() {
       let shouldDeleteOld = false;
       if (initialVoiceIsCloned && initialVoiceId) {
         // If switching to Preset OR (switching to Clone AND we have a NEW recording)
-        if (voiceMode === "preset" || (voiceMode === "clone" && recordedBlob)) {
+        if (voiceMode === "preset" || (voiceMode === "clone" && recordedBlobs.length > 0)) {
           shouldDeleteOld = true;
         }
       }
@@ -105,10 +73,14 @@ export default function ProfilePage() {
       }
 
       // 1. Upload Voice if recorded and in clone mode
-      if (voiceMode === "clone" && recordedBlob) {
+      if (voiceMode === "clone" && recordedBlobs.length > 0) {
         const voiceData = new FormData();
         voiceData.append("name", formData.displayName + "'s Voice");
-        voiceData.append("samples", recordedBlob, "recording.webm");
+
+        // Append all blobs
+        recordedBlobs.forEach((blob, index) => {
+          voiceData.append("samples", blob, `sample_${index}.webm`);
+        });
 
         const voiceRes = await fetch(`${apiUrl}/audio/voice/clone`, {
           method: "POST",
@@ -153,9 +125,9 @@ export default function ProfilePage() {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       setShowToast(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving profile:", error);
-      alert("Failed to save changes. Please try again.");
+      alert(`Failed to save changes: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -344,7 +316,7 @@ export default function ProfilePage() {
                     <p className="text-sm text-mid-gray mb-4">
                       Record your own voice to create a custom AI clone. Your baby will hear you, even when you're away.
                     </p>
-                    <VoiceRecorder onComplete={(blob) => setRecordedBlob(blob)} />
+                    <VoiceRecorder onSamplesChange={(blobs) => setRecordedBlobs(blobs)} />
                   </motion.div>
                 )}
               </AnimatePresence>

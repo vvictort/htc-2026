@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../../context/useAuth";
 
 interface Voice {
   voice_id: string;
@@ -18,24 +19,31 @@ interface VoiceSelectorProps {
 }
 
 export default function VoiceSelector({ onSelect }: VoiceSelectorProps) {
+  const { token, loading: authLoading } = useAuth();
   const [voices, setVoices] = useState<Voice[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const fetchVoices = async () => {
       try {
-        const token = sessionStorage.getItem("idToken") || localStorage.getItem("idToken");
+        if (!token) {
+          console.warn("No auth token available, skipping fetchVoices");
+          return;
+        }
+
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
         const res = await fetch(`${apiUrl}/audio/voices`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error("Failed to fetch voices");
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Failed to fetch voices: ${res.status} ${errText}`);
+        }
         const data = await res.json();
-        // Filter to reasonable amount or just take top ones if too many?
-        // ElevenLabs returns many. Let's take 'premade' and maybe limit or just show all.
-        // Assuming data.voices exists.
         setVoices(data.voices || []);
       } catch (err) {
         console.error(err);
@@ -45,7 +53,7 @@ export default function VoiceSelector({ onSelect }: VoiceSelectorProps) {
       }
     };
     fetchVoices();
-  }, []);
+  }, [token, authLoading]);
 
   const handleSelect = (id: string) => {
     setSelectedId(id);
