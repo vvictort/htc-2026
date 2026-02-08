@@ -5,9 +5,21 @@ import DailyQuote from "../components/dashboard/DailyQuote";
 
 export default function DashboardPage() {
   const stats = [
-    { label: "Active Monitors", value: "1", icon: "📹", color: "bg-coral/10 text-coral" },
-    { label: "Notifications", value: "3", icon: "🔔", color: "bg-soft-blue/20 text-soft-blue" },
-    { label: "System Status", value: "Online", icon: "✨", color: "bg-soft-green/20 text-soft-green" },
+    { label: "Active Monitors", value: "1", icon: "📹", color: "bg-coral/10 text-coral", valueColor: "text-charcoal" },
+    {
+      label: "Notifications",
+      value: "3",
+      icon: "🔔",
+      color: "bg-soft-blue/20 text-soft-blue",
+      valueColor: "text-charcoal",
+    },
+    {
+      label: "System Status",
+      value: "Online",
+      icon: "✨",
+      color: "bg-soft-green/20 text-soft-green",
+      valueColor: "text-green-600",
+    },
   ];
 
   const container = {
@@ -26,7 +38,14 @@ export default function DashboardPage() {
   };
 
   return (
-    <DashboardLayout title="Welcome Back, Parent!" subtitle="Here's what's happening with your little one today.">
+    <DashboardLayout
+      title={
+        <>
+          Welcome Back,{" "}
+          <span className="text-coral drop-shadow-[0_0_5px_rgba(255,111,97,0.6)] blur-[0.4px]">Parent!</span>
+        </>
+      }
+      subtitle="Here's what's happening with your little one today.">
       <motion.div variants={container} initial="hidden" animate="show">
         <motion.div variants={item}>
           <DailyQuote />
@@ -44,7 +63,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-mid-gray text-sm font-medium">{stat.label}</p>
-                <h3 className="text-2xl font-bold text-charcoal">{stat.value}</h3>
+                <h3 className={`text-2xl font-bold ${stat.valueColor}`}>{stat.value}</h3>
               </div>
             </motion.div>
           ))}
