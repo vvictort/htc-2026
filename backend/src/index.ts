@@ -177,11 +177,23 @@ io.on('connection', (socket) => {
 
     socket.on('answer', (id: string, description: any) => {
         socket.to(id).emit('answer', socket.id, description);
+    });    socket.on('ice-candidate', (id: string, candidate: any) => {
+        socket.to(id).emit('ice-candidate', socket.id, candidate);
     });
 
-    socket.on('ice-candidate', (id: string, candidate: any) => {
-        socket.to(id).emit('ice-candidate', socket.id, candidate);
-    }); socket.on('disconnect', () => {
+    // Audio playback forwarding - send audio URL to baby device
+    socket.on('play-audio', (roomId: string, audioUrl: string) => {
+        console.log(`[play-audio] Forwarding audio to room ${roomId}`);
+        const room = rooms.get(roomId);
+        if (room?.broadcaster) {
+            io.to(room.broadcaster).emit('play-audio', audioUrl);
+            console.log(`[play-audio] Sent audio to broadcaster ${room.broadcaster}`);
+        } else {
+            console.warn(`[play-audio] No broadcaster found in room ${roomId}`);
+        }
+    });
+
+    socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
 
         // Clean up rooms when broadcaster or viewer disconnects

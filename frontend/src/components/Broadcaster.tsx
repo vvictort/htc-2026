@@ -20,6 +20,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
   const [error, setError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
   const [lastEvent, setLastEvent] = useState<{ reason: string; at: number } | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -225,13 +226,38 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
       if (peerConnection) {
         await peerConnection.setRemoteDescription(answer);
       }
-    });
-
-    socketRef.current.on("ice-candidate", (viewerId: string, candidate: RTCIceCandidateInit) => {
+    });    socketRef.current.on("ice-candidate", (viewerId: string, candidate: RTCIceCandidateInit) => {
       console.log("Received ICE candidate from viewer:", viewerId);
       const peerConnection = peerConnectionsRef.current.get(viewerId);
       if (peerConnection) {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });    // Audio playback - listen for audio from monitor
+    socketRef.current.on("play-audio", (audioUrl: string) => {
+      console.log("[Broadcaster] Received play-audio event, data length:", audioUrl.length);
+      setIsPlayingAudio(true);
+      
+      try {
+        const audio = new Audio(audioUrl);
+        audio.play()
+          .then(() => console.log("[Broadcaster] Audio playing on baby device"))
+          .catch((err) => console.error("[Broadcaster] Audio playback error:", err));
+        
+        // Clean up the audio element after it finishes
+        audio.onended = () => {
+          console.log("[Broadcaster] Audio playback completed");
+          setIsPlayingAudio(false);
+          audio.remove();
+        };
+        
+        audio.onerror = () => {
+          console.error("[Broadcaster] Audio error");
+          setIsPlayingAudio(false);
+          audio.remove();
+        };
+      } catch (err) {
+        console.error("[Broadcaster] Failed to create audio element:", err);
+        setIsPlayingAudio(false);
       }
     });
 
@@ -375,13 +401,26 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
                   <button onClick={() => setError(null)} className="text-white/70 hover:text-white ml-2">✕</button>
                 </div>
               </div>
-            )}
-
-            {/* Bottom gradient bar */}
+            )}            {/* Bottom gradient bar */}
             <div className="pointer-events-auto absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-linear-to-t from-black/70 to-transparent">
               <span className="text-xs text-white/40 font-mono">Room: {roomId}</span>
               <span className="text-[0.6rem] text-white/30">Baby Device Mode</span>
             </div>
+
+            {/* Audio playing indicator */}
+            {isPlayingAudio && (
+              <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
+                <div className="bg-black/80 backdrop-blur-xl rounded-2xl px-8 py-6 flex flex-col items-center gap-3 shadow-2xl border border-white/10">
+                  <div className="text-4xl animate-pulse">🔊</div>
+                  <div className="text-white font-semibold text-lg">Playing Message</div>
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Bottom draggable boundary bar */}
             <div style={{ position: 'absolute', bottom: 56, left: 20, right: 20, height: 84, pointerEvents: 'auto' }}>

@@ -190,8 +190,7 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
       default:
         return "⚪";
     }
-  };
-  /* ── Fullscreen mode: video fills entire container ── */
+  };  /* ── Fullscreen mode: video fills entire container ── */
   if (fullscreen) {
     return (
       <div className="relative w-full h-full bg-black">
@@ -200,6 +199,7 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
           autoPlay
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
+          style={{ transform: 'scaleX(-1)' }}
         />
 
         {/* Waiting / error overlay */}
@@ -270,10 +270,8 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
               <i className="fa-solid fa-triangle-exclamation text-yellow-400"></i>
               <span className="text-yellow-200">{error}</span>
             </div>
-          )}
-
-          <div className="relative bg-black rounded-lg overflow-hidden mb-4" style={{ aspectRatio: "16/9" }}>
-            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain" />
+          )}          <div className="relative bg-black rounded-lg overflow-hidden mb-4" style={{ aspectRatio: "16/9" }}>
+            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain" style={{ transform: 'scaleX(-1)' }} />
             {!isConnected && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center text-gray-500">

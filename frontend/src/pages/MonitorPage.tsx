@@ -1,7 +1,10 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/useAuth";
 import { AUDIO_ENDPOINTS, getAuthToken } from "../utils/api";
 import Viewer from "../components/Viewer";
+import { io, Socket } from "socket.io-client";
+
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 type LullabyVibe = "lullaby" | "classic" | "nature" | "cosmic" | "ocean" | "rainy";
 type LullabyLength = "short" | "medium" | "long";
@@ -26,6 +29,7 @@ export default function MonitorPage() {
   const defaultRoom = currentUser?.uid ? `baby-${currentUser.uid.slice(0, 12)}` : "baby-room-1";
   const [mode, setMode] = useState<"select" | "viewer">("select");
   const [roomId, setRoomId] = useState(defaultRoom);
+  const socketRef = useRef<Socket | null>(null);
 
   /* ── HUD state ── */
   const [hudVisible, setHudVisible] = useState(true);
@@ -41,6 +45,34 @@ export default function MonitorPage() {
   const [lullabyUrl, setLullabyUrl] = useState<string | null>(null);
   const [lullabyError, setLullabyError] = useState<string | null>(null);
 
+  // Update roomId when currentUser changes
+  useEffect(() => {
+    if (currentUser?.uid) {
+      const newRoomId = `baby-${currentUser.uid.slice(0, 12)}`;
+      setRoomId(newRoomId);
+      console.log("[MonitorPage] Room ID updated:", newRoomId);
+    }
+  }, [currentUser]);
+
+  // Connect to Socket.IO when in viewer mode
+  useEffect(() => {
+    if (mode === "viewer" && roomId) {
+      console.log("[MonitorPage] Connecting to Socket.IO for room:", roomId);
+      socketRef.current = io(BACKEND_URL);
+      
+      socketRef.current.on("connect", () => {
+        console.log("[MonitorPage] Socket connected:", socketRef.current?.id);
+        socketRef.current?.emit("join-room", roomId);
+      });
+
+      return () => {
+        console.log("[MonitorPage] Disconnecting Socket.IO");
+        socketRef.current?.disconnect();
+        socketRef.current = null;
+      };
+    }
+  }, [mode, roomId]);
+
   useEffect(() => {
     return () => {
       if (lullabyUrl) URL.revokeObjectURL(lullabyUrl);
@@ -51,24 +83,59 @@ export default function MonitorPage() {
   const handleTts = async () => {
     if (!ttsText.trim() || ttsSending) return;
     const authToken = authCtxToken || getAuthToken();
-    if (!authToken) return;
+    if (!authToken) {
+      alert("No authentication token found. Please log in again.");
+      return;
+    }
+    
+    if (!socketRef.current?.connected) {
+      alert("Not connected to baby device. Please ensure the baby camera is online.");
+      return;
+    }
+    
+    const payload = { text: ttsText.trim(), babyDeviceId: roomId };
+    console.log("[TTS] Sending request:", { 
+      endpoint: AUDIO_ENDPOINTS.STREAM, 
+      payload,
+      roomId,
+      hasToken: !!authToken 
+    });
+    
     setTtsSending(true);
     try {
       const res = await fetch(AUDIO_ENDPOINTS.STREAM, {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ text: ttsText.trim() }),
+        body: JSON.stringify(payload),
       });
+      
+      console.log("[TTS] Response status:", res.status);
+      
       if (res.ok) {
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audio.play();
-        audio.onended = () => URL.revokeObjectURL(url);
+        
+        // Convert blob to base64 data URL so it can be sent via Socket.IO
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const audioDataUrl = reader.result as string;
+          
+          // Send audio data URL to baby device via Socket.IO
+          console.log("[TTS] Sending audio to baby device via Socket.IO");
+          socketRef.current?.emit("play-audio", roomId, audioDataUrl);
+          
+          console.log("[TTS] Success! Audio sent to baby device.");
+        };
+        reader.readAsDataURL(blob);
+        
         setTtsText("");
+      } else {
+        const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+        console.error("[TTS] Error response:", errorData);
+        alert(`Failed to send message: ${errorData.error || "Unknown error"}`);
       }
     } catch (err) {
-      console.error("TTS error:", err);
+      console.error("[TTS] Request failed:", err);
+      alert("Failed to send message. Please try again.");
     } finally {
       setTtsSending(false);
     }
