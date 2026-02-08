@@ -3,27 +3,60 @@ import { PoseEngine, type PoseMetrics, type RoiPoint, type Boundaries } from "..
 
 const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 
-export default function CVMonitor({ externalVideoRef }: { externalVideoRef?: React.RefObject<HTMLVideoElement> }) {
-    const videoRef = useRef<HTMLVideoElement | null>(null);
+export default function CVMonitor({
+    externalVideoRef,
+    leftPct: propLeftPct,
+    rightPct: propRightPct,
+    onBoundariesChange,
+    mirror,
+    sendApi,
+}: {
+    externalVideoRef?: React.RefObject<HTMLVideoElement | null>;
+    leftPct?: number;
+    rightPct?: number;
+    onBoundariesChange?: (left: number, right: number) => void;
+    mirror?: boolean;
+    // when true, CVMonitor is allowed to send API notifications (controlled by Broadcaster start)
+    sendApi?: boolean;
+}) {
+    const internalVideoRef = useRef<HTMLVideoElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const engineRef = useRef<PoseEngine | null>(null);
 
     // If an external videoRef is provided (e.g. from Broadcaster), use it instead of creating our own stream
-    const effectiveVideoRef = externalVideoRef ?? videoRef;
+    const effectiveVideoRef = externalVideoRef ?? internalVideoRef;
 
     const [metrics, setMetrics] = useState<PoseMetrics | null>(null);
-    const [isMonitoring, setIsMonitoring] = useState(false);
-    const [leftPct, setLeftPct] = useState(0.08);
-    const [rightPct, setRightPct] = useState(0.92);
+    const [leftPctLocal, setLeftPctLocal] = useState(propLeftPct ?? 0.08);
+    const [rightPctLocal, setRightPctLocal] = useState(propRightPct ?? 0.92);
     const roiRef = useRef<RoiPoint[]>([]);
     const boundariesRef = useRef<Boundaries>({});
 
     const lastTriggerAtRef = useRef(0);
-    const activeSinceRef = useRef<number | null>(null);
-    const activeNotifiedRef = useRef(false);
 
-    const [apiSent, setApiSent] = useState<{ type: string; at: number } | null>(null);
+    const sendApiRef = useRef<boolean>(!!sendApi);
+    useEffect(() => {
+        sendApiRef.current = !!sendApi;
+    }, [sendApi]);
 
+    const triggerApi = async (type: "UNKNOWN" | "BOUNDARY" | "ACTIVE", details: Record<string, unknown>) => {
+        const now = Date.now();
+        const COOLDOWN_MS = 5000;
+        if (now - lastTriggerAtRef.current < COOLDOWN_MS) return;
+        lastTriggerAtRef.current = now;
+
+        try {
+            await fetch(`${API_URL}/monitor-event`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type, at: now, details }),
+            });
+        } catch {
+            // ignore
+        }
+    };
+
+    // initialize engine
     useEffect(() => {
         let stream: MediaStream | null = null;
         let cancelled = false;
@@ -54,10 +87,16 @@ export default function CVMonitor({ externalVideoRef }: { externalVideoRef?: Rea
                     activeSpeedPxPerSec: 35,
                     activeLimbSpeedNormPerSec: 0.5,
                     activityWindowMs: 5000,
-                    activeRatioThreshold: 0.6,
+                    // require 100% activity over the window to trigger ACTIVE (resets after firing)
+                    activeRatioThreshold: 1.0,
                 },
                 (m) => setMetrics(m),
-                (a) => console.log("alert", a)
+                (a) => {
+                    // Only forward alerts to API when broadcasting (sendApiRef set by Broadcaster)
+                    if (sendApiRef.current) {
+                        triggerApi(a.type, a.details ?? {});
+                    }
+                }
             );
 
             await engine.init();
@@ -75,8 +114,14 @@ export default function CVMonitor({ externalVideoRef }: { externalVideoRef?: Rea
         };
     }, [externalVideoRef]);
 
+    // sync prop boundaries into local state
+    useEffect(() => {
+        if (propLeftPct != null) setLeftPctLocal(propLeftPct);
+        if (propRightPct != null) setRightPctLocal(propRightPct);
+    }, [propLeftPct, propRightPct]);
+
     const setFullScreenRoiFromVideo = () => {
-        const video = videoRef.current;
+        const video = effectiveVideoRef.current;
         if (!video || !video.videoWidth || !video.videoHeight) return;
 
         const w = video.videoWidth;
@@ -89,50 +134,65 @@ export default function CVMonitor({ externalVideoRef }: { externalVideoRef?: Rea
         ];
     };
 
-    const applyBoundariesFromSliders = () => {
-        const video = videoRef.current;
+    const applyBoundaries = (left: number, right: number) => {
+        const video = effectiveVideoRef.current;
         if (!video || !video.videoWidth) return;
         setFullScreenRoiFromVideo();
 
-        const lp = Math.min(Math.max(leftPct, 0), 1);
-        const rp = Math.min(Math.max(rightPct, 0), 1);
-        const left = Math.min(lp, rp);
-        const right = Math.max(lp, rp);
+        const lp = Math.min(Math.max(left, 0), 1);
+        const rp = Math.min(Math.max(right, 0), 1);
+        const l = Math.min(lp, rp);
+        const r = Math.max(lp, rp);
 
         boundariesRef.current = {
-            leftX: left * video.videoWidth,
-            rightX: right * video.videoWidth,
+            leftX: l * video.videoWidth,
+            rightX: r * video.videoWidth,
         };
+
+        onBoundariesChange?.(l, r);
     };
 
     useEffect(() => {
-        const MIN_GAP = 0.02;
-        if (leftPct > rightPct - MIN_GAP) {
-            setRightPct(Math.min(Math.max(leftPct + MIN_GAP, 0), 1));
-            return;
-        }
-        applyBoundariesFromSliders();
+        applyBoundaries(leftPctLocal, rightPctLocal);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [leftPct, rightPct]);
+    }, [leftPctLocal, rightPctLocal, effectiveVideoRef.current?.videoWidth]);
 
+    // draw overlay canvas based on effective video
     useEffect(() => {
         const canvas = canvasRef.current;
-        const video = videoRef.current;
+        const video = effectiveVideoRef.current;
         if (!canvas || !video) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
+        // ensure canvas is positioned over the video element but under UI controls
+        canvas.style.position = "fixed";
+        canvas.style.pointerEvents = "none";
+        canvas.style.zIndex = "1";
+
         let raf = 0;
         const render = () => {
             const rect = video.getBoundingClientRect();
+            // size the canvas to the video's on-screen size and position it
             const w = Math.max(1, Math.round(rect.width));
             const h = Math.max(1, Math.round(rect.height));
             if (canvas.width !== w) canvas.width = w;
             if (canvas.height !== h) canvas.height = h;
+            canvas.style.left = rect.left + "px";
+            canvas.style.top = rect.top + "px";
+            canvas.style.width = rect.width + "px";
+            canvas.style.height = rect.height + "px";
 
             setFullScreenRoiFromVideo();
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // mirror canvas drawing if requested
+            if (mirror) {
+                ctx.save();
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+            }
 
             // Draw boundaries
             const b = boundariesRef.current;
@@ -160,82 +220,35 @@ export default function CVMonitor({ externalVideoRef }: { externalVideoRef?: Rea
             // centroid
             if (metrics?.centroid && video.videoWidth && video.videoHeight) {
                 const sx = canvas.width / video.videoWidth;
-                const sy = canvas.height / video.videoHeight;
+                const cy = canvas.height / video.videoHeight;
                 const cx = metrics.centroid.x * sx;
-                const cy = metrics.centroid.y * sy;
+                const cy2 = metrics.centroid.y * cy;
 
                 ctx.fillStyle = metrics.breachedBoundary ? "rgba(255,0,0,0.95)" : "rgba(0,120,255,0.95)";
                 ctx.beginPath();
-                ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
+                ctx.arc(cx, cy2, 8, 0, 2 * Math.PI);
                 ctx.fill();
             }
+
+            if (mirror) ctx.restore();
 
             raf = requestAnimationFrame(render);
         };
 
         raf = requestAnimationFrame(render);
         return () => cancelAnimationFrame(raf);
-    }, [metrics]);
-
-    const triggerApi = async (type: "UNKNOWN" | "BOUNDARY" | "ACTIVE", details: Record<string, unknown>) => {
-        const now = Date.now();
-        const COOLDOWN_MS = 5000;
-        if (now - lastTriggerAtRef.current < COOLDOWN_MS) return;
-        lastTriggerAtRef.current = now;
-
-        setApiSent({ type, at: now });
-
-        try {
-            await fetch(`${API_URL}/monitor-event`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type, at: now, details }),
-            });
-        } catch {
-            // ignore
-        }
-    };
-
-    // monitoring effect
-    useEffect(() => {
-        if (!isMonitoring) {
-            activeSinceRef.current = null;
-            activeNotifiedRef.current = false;
-            return;
-        }
-        if (!metrics) return;
-
-        if (metrics.state === "UNKNOWN") {
-            activeSinceRef.current = null;
-            activeNotifiedRef.current = false;
-            triggerApi("UNKNOWN", { poseOk: metrics.poseOk, poseConfidence: metrics.poseConfidence });
-            return;
-        }
-
-        if (metrics.breachedBoundary) {
-            triggerApi("BOUNDARY", { side: metrics.breachedBoundary });
-        }
-
-        if (metrics.state === "ACTIVE") {
-            activeSinceRef.current ??= Date.now();
-            const activeForMs = Date.now() - (activeSinceRef.current ?? Date.now());
-            if (activeForMs >= 5000 && !activeNotifiedRef.current) {
-                activeNotifiedRef.current = true;
-                triggerApi("ACTIVE", { activeForMs, movementSpeed: metrics.movementSpeed });
-            }
-        } else {
-            activeSinceRef.current = null;
-            activeNotifiedRef.current = false;
-        }
-    }, [isMonitoring, metrics?.state, metrics?.breachedBoundary, metrics?.movementSpeed]);
+    }, [metrics, mirror]);
 
     return (
-        <div style={{ maxWidth: 900 }}>
-            <div style={{ position: "relative" }}>
-                <video ref={videoRef} playsInline muted style={{ width: "100%", display: "block" }} />
+        <div style={{ maxWidth: 900, position: 'relative', zIndex: 1001 }}>
+            <div style={{ position: "relative", zIndex: 1002 }}>
+                {/* internal video is used only if no external video passed */}
+                {externalVideoRef == null && (
+                    <video ref={internalVideoRef} playsInline muted style={{ width: "100%", display: "block", transform: mirror ? "scaleX(-1)" : undefined }} />
+                )}
                 <canvas
                     ref={canvasRef}
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", transform: mirror ? "scaleX(-1)" : undefined, zIndex: 1 }}
                 />
 
                 <div style={{ position: "absolute", top: 10, right: 10 }}>
@@ -253,65 +266,10 @@ export default function CVMonitor({ externalVideoRef }: { externalVideoRef?: Rea
                             boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                         }}
                     >
-                        <div style={{ fontSize: 12, textAlign: "center" }}>
+                        {/* <div style={{ fontSize: 12, textAlign: "center" }}>
                             {metrics?.breachedBoundary ? "BORDER" : metrics?.state === "ACTIVE" ? "MOTION" : metrics?.state === "STILL" ? "OK" : "NO"}
-                        </div>
+                        </div> */}
                     </div>
-                    {apiSent && (
-                        <div style={{ marginTop: 8, background: "#3b82f6", padding: 6, color: "white", borderRadius: 6 }}>
-                            API: {apiSent.type} @{new Date(apiSent.at).toLocaleTimeString()}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <button
-                    onClick={() => {
-                        setIsMonitoring((v) => {
-                            const next = !v;
-                            activeSinceRef.current = null;
-                            activeNotifiedRef.current = false;
-                            if (!next) setApiSent(null);
-                            return next;
-                        });
-                        lastTriggerAtRef.current = 0;
-                    }}
-                    style={{ padding: "8px 12px", fontWeight: 600, background: isMonitoring ? "#b91c1c" : "#16a34a", color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}
-                >
-                    {isMonitoring ? "Stop" : "Start"}
-                </button>
-                <div style={{ fontSize: 13, opacity: 0.8 }}>
-                    When started, API calls fire on UNKNOWN, BOUNDARY, or sustained ACTIVE.
-                </div>
-            </div>
-
-            <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ fontWeight: 700 }}>Boundaries</div>
-                <label style={{ display: "grid", gap: 4 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span>Left</span>
-                        <span style={{ opacity: 0.7 }}>{Math.round(leftPct * 100)}%</span>
-                    </div>
-                    <input type="range" min={0} max={100} value={Math.round(leftPct * 100)} onChange={(e) => setLeftPct(Number(e.target.value) / 100)} />
-                </label>
-                <label style={{ display: "grid", gap: 4 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span>Right</span>
-                        <span style={{ opacity: 0.7 }}>{Math.round(rightPct * 100)}%</span>
-                    </div>
-                    <input type="range" min={0} max={100} value={Math.round(rightPct * 100)} onChange={(e) => setRightPct(Number(e.target.value) / 100)} />
-                </label>
-
-                <div style={{ display: "grid", gap: 6, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
-                    <div style={{ fontWeight: 700 }}>Diagnostics</div>
-                    <div>State: <strong>{metrics?.state ?? "—"}</strong></div>
-                    <div>Pose OK: {metrics?.poseOk ? "yes" : "no"}</div>
-                    <div>Centroid speed: {metrics?.centroidSpeed?.toFixed(1) ?? "—"} px/s</div>
-                    <div>Limb speed norm: {metrics?.movementSpeedNorm?.toFixed(3) ?? "—"} /s</div>
-                    <div>Torso length: {metrics?.torsoLen?.toFixed(1) ?? "—"} px</div>
-                    <div>Active score (5s): {(((metrics?.activeScore ?? 0) * 100)).toFixed(0)}%</div>
-                    <div>Boundary: {metrics?.breachedBoundary ?? "none"}</div>
                 </div>
             </div>
         </div>
