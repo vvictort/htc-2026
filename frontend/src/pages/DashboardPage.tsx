@@ -140,18 +140,18 @@ export default function DashboardPage() {
         </>
       }
       subtitle="Here's what's happening with your little one today.">
-      <motion.div variants={container} initial="hidden" animate="show">
+      <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
+        {/* Row 1: Quote + Stats */}
         <motion.div variants={item}>
           <DailyQuote />
         </motion.div>
 
-        {/* Stats Grid */}
-        <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <motion.div variants={item} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {stats.map((stat, i) => (
             <motion.div
-              whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
               key={i}
-              className="bg-white rounded-card p-6 border border-white/60 shadow-sm flex items-center gap-4">
+              className="bg-white rounded-card p-5 border border-white/60 shadow-sm flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${stat.color}`}>
                 {stat.icon}
               </div>
@@ -163,25 +163,24 @@ export default function DashboardPage() {
           ))}
         </motion.div>
 
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+        {/* Row 2: Monitor + Alerts  (equal height, 2 columns) */}
+        <div className="grid md:grid-cols-2 gap-6">
           {/* Monitor Card */}
           <motion.div
             variants={item}
-            whileHover={{ scale: 1.02 }}
-            className="bg-white rounded-card p-8 border border-white/60 shadow-md hover:shadow-xl transition-shadow group relative overflow-hidden">
-            {/* Decorative blob */}
-            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-coral/10 rounded-full blur-2xl group-hover:bg-coral/20 transition-colors"></div>
+            whileHover={{ scale: 1.01 }}
+            className="bg-white rounded-card p-8 border border-white/60 shadow-md hover:shadow-xl transition-shadow group relative overflow-hidden flex flex-col">
+            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-coral/10 rounded-full blur-2xl group-hover:bg-coral/20 transition-colors" />
 
-            <div className="flex justify-between items-start mb-6 relative z-10">
+            <div className="flex justify-between items-start mb-5 relative z-10">
               <div className="w-14 h-14 bg-coral/10 rounded-2xl flex items-center justify-center text-3xl">👶</div>
               <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full uppercase tracking-wide flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 Live
               </span>
             </div>
             <h3 className="text-2xl font-bold text-charcoal mb-2 relative z-10">Baby Monitor</h3>
-            <p className="text-mid-gray mb-8 relative z-10">
+            <p className="text-mid-gray mb-6 relative z-10 flex-1">
               Jump straight into the live feed and see how your baby is doing right now.
             </p>
             <Link to="/monitor" className="inline-flex items-center justify-center w-full btn-primary relative z-10">
@@ -192,22 +191,26 @@ export default function DashboardPage() {
           {/* Notifications Card */}
           <motion.div
             variants={item}
-            whileHover={{ scale: 1.02 }}
-            className="bg-white rounded-card p-8 border border-white/60 shadow-md hover:shadow-xl transition-shadow relative overflow-hidden group">
-            {/* Decorative blob */}
-            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-soft-blue/10 rounded-full blur-2xl group-hover:bg-soft-blue/20 transition-colors"></div>
+            whileHover={{ scale: 1.01 }}
+            className="bg-white rounded-card p-8 border border-white/60 shadow-md hover:shadow-xl transition-shadow relative overflow-hidden group flex flex-col">
+            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-soft-blue/10 rounded-full blur-2xl group-hover:bg-soft-blue/20 transition-colors" />
 
-            <div className="flex justify-between items-start mb-6 relative z-10">
+            <div className="flex justify-between items-start mb-5 relative z-10">
               <div className="w-14 h-14 bg-soft-blue/20 rounded-2xl flex items-center justify-center text-3xl">🔔</div>
+              {unreadCount > 0 && (
+                <span className="px-3 py-1 bg-coral/10 text-coral text-xs font-bold rounded-full">
+                  {unreadCount} new
+                </span>
+              )}
             </div>
             <h3 className="text-2xl font-bold text-charcoal mb-2 relative z-10">Recent Alerts</h3>
-            <p className="text-mid-gray mb-8 relative z-10">
+            <p className="text-mid-gray mb-4 relative z-10 text-sm">
               {unreadCount > 0
-                ? `You have ${unreadCount} unread notification${unreadCount > 1 ? "s" : ""} from the last 24 hours.`
-                : "No unread notifications."}
+                ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""} from the last 24 hours.`
+                : "No unread notifications — everything looks good!"}
             </p>
 
-            <div className="space-y-4 mb-4 relative z-10">
+            <div className="space-y-3 mb-4 relative z-10 flex-1">
               {(recentNotifs.length > 0
                 ? recentNotifs.slice(0, 3)
                 : [
@@ -226,29 +229,29 @@ export default function DashboardPage() {
                       />
                     </div>
                   ) : (
-                    <span className="text-lg">{getNotifIcon(n.type)}</span>
+                    <span className="text-lg shrink-0">{getNotifIcon(n.type)}</span>
                   )}
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-charcoal">{getNotifTitle(n.type)}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-charcoal truncate">{getNotifTitle(n.type)}</p>
                     <p className="text-xs text-mid-gray">{n.time ? formatTime(n.time) : ""}</p>
                   </div>
-                  {!n.read && <div className="w-2 h-2 rounded-full bg-coral shrink-0"></div>}
+                  {!n.read && <div className="w-2 h-2 rounded-full bg-coral shrink-0" />}
                 </div>
               ))}
             </div>
 
             <Link
               to="/notifications"
-              className="block text-center text-sm font-bold text-coral hover:text-coral-dark mt-4 relative z-10">
+              className="block text-center text-sm font-bold text-coral hover:text-coral-dark relative z-10">
               View All Notifications →
             </Link>
           </motion.div>
-
-          {/* Lullaby Generator Card */}
-          <motion.div variants={item} className="xl:col-span-1 md:col-span-2">
-            <LullabyGenerator />
-          </motion.div>
         </div>
+
+        {/* Row 3: Lullaby Generator (full width) */}
+        <motion.div variants={item}>
+          <LullabyGenerator />
+        </motion.div>
       </motion.div>
     </DashboardLayout>
   );
