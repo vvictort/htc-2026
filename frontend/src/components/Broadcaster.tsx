@@ -6,9 +6,13 @@ const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http:/
 
 interface BroadcasterProps {
   roomId: string;
+  /** When true, renders as full-screen video with HUD overlay instead of the legacy card UI */
+  fullscreen?: boolean;
+  /** Called when user taps "Stop" inside the fullscreen HUD */
+  onStop?: () => void;
 }
 
-export default function Broadcaster({ roomId }: BroadcasterProps) {
+export default function Broadcaster({ roomId, fullscreen = false, onStop }: BroadcasterProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
@@ -238,6 +242,99 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
       setError("Failed to access camera. Please grant camera permissions.");
     }
   };
+  /* ── Fullscreen HUD mode ── */
+  if (fullscreen) {
+    return (
+      <div className="absolute inset-0 bg-black">
+        {/* Video fills entire container */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        {/* Camera-off placeholder */}
+        {!isStreaming && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-charcoal/90 z-10">
+            <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
+              <span className="text-5xl opacity-40">📹</span>
+            </div>
+            <p className="text-white/50 text-sm mb-8">Camera is off</p>
+            <button
+              onClick={startStreaming}
+              className="px-8 py-4 bg-coral hover:bg-coral-dark active:scale-95 text-white font-bold text-base rounded-2xl transition-all shadow-lg flex items-center gap-3">
+              <span className="text-xl">▶️</span>
+              Start Camera
+            </button>
+          </div>
+        )}
+
+        {/* ── HUD overlay (only visible when streaming) ── */}
+        {isStreaming && (
+          <div className="absolute inset-0 z-20 pointer-events-none">
+            {/* Top gradient bar */}
+            <div className="pointer-events-auto flex items-center justify-between px-4 py-3 bg-linear-to-b from-black/70 to-transparent">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">👶</span>
+                <span className="text-white font-bold text-sm tracking-wide">
+                  Baby<span className="text-coral">Watcher</span>
+                </span>
+                <span className="ml-1 flex items-center gap-1.5 text-xs text-white/60">
+                  <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  Live
+                </span>
+              </div>
+
+              <button
+                onClick={() => { stopStreaming(); onStop?.(); }}
+                className="px-4 py-1.5 text-sm text-white/80 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-full backdrop-blur-sm transition-all">
+                ⏹ Stop
+              </button>
+            </div>
+
+            {/* ── Floating status pills (right edge) ── */}
+            <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 items-end">
+              {/* Viewer count */}
+              <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-md rounded-full border border-white/10">
+                <span className="text-base">👁️</span>
+                <span className="text-white font-semibold text-sm">{viewerCount}</span>
+                <span className="text-white/50 text-xs">{viewerCount === 1 ? "viewer" : "viewers"}</span>
+              </div>
+
+              {/* Last event indicator */}
+              {lastEvent && (
+                <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-soft-blue/20 backdrop-blur-md rounded-full border border-soft-blue/30">
+                  <span className="text-base">🔔</span>
+                  <span className="text-white/80 text-xs font-medium">{lastEvent.reason}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Error toast */}
+            {error && (
+              <div className="pointer-events-auto absolute top-16 left-1/2 -translate-x-1/2 max-w-sm w-full mx-4">
+                <div className="bg-red-500/80 backdrop-blur-md text-white text-sm rounded-xl px-4 py-3 flex items-center gap-2 shadow-lg border border-red-400/30">
+                  <span>⚠️</span>
+                  <span className="flex-1">{error}</span>
+                  <button onClick={() => setError(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom gradient bar */}
+            <div className="pointer-events-auto absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-linear-to-t from-black/70 to-transparent">
+              <span className="text-xs text-white/40 font-mono">Room: {roomId}</span>
+              <span className="text-[0.6rem] text-white/30">Baby Device Mode</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ── Legacy card mode (fallback) ── */
   return (
     <div className="flex flex-col gap-4 p-6 max-w-4xl w-full">
       <div className="bg-gray-800 rounded-xl shadow-2xl">

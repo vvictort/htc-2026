@@ -5,7 +5,7 @@ import DailyQuote from "../components/dashboard/DailyQuote";
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../context/useAuth";
-import { NOTIFICATION_ENDPOINTS, getAuthToken } from "../utils/api";
+import { NOTIFICATION_ENDPOINTS, STATUS_ENDPOINT, getAuthToken } from "../utils/api";
 import LullabyGenerator from "../components/dashboard/LullabyGenerator";
 
 interface RecentNotification {
@@ -17,12 +17,26 @@ interface RecentNotification {
   read: boolean;
 }
 
+interface ServerStatus {
+  activeMonitors: number;
+  totalViewers: number;
+  serverStatus: string;
+  uptime: number;
+}
+
 const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 export default function DashboardPage() {
   const { currentUser, token } = useAuth();
   const [recentNotifs, setRecentNotifs] = useState<RecentNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [totalNotifs, setTotalNotifs] = useState(0);
+  const [serverStatus, setServerStatus] = useState<ServerStatus>({
+    activeMonitors: 0,
+    totalViewers: 0,
+    serverStatus: "checking",
+    uptime: 0,
+  });
 
   // Fetch recent notifications
   useEffect(() => {
@@ -38,6 +52,7 @@ export default function DashboardPage() {
           const data = await res.json();
           setRecentNotifs(data.notifications);
           setUnreadCount(data.unreadCount);
+          setTotalNotifs(data.total);
         }
       } catch (err) {
         console.error("Failed to fetch notifications:", err);
@@ -65,6 +80,25 @@ export default function DashboardPage() {
       socket.disconnect();
     };
   }, [currentUser?.uid]);
+
+  // Fetch server status (active monitors, viewers) — poll every 10s
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(STATUS_ENDPOINT);
+        if (res.ok) {
+          const data = await res.json();
+          setServerStatus(data);
+        }
+      } catch {
+        setServerStatus((prev) => ({ ...prev, serverStatus: "offline" }));
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const formatTime = (time: string) => {
     const date = new Date(time);
@@ -98,21 +132,34 @@ export default function DashboardPage() {
       default: return "System Event";
     }
   };
+  const statusLabel =
+    serverStatus.serverStatus === "online" ? "Online" :
+      serverStatus.serverStatus === "offline" ? "Offline" : "Checking…";
+  const statusColor =
+    serverStatus.serverStatus === "online" ? "text-green-600" :
+      serverStatus.serverStatus === "offline" ? "text-red-500" : "text-yellow-500";
+
   const stats = [
-    { label: "Active Monitors", value: "1", icon: "📹", color: "bg-coral/10 text-coral", valueColor: "text-charcoal" },
     {
-      label: "Notifications",
-      value: String(unreadCount),
-      icon: "🔔",
-      color: "bg-soft-blue/20 text-soft-blue",
+      label: "Active Monitors",
+      value: String(serverStatus.activeMonitors),
+      icon: "📹",
+      color: "bg-coral/10 text-coral",
       valueColor: "text-charcoal",
     },
     {
+      label: "Notifications",
+      value: unreadCount > 0 ? `${unreadCount} new` : String(totalNotifs),
+      icon: "🔔",
+      color: "bg-soft-blue/20 text-soft-blue",
+      valueColor: unreadCount > 0 ? "text-coral" : "text-charcoal",
+    },
+    {
       label: "System Status",
-      value: "Online",
+      value: statusLabel,
       icon: "✨",
       color: "bg-soft-green/20 text-soft-green",
-      valueColor: "text-green-600",
+      valueColor: statusColor,
     },
   ];
 

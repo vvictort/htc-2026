@@ -92,6 +92,30 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 
+// Live status endpoint — exposes active monitors / viewers from in-memory rooms
+app.get('/api/status', (_req: Request, res: Response) => {
+    let activeMonitors = 0;
+    let totalViewers = 0;
+    const activeRooms: { roomId: string; hasCamera: boolean; viewers: number }[] = [];
+
+    rooms.forEach((room, roomId) => {
+        const hasCamera = !!room.broadcaster;
+        if (hasCamera) activeMonitors++;
+        totalViewers += room.viewers.size;
+        if (hasCamera || room.viewers.size > 0) {
+            activeRooms.push({ roomId, hasCamera, viewers: room.viewers.size });
+        }
+    });
+
+    res.json({
+        activeMonitors,
+        totalViewers,
+        activeRooms,
+        serverStatus: 'online',
+        uptime: process.uptime(),
+    });
+});
+
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 

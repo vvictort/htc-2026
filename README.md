@@ -1,6 +1,6 @@
 # HTC-2026 - Baby Monitor Application 👶🎵
 
-A modern baby monitor application with real-time video monitoring, AI-powered pose detection, voice cloning, lullaby generation, and multi-channel notifications (email, SMS, push). Parents can watch their baby live, receive instant alerts with snapshots, and send personalized audio messages using their own cloned voice.
+A modern baby monitor application with real-time video monitoring, AI-powered pose detection, voice cloning, lullaby generation, and multi-channel notifications (email, SMS, push). Parents can watch their baby live from anywhere using cross-network WebRTC streaming with TURN server support, receive instant alerts with snapshots, and send personalized audio messages using their own cloned voice.
 
 ## Project Structure
 
@@ -26,18 +26,24 @@ htc-2026/
 │   │   │       ├── User.ts
 │   │   │       ├── Notification.ts
 │   │   │       └── AudioLog.ts
-│   │   └── index.ts                 # Express + Socket.IO entry point
+│   │   └── index.ts                 # Express + Socket.IO + WebRTC signaling
 │   └── .env                         # Environment variables
 │
 ├── frontend/                         # React + Vite SPA
 │   ├── src/
 │   │   ├── components/
+│   │   │   ├── Broadcaster.tsx      # WebRTC camera broadcaster
+│   │   │   ├── Viewer.tsx           # WebRTC stream viewer (fullscreen support)
 │   │   │   ├── auth/                # Login, signup forms
 │   │   │   ├── dashboard/           # Layout, sidebar, lullaby, quotes
 │   │   │   ├── landing/             # Marketing pages
 │   │   │   ├── onboarding/          # Voice recorder & selector
 │   │   │   └── ui/                  # Toast, shared UI
-│   │   ├── pages/                   # Route pages
+│   │   ├── pages/
+│   │   │   ├── BabyDevicePage.tsx   # Baby device mode (camera broadcaster)
+│   │   │   ├── MonitorPage.tsx      # Parent monitor (viewer + HUD controls)
+│   │   │   ├── DashboardPage.tsx    # Dashboard with live stats
+│   │   │   └── ...                  # Other route pages
 │   │   ├── context/                 # Auth context (Firebase + storage)
 │   │   └── utils/                   # API helpers
 │   └── .env                         # Frontend env (VITE_API_URL)
@@ -50,19 +56,20 @@ htc-2026/
 
 ## Technology Stack
 
-| Technology       | Purpose                                  |
-| ---------------- | ---------------------------------------- |
-| **Node.js**      | Backend runtime                          |
-| **TypeScript**   | Type-safe development                    |
-| **Express**      | REST API framework                       |
-| **MongoDB**      | User profiles, notifications, audio logs |
-| **Firebase**     | Authentication (Admin SDK + REST API)    |
-| **Socket.IO**    | Real-time notification push              |
-| **ElevenLabs**   | TTS, voice cloning, lullaby generation   |
-| **SendGrid**     | Email notification delivery              |
-| **Twilio**       | SMS notification delivery                |
-| **React + Vite** | Frontend SPA                             |
-| **TensorFlow**   | Baby pose detection                      |
+| Technology       | Purpose                                        |
+| ---------------- | ---------------------------------------------- |
+| **Node.js**      | Backend runtime                                |
+| **TypeScript**   | Type-safe development                          |
+| **Express**      | REST API framework                             |
+| **MongoDB**      | User profiles, notifications, audio logs       |
+| **Firebase**     | Authentication (Admin SDK + REST API)          |
+| **Socket.IO**    | Real-time notification push + WebRTC signaling |
+| **WebRTC**       | Peer-to-peer video streaming (STUN + TURN)     |
+| **ElevenLabs**   | TTS, voice cloning, lullaby generation         |
+| **SendGrid**     | Email notification delivery                    |
+| **Twilio**       | SMS notification delivery                      |
+| **React + Vite** | Frontend SPA                                   |
+| **TensorFlow**   | Baby pose detection                            |
 
 ---
 
@@ -177,13 +184,14 @@ Content-Type: application/json
 
 {
   "babyDeviceId": "device123",          // required
-  "vibe": "classic",                    // "classic" | "nature" | "cosmic" | "ocean" | "rainy"
+  "vibe": "lullaby",                    // "lullaby" | "classic" | "nature" | "cosmic" | "ocean" | "rainy"
   "length": "medium"                    // "short" (30s) | "medium" (1min) | "long" (2min)
 }
 ```
 **Response:** `audio/mpeg` binary stream (AI-generated instrumental music)
 
 **Vibes:**
+- `lullaby` — soft singing vocals, gentle humming & warm melody (with vocals)
 - `classic` — music box melody, soft piano arpeggios & warm humming
 - `nature` — birdsong, crickets, flowing streams with celeste melody
 - `cosmic` — ethereal synth pads, twinkling chimes, weightless drones
@@ -368,11 +376,64 @@ GET /health          →  { "status": "OK" }
 GET /                →  { "message": "Welcome to the TypeScript Express API", ... }
 ```
 
+#### Live Server Status (Active Monitors & Viewers)
+```http
+GET /api/status
+```
+**Response (200):**
+```json
+{
+  "activeMonitors": 1,
+  "totalViewers": 2,
+  "activeRooms": [
+    { "roomId": "baby-HCL0S7LxnW", "hasCamera": true, "viewers": 2 }
+  ],
+  "serverStatus": "online",
+  "uptime": 3600.5
+}
+```
+**Notes:**
+- `activeMonitors` — count of rooms with a live baby camera broadcasting (in-memory, real-time)
+- `totalViewers` — total connected parent viewers across all rooms
+- `serverStatus` — always `"online"` if the server responds
+- `uptime` — server uptime in seconds
+- This data is ephemeral (in-memory via Socket.IO rooms), not persisted in MongoDB
+
+---
+
+### 📡 WebRTC (`/api/webrtc`)
+
+#### Get ICE Servers (STUN + TURN)
+```http
+GET /api/webrtc/ice-servers
+```
+**Response (200):**
+```json
+{
+  "iceServers": [
+    { "urls": "stun:stun.l.google.com:19302" },
+    { "urls": "stun:stun1.l.google.com:19302" },
+    {
+      "urls": "turn:openrelay.metered.ca:80",
+      "username": "openrelayproject",
+      "credential": "openrelayproject"
+    }
+  ]
+}
+```
+**Notes:**
+- Used by Broadcaster & Viewer components to establish cross-network peer connections
+- TURN servers are required when devices are behind symmetric NATs (different networks)
+- Custom TURN server can be configured via env vars: `TURN_SERVER_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`
+- Falls back to free openrelay.metered.ca TURN servers if env vars are not set
+
 ---
 
 ## Real-Time Events (Socket.IO)
 
 Connect to `http://localhost:5000` via Socket.IO.
+
+### Notification Events
 
 | Event (Client → Server)   | Payload                | Description                             |
 | ------------------------- | ---------------------- | --------------------------------------- |
@@ -381,6 +442,45 @@ Connect to `http://localhost:5000` via Socket.IO.
 | Event (Server → Client) | Payload                                       | Description                               |
 | ----------------------- | --------------------------------------------- | ----------------------------------------- |
 | `new-notification`      | `{ id, type, message, snapshot, time, read }` | Pushed when a new notification is created |
+
+### WebRTC Signaling Events
+
+| Event (Client → Server) | Payload                                  | Description                        |
+| ----------------------- | ---------------------------------------- | ---------------------------------- |
+| `join-room`             | `roomId` (string)                        | Join a WebRTC room                 |
+| `broadcaster`           | `roomId` (string)                        | Register as the camera broadcaster |
+| `viewer`                | `roomId` (string)                        | Register as a stream viewer        |
+| `offer`                 | `viewerId`, `RTCSessionDescription`      | Send SDP offer to a viewer         |
+| `answer`                | `broadcasterId`, `RTCSessionDescription` | Send SDP answer to broadcaster     |
+| `ice-candidate`         | `targetId`, `RTCIceCandidate`            | Exchange ICE candidates            |
+
+| Event (Server → Client)    | Payload                  | Description                                     |
+| -------------------------- | ------------------------ | ----------------------------------------------- |
+| `broadcaster-exists`       | `broadcasterId` (string) | Sent to viewer when broadcaster is already live |
+| `broadcaster-ready`        | `broadcasterId` (string) | Sent to room when broadcaster comes online      |
+| `broadcaster-disconnected` | —                        | Sent to room when broadcaster leaves            |
+| `viewer-joined`            | `viewerId` (string)      | Sent to broadcaster when new viewer joins       |
+| `viewer-disconnected`      | `viewerId` (string)      | Sent to broadcaster when viewer leaves          |
+
+### WebRTC Room Pairing
+
+Both baby and parent devices auto-derive the room ID from the user's Firebase UID:
+```
+roomId = `baby-${user.uid.slice(0, 12)}`
+```
+This ensures devices on the **same account** connect automatically without manual room entry.
+
+### Two-Device Setup
+
+| Device Role | URL Path   | Component      | Function                                  |
+| ----------- | ---------- | -------------- | ----------------------------------------- |
+| **Baby**    | `/baby`    | BabyDevicePage | Camera broadcaster, wake lock, minimal UI |
+| **Parent**  | `/monitor` | MonitorPage    | Stream viewer with HUD (TTS + lullaby)    |
+
+1. On the **baby device**: Navigate to `/baby`, log in, tap "Start Baby Camera"
+2. On the **parent device**: Navigate to `/monitor`, tap "Watch Baby Stream"
+3. Both devices auto-pair via the same account — no room ID needed
+4. Parent HUD provides TTS (talk to baby) and lullaby generation buttons over the live feed
 
 ---
 
@@ -470,6 +570,11 @@ SENDGRID_FROM_EMAIL=noreply@yourdomain.com
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=xxxxxxxxxxxxx
 TWILIO_FROM_NUMBER=+15551234567
+
+# TURN Server (optional — falls back to openrelay.metered.ca)
+TURN_SERVER_URL=turn:your-turn-server.com:443
+TURN_USERNAME=your-username
+TURN_CREDENTIAL=your-credential
 ```
 
 Create `frontend/.env`:

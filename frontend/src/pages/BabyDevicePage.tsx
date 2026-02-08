@@ -126,39 +126,16 @@ export default function BabyDevicePage() {
         );
     }
 
-    // Camera is active
+    // Camera is active — full-screen broadcaster with HUD
     return (
-        <div className="min-h-screen bg-charcoal flex flex-col">
-            {/* Minimal top bar */}
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                    <span className="text-xl">👶</span>
-                    <div>
-                        <span className="text-white font-bold text-sm">
-                            Baby<span className="text-coral">Watcher</span>
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                            <span className="text-xs text-gray-400">Baby Camera Live</span>
-                        </div>
-                    </div>
-                </div>
-                <button
-                    onClick={() => setStarted(false)}
-                    className="px-3 py-1.5 text-xs text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
-                    Stop
-                </button>
-            </div>
+        <div className="fixed inset-0 bg-black">
+            <Broadcaster roomId={roomId} fullscreen onStop={() => setStarted(false)} />
 
-            {/* Full-screen broadcaster */}
-            <div className="flex-1 flex items-center justify-center">
-                <Broadcaster roomId={roomId} />
-            </div>
-
-            {/* Bottom info bar */}
-            <div className="px-4 py-3 bg-gray-900/80 backdrop-blur-sm flex items-center justify-between text-xs text-gray-500">
-                <span>Room: {roomId}</span>
-                <span>{wakeLock ? "🔋 Screen on" : "💤 Screen may sleep"}</span>
+            {/* Wake lock indicator (subtle, bottom-right) */}
+            <div className="fixed bottom-12 right-4 z-30">
+                <span className="text-[0.6rem] text-white/25">
+                    {wakeLock ? "🔋 Screen on" : "💤 Screen may sleep"}
+                </span>
             </div>
         </div>
     );

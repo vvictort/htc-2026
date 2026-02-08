@@ -20,6 +20,9 @@ export const WEBRTC_ENDPOINTS = {
     ICE_SERVERS: `${API_BASE_URL}/webrtc/ice-servers`,
 };
 
+// Status endpoint
+export const STATUS_ENDPOINT = `${API_BASE_URL}/status`;
+
 // Notification endpoints
 export const NOTIFICATION_ENDPOINTS = {
     LIST: `${API_BASE_URL}/notifications`,
