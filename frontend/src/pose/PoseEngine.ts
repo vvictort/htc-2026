@@ -1,5 +1,5 @@
 // src/pose/PoseEngine.ts
-// @ts-ignore
+// Copied and adapted from baby-watcher implementation
 import * as posedetection from "@tensorflow-models/pose-detection";
 import "@tensorflow/tfjs-backend-webgl";
 import * as tf from "@tensorflow/tfjs-core";
@@ -28,7 +28,7 @@ export interface PoseEngineConfig {
 }
 
 export interface Boundaries {
-    leftX?: number;  // left boundary x coordinate
+    leftX?: number; // left boundary x coordinate
     rightX?: number; // right boundary x coordinate
 }
 
@@ -68,7 +68,6 @@ export class PoseEngine {
     private state: MonitorState = "UNKNOWN";
 
     private breachSince: number | null = null;
-    private activeSince: number | null = null;
     private lastAlertAt = 0;
 
     private video: HTMLVideoElement;
@@ -78,7 +77,6 @@ export class PoseEngine {
     private onMetrics: (m: PoseMetrics) => void;
     private onAlert: (a: AlertEvent) => void;
     private onStateChange?: (s: MonitorState) => void;
-
 
     private activityHistory: Array<{ t: number; moving: boolean }> = [];
 
@@ -312,7 +310,7 @@ export class PoseEngine {
             }
         }
 
-        this.updateAlerts(now, insideRoi, breachedBoundary);
+        this.updateAlerts(now, insideRoi, breachedBoundary, activeScore);
 
         this.onMetrics({
             tEpochMs: Date.now(),
@@ -333,7 +331,7 @@ export class PoseEngine {
         requestAnimationFrame(this.loop);
     };
 
-    private updateAlerts(nowPerf: number, insideRoi?: boolean, breachedBoundary?: "left" | "right" | null) {
+    private updateAlerts(nowPerf: number, insideRoi?: boolean, breachedBoundary?: "left" | "right" | null, activeScore?: number) {
         const nowEpoch = Date.now();
 
         if (nowEpoch - this.lastAlertAt < this.cfg.cooldownMs) return;
@@ -349,21 +347,22 @@ export class PoseEngine {
             this.breachSince = null;
         }
 
-        // Active debounce
-        if (this.state === "ACTIVE") {
-            this.activeSince ??= nowPerf;
-            if (nowPerf - this.activeSince > this.cfg.activeMs) {
-                this.fire("ACTIVE");
-                this.activeSince = null;
-            }
-        } else {
-            this.activeSince = null;
+        // Active based on recent activity window: fire when activeScore reaches configured threshold
+        const score = activeScore ?? 0;
+        const thr = this.cfg.activeRatioThreshold ?? 1.0;
+        if (score >= thr) {
+            // we consider this a sustained activity over the window; fire ACTIVE
+            this.fire("ACTIVE");
         }
     }
 
     private fire(type: AlertType) {
         this.lastAlertAt = Date.now();
         this.onAlert({ type, tEpochMs: this.lastAlertAt });
+        // If we've fired an ACTIVE alert, reset recent activity history so activeScore goes back to 0
+        if (type === "ACTIVE") {
+            this.activityHistory = [];
+        }
     }
 }
 
