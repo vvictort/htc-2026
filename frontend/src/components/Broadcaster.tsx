@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { getAuthToken, NOTIFICATION_ENDPOINTS } from "../utils/api";
+import { getAuthToken, NOTIFICATION_ENDPOINTS, WEBRTC_ENDPOINTS } from "../utils/api";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 interface BroadcasterProps {
   roomId: string;
@@ -20,6 +20,21 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const lastEventAtRef = useRef<number>(0);
   const canvasSnapRef = useRef<HTMLCanvasElement | null>(null);
+  const iceServersRef = useRef<RTCIceServer[]>([
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ]);
+
+  // Fetch TURN/STUN servers from backend for cross-network connectivity
+  useEffect(() => {
+    fetch(WEBRTC_ENDPOINTS.ICE_SERVERS)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.iceServers) iceServersRef.current = data.iceServers;
+        console.log(`[ICE] Loaded ${data.iceServers?.length ?? 0} ICE servers`);
+      })
+      .catch((err) => console.warn("[ICE] Failed to fetch ICE servers, using STUN-only fallback:", err));
+  }, []);
 
   // Capture a JPEG snapshot from the live video element
   const captureSnapshot = (): string | undefined => {
@@ -74,7 +89,7 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
 
   const createPeerConnection = (viewerId: string): RTCPeerConnection => {
     const peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+      iceServers: iceServersRef.current,
     });
 
     peerConnection.onicecandidate = (event) => {

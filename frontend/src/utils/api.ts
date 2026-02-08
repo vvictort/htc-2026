@@ -15,6 +15,11 @@ export const AUDIO_ENDPOINTS = {
     VOICES: `${API_BASE_URL}/audio/voices`,
 };
 
+// WebRTC endpoints
+export const WEBRTC_ENDPOINTS = {
+    ICE_SERVERS: `${API_BASE_URL}/webrtc/ice-servers`,
+};
+
 // Notification endpoints
 export const NOTIFICATION_ENDPOINTS = {
     LIST: `${API_BASE_URL}/notifications`,

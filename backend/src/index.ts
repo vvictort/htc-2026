@@ -184,6 +184,47 @@ io.on('connection', (socket) => {
     });
 });
 
+// WebRTC ICE server credentials endpoint
+// Returns STUN + TURN servers for NAT traversal across different networks
+app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
+    const iceServers: RTCIceServer[] = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+    ];
+
+    // Add TURN server if configured
+    const turnUrl = process.env.TURN_SERVER_URL;
+    const turnUser = process.env.TURN_USERNAME;
+    const turnCred = process.env.TURN_CREDENTIAL;
+
+    if (turnUrl && turnUser && turnCred) {
+        iceServers.push(
+            { urls: turnUrl, username: turnUser, credential: turnCred },
+        );
+    } else {
+        // Fallback: open relay TURN servers for development/hackathon
+        iceServers.push(
+            {
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject',
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject',
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject',
+            },
+        );
+    }
+
+    res.json({ iceServers });
+});
+
 // 404 handler
 app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'Route not found' });

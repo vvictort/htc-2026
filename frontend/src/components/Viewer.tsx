@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { WEBRTC_ENDPOINTS } from "../utils/api";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 interface ViewerProps {
   roomId: string;
@@ -17,10 +18,25 @@ export default function Viewer({ roomId }: ViewerProps) {
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const broadcasterIdRef = useRef<string | null>(null);
+  const iceServersRef = useRef<RTCIceServer[]>([
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ]);
+
+  // Fetch TURN/STUN servers from backend for cross-network connectivity
+  useEffect(() => {
+    fetch(WEBRTC_ENDPOINTS.ICE_SERVERS)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.iceServers) iceServersRef.current = data.iceServers;
+        console.log(`[ICE] Loaded ${data.iceServers?.length ?? 0} ICE servers`);
+      })
+      .catch((err) => console.warn("[ICE] Failed to fetch ICE servers, using STUN-only fallback:", err));
+  }, []);
 
   const createPeerConnection = (): RTCPeerConnection => {
     const peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+      iceServers: iceServersRef.current,
     });
 
     peerConnection.onicecandidate = (event) => {

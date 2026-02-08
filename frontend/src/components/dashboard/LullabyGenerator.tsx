@@ -131,8 +131,8 @@ export default function LullabyGenerator() {
                   key={item.value}
                   onClick={() => setVibe(item.value)}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${vibe === item.value
-                      ? "border-coral bg-coral/5 shadow-sm"
-                      : "border-warm-cream hover:border-coral/50 bg-white"
+                    ? "border-coral bg-coral/5 shadow-sm"
+                    : "border-warm-cream hover:border-coral/50 bg-white"
                     }`}>
                   <div className="flex items-center gap-2 font-semibold text-charcoal">
                     <span className="text-lg">{item.emoji}</span>
@@ -155,8 +155,8 @@ export default function LullabyGenerator() {
               <label
                 key={item.value}
                 className={`p-4 rounded-xl border-2 flex items-center gap-3 cursor-pointer transition-all ${length === item.value
-                    ? "border-soft-blue bg-soft-blue/5 shadow-sm"
-                    : "border-warm-cream hover:border-soft-blue/50 bg-white"
+                  ? "border-soft-blue bg-soft-blue/5 shadow-sm"
+                  : "border-warm-cream hover:border-soft-blue/50 bg-white"
                   }`}>
                 <input
                   type="radio"
