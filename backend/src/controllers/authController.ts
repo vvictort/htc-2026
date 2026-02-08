@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { admin } from '../config/firebase';
+import User from '../models/User';
 
 // Firebase REST API response types
 interface FirebaseAuthResponse {
@@ -31,12 +32,21 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        // Create user in Firebase Auth
+        // Create user in Firebase Auth (Firebase handles password hashing automatically with scrypt)
         const userRecord = await admin.auth().createUser({
             email,
             password,
             displayName: displayName || undefined,
         });
+
+        // Create MongoDB reference for this Firebase user
+        const newUser = new User({
+            firebaseUid: userRecord.uid,
+            email: userRecord.email,
+            displayName: displayName || undefined,
+        });
+        await newUser.save();
+        console.log(`✓ User created in MongoDB: ${userRecord.uid}`);
 
         res.status(201).json({
             message: 'User created successfully',
@@ -51,6 +61,12 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
 
         if (error.code === 'auth/email-already-exists') {
             res.status(400).json({ error: 'Email already exists' });
+            return;
+        }
+
+        // Handle MongoDB duplicate key error
+        if (error.code === 11000) {
+            res.status(400).json({ error: 'User already exists in database' });
             return;
         }
 
@@ -121,12 +137,27 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         const authData = data as FirebaseAuthResponse;
         const userRecord = await admin.auth().getUser(authData.localId);
 
+        // Get or create MongoDB user record
+        let mongoUser = await User.findOne({ firebaseUid: authData.localId });
+
+        if (!mongoUser) {
+            // Create MongoDB record if it doesn't exist (for legacy users)
+            mongoUser = new User({
+                firebaseUid: authData.localId,
+                email: userRecord.email,
+                displayName: userRecord.displayName,
+            });
+            await mongoUser.save();
+            console.log(`✓ Created MongoDB record for existing Firebase user: ${authData.localId}`);
+        }
+
         res.status(200).json({
             message: 'Login successful',
             user: {
                 uid: userRecord.uid,
                 email: userRecord.email,
                 displayName: userRecord.displayName,
+                mongoId: mongoUser._id, // MongoDB reference ID
             },
             idToken: authData.idToken,
             refreshToken: authData.refreshToken,
@@ -148,6 +179,9 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
 
         const userRecord = await admin.auth().getUser(req.user.uid);
 
+        // Get MongoDB user data
+        const mongoUser = await User.findOne({ firebaseUid: req.user.uid });
+
         res.status(200).json({
             user: {
                 uid: userRecord.uid,
@@ -155,6 +189,7 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
                 displayName: userRecord.displayName,
                 emailVerified: userRecord.emailVerified,
                 createdAt: userRecord.metadata.creationTime,
+                mongoId: mongoUser?._id,
             },
         });
     } catch (error: any) {
