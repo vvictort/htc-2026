@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { getAuthToken, NOTIFICATION_ENDPOINTS, WEBRTC_ENDPOINTS } from "../utils/api";
+import CVMonitor from "./CVMonitor";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
@@ -14,6 +15,8 @@ interface BroadcasterProps {
 
 export default function Broadcaster({ roomId, fullscreen = false, onStop }: BroadcasterProps) {
   const [isStreaming, setIsStreaming] = useState(false);
+  const [leftPct, setLeftPct] = useState(0.08);
+  const [rightPct, setRightPct] = useState(0.92);
   const [error, setError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
   const [lastEvent, setLastEvent] = useState<{ reason: string; at: number } | null>(null);
@@ -68,7 +71,11 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
   ) => {
     const now = Date.now();
     const COOLDOWN_MS = 10_000; // 10s cooldown between events
-    if (now - lastEventAtRef.current < COOLDOWN_MS) return;
+    console.log(`[sendMonitorEvent] Attempting monitor event: ${reason}`, { details, now, lastEventAt: lastEventAtRef.current });
+    if (now - lastEventAtRef.current < COOLDOWN_MS) {
+      console.log(`[sendMonitorEvent] Blocked by cooldown. lastEventAt=${lastEventAtRef.current}, now=${now}, cooldownMs=${COOLDOWN_MS}`);
+      return;
+    }
     lastEventAtRef.current = now;
 
     setLastEvent({ reason, at: now });
@@ -77,6 +84,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
     const token = getAuthToken();
 
     try {
+      console.log(`[sendMonitorEvent] Sending ${reason} to ${NOTIFICATION_ENDPOINTS.CREATE}`, { snapshotExists: !!snapshot });
       await fetch(NOTIFICATION_ENDPOINTS.CREATE, {
         method: "POST",
         headers: {
@@ -136,6 +144,33 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
     setViewerCount(0);
     console.log("Broadcasting stopped");
   };
+
+  // draggable boundary handles for fullscreen HUD
+  const startDrag = (which: "left" | "right", e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const move = (pageX: number) => {
+      const rect = videoRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const rel = (pageX - rect.left) / rect.width;
+      if (which === "left") setLeftPct(Math.min(Math.max(rel, 0), rightPct - 0.02));
+      else setRightPct(Math.max(Math.min(rel, 1), leftPct + 0.02));
+    };
+
+    const onMove = (ev: MouseEvent) => move(ev.pageX);
+    const onTouch = (ev: TouchEvent) => move(ev.touches[0].pageX);
+    const up = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("touchmove", onTouch);
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchend", up);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onTouch, { passive: true } as any);
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
+  };
+
   useEffect(() => {
     console.log("Broadcaster component mounted for room:", roomId);
     socketRef.current = io(BACKEND_URL);
@@ -212,31 +247,50 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
     };
   }, [roomId]);
 
+  // Request preview (camera + mic) immediately so CVMonitor and the preview can run
+  useEffect(() => {
+    const openPreview = async () => {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
+        });
+        streamRef.current = s;
+        if (videoRef.current) {
+          videoRef.current.srcObject = s;
+          await videoRef.current.play().catch(() => {});
+        }
+        console.log('[Broadcaster] preview stream started');
+      } catch (err) {
+        console.warn('[Broadcaster] preview permission failed', err);
+      }
+    };
+
+    openPreview();
+    return () => {
+      // keep preview running until explicit stopStreaming
+    };
+  }, []);
+
   const startStreaming = async () => {
     try {
       setError(null);
 
-      // Get user media (camera)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: true,
-      });
-
-      streamRef.current = stream;
-
-      // Display local video
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      // If preview stream already exists, reuse it; otherwise request it
+      if (!streamRef.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
+        });
+        streamRef.current = stream;
+        if (videoRef.current) videoRef.current.srcObject = stream;
       }
 
       // Announce as broadcaster
       socketRef.current?.emit("broadcaster", roomId);
       setIsStreaming(true);
 
-      console.log("Broadcasting started");
+      console.log("Broadcasting started (signaled)");
     } catch (err) {
       console.error("Error starting stream:", err);
       setError("Failed to access camera. Please grant camera permissions.");
@@ -328,6 +382,50 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
               <span className="text-xs text-white/40 font-mono">Room: {roomId}</span>
               <span className="text-[0.6rem] text-white/30">Baby Device Mode</span>
             </div>
+
+            {/* Bottom draggable boundary bar */}
+            <div style={{ position: 'absolute', bottom: 56, left: 20, right: 20, height: 84, pointerEvents: 'auto' }}>
+              <div style={{ color: 'white', marginBottom: 6, fontWeight: 700, fontSize: 14 }}>Set the baby's left/right borders</div>
+              <div style={{ position: 'relative', height: 48, background: 'rgba(255,255,255,0.06)', borderRadius: 8 }}>
+                <div
+                  onMouseDown={(e) => startDrag('left', e)}
+                  onTouchStart={(e) => startDrag('left', e)}
+                  style={{
+                    position: 'absolute', top: 0, bottom: 0,
+                    left: `${Math.round(leftPct * 100)}%`, width: 12, transform: 'translateX(-50%)', cursor: 'ew-resize',
+                    background: '#ff9900', borderRadius: 6,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+                  }}
+                />
+                <div
+                  onMouseDown={(e) => startDrag('right', e)}
+                  onTouchStart={(e) => startDrag('right', e)}
+                  style={{
+                    position: 'absolute', top: 0, bottom: 0,
+                    left: `${Math.round(rightPct * 100)}%`, width: 12, transform: 'translateX(-50%)', cursor: 'ew-resize',
+                    background: '#ff9900', borderRadius: 6,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+                  }}
+                />
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.round(leftPct * 100)}%`, right: `${100 - Math.round(rightPct * 100)}%`, background: 'rgba(34,197,94,0.12)', borderRadius: 6 }} />
+              </div>
+            </div>
+
+            {/* CVMonitor mounted for motion detection */}
+            <CVMonitor
+              externalVideoRef={videoRef}
+              leftPct={leftPct}
+              rightPct={rightPct}
+              mirror={true}
+              onBoundariesChange={(l, r) => { setLeftPct(l); setRightPct(r); }}
+              onAlert={(a) => {
+                console.log('[Broadcaster] CVMonitor alert received', a, { isStreaming });
+                if (isStreaming) {
+                  if (a.type === 'ACTIVE') sendMonitorEvent('ACTIVE', a.details);
+                  else if (a.type === 'BOUNDARY') sendMonitorEvent('BOUNDARY', a.details);
+                }
+              }}
+            />
           </div>
         )}
       </div>
