@@ -4,45 +4,62 @@ import { motion, AnimatePresence, easeInOut, easeOut } from 'framer-motion';
 import { isAuthenticated, logout } from '../../utils/auth';
 
 const navLinks = [
-  { label: "Home", href: "#" },
   { label: "Features", href: "#features" },
   { label: "How It Works", href: "#how-it-works" },
-  { label: "Contact", href: "#contact" },
+  { label: "Pricing", href: "#pricing" },
 ];
 
 export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
-    const isLoggedIn = isAuthenticated();
+  const [scrolled, setScrolled] = useState(false);
 
-    const handleLogout = () => {
-        logout();
-        window.location.href = '/';
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
     };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+    const isLoggedIn = isAuthenticated();
 
   return (
     <motion.nav
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: easeOut }}
-      className="fixed top-0 left-0 right-0 z-50 px-4 pt-4">
-      <div className="max-w-5xl mx-auto rounded-full bg-white/70 backdrop-blur-xl border border-white/60 px-6 py-3 flex items-center justify-between shadow-[0_8px_32px_rgba(31,29,43,0.08),0_2px_8px_rgba(31,29,43,0.04),inset_0_1px_0_rgba(255,255,255,0.8)]">
-        {/* Logo */}
-        <a href="#" className="flex items-center gap-2 no-underline">
-          <img src="/logo.svg" alt="BabyWatcher Logo" className="w-8 h-8" />
-          <span className="text-xl font-extrabold text-charcoal tracking-tight">
+      className="fixed top-0 left-0 right-0 z-50 px-4 py-3">
+      <div
+        className={`max-w-4xl mx-auto flex items-center justify-between transition-all duration-300 ${
+          scrolled
+            ? "bg-white/80 backdrop-blur-xl rounded-full px-5 py-3 shadow-[0_4px_20px_rgba(31,29,43,0.08)]"
+            : "px-2 py-2"
+        }`}>
+        {/* Logo - Simple and clean */}
+        <Link to="/" className="flex items-center gap-2 no-underline">
+          <motion.img
+            src="/logo.svg"
+            alt="BabyWatcher"
+            className="w-8 h-8"
+            whileHover={{ rotate: [0, -5, 5, 0] }}
+            transition={{ duration: 0.4 }}
+          />
+          <span className="text-lg font-bold text-charcoal">
             Baby<span className="text-coral">Watcher</span>
           </span>
-        </a>
+        </Link>
 
-        {/* Desktop Nav Links */}
-        <div className="hidden md:flex items-center gap-1">
-          {navLinks.map((link) => (
-            <a
+        {/* Desktop Nav - Minimal centered links */}
+        <div className="hidden md:flex items-center gap-5">
+          {navLinks.map((link, i) => (
+            <motion.a
               key={link.label}
               href={link.href}
-              className="text-sm font-medium text-mid-gray hover:text-charcoal hover:bg-warm-cream/60 transition-all no-underline px-4 py-2 rounded-full">
+              className="text-sm font-medium text-mid-gray hover:text-charcoal transition-colors no-underline"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.05 }}>
               {link.label}
-            </a>
+            </motion.a>
           ))}
         </div>
 
@@ -81,22 +98,25 @@ export default function Navbar() {
                     )}
                 </div>
 
-        {/* Mobile Hamburger */}
+        {/* Mobile Menu Button - Minimal */}
         <button
           className="md:hidden flex flex-col gap-1.5 bg-transparent p-2"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu">
           <motion.span
             animate={menuOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
-            className="block w-6 h-0.5 bg-charcoal rounded-full"
+            transition={{ duration: 0.2 }}
+            className="block w-5 h-0.5 bg-charcoal rounded-full"
           />
           <motion.span
             animate={menuOpen ? { opacity: 0 } : { opacity: 1 }}
-            className="block w-6 h-0.5 bg-charcoal rounded-full"
+            transition={{ duration: 0.15 }}
+            className="block w-5 h-0.5 bg-charcoal rounded-full"
           />
           <motion.span
             animate={menuOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
-            className="block w-6 h-0.5 bg-charcoal rounded-full"
+            transition={{ duration: 0.2 }}
+            className="block w-5 h-0.5 bg-charcoal rounded-full"
           />
         </button>
       </div>

@@ -36,16 +36,16 @@ export default function CTA() {
               <span className="text-3xl">💛</span>
             </motion.div>
 
-            <h2 className="text-white mb-4">
-              Ready to keep your
-              <br />
-              <span className="text-italic text-coral">baby safe?</span>
-            </h2>
+        <h2 className="text-charcoal mb-4">
+          Ready to keep your
+          <br />
+          <span className="text-italic text-coral">little one safe?</span>
+        </h2>
 
-            <p className="text-light-gray text-base mb-8 max-w-lg mx-auto">
-              Join thousands of parents who trust BabyWatcher for real-time monitoring. Free to start, no credit card
-              required.
-            </p>
+        <p className="text-mid-gray text-base mb-8 max-w-lg mx-auto">
+          Join thousands of parents who trust BabyWatcher for real-time monitoring. Free to start, no credit card
+          required.
+        </p>
 
                         <div className="flex flex-wrap justify-center gap-4">
                             <Link
