@@ -1,6 +1,20 @@
 import { Request, Response } from 'express';
 import { admin } from '../config/firebase';
 
+// Firebase REST API response types
+interface FirebaseAuthResponse {
+    localId: string;
+    idToken: string;
+    refreshToken: string;
+    expiresIn: string;
+}
+
+interface FirebaseErrorResponse {
+    error?: {
+        message: string;
+    };
+}
+
 // Sign up - Create new user with Firebase Auth
 export const signUp = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -76,11 +90,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             }
         );
 
-        const data = await response.json();
+        const data = await response.json() as FirebaseAuthResponse | FirebaseErrorResponse;
 
         if (!response.ok) {
-            const errorMessage = data.error?.message || 'Login failed';
-            console.error('Firebase login error:', data.error);
+            const errorData = data as FirebaseErrorResponse;
+            const errorMessage = errorData.error?.message || 'Login failed';
+            console.error('Firebase login error:', errorData.error);
 
             if (errorMessage.includes('INVALID_PASSWORD') || errorMessage.includes('EMAIL_NOT_FOUND')) {
                 res.status(401).json({ error: 'Invalid email or password' });
@@ -103,7 +118,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         }
 
         // Get user details from Firebase Admin
-        const userRecord = await admin.auth().getUser(data.localId);
+        const authData = data as FirebaseAuthResponse;
+        const userRecord = await admin.auth().getUser(authData.localId);
 
         res.status(200).json({
             message: 'Login successful',
@@ -112,9 +128,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
                 email: userRecord.email,
                 displayName: userRecord.displayName,
             },
-            idToken: data.idToken,
-            refreshToken: data.refreshToken,
-            expiresIn: data.expiresIn,
+            idToken: authData.idToken,
+            refreshToken: authData.refreshToken,
+            expiresIn: authData.expiresIn,
         });
     } catch (error: any) {
         console.error('Login error:', error);

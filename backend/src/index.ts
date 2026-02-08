@@ -26,12 +26,12 @@ app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
 // Health check route
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
 // Root route
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (_req: Request, res: Response) => {
     res.status(200).json({
         message: 'Welcome to the TypeScript Express API',
         version: '1.0.0',
@@ -43,7 +43,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // API routes
-app.get('/api', (req: Request, res: Response) => {
+app.get('/api', (_req: Request, res: Response) => {
     res.status(200).json({ message: 'Welcome to the API' });
 });
 
@@ -62,7 +62,7 @@ app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => 
 });
 
 // 404 handler
-app.use((req: Request, res: Response) => {
+app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'Route not found' });
 });
 
