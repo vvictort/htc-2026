@@ -9,7 +9,8 @@ const initializeFirebase = () => {
         const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
         if (!projectId || !clientEmail || !privateKey) {
-            throw new Error('Firebase configuration is missing in environment variables');
+            console.warn('Firebase configuration is missing - running without Firebase auth');
+            return;
         }
 
         admin.initializeApp({
@@ -23,7 +24,7 @@ const initializeFirebase = () => {
         console.log('Firebase Admin initialized successfully');
     } catch (error) {
         console.error('Error initializing Firebase Admin:', error);
-        process.exit(1);
+        console.warn('Continuing without Firebase authentication');
     }
 };
 
