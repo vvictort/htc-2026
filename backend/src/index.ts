@@ -3,10 +3,11 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import connectDB from './config/database';
-import { initializeFirebase } from './config/firebase';
-import { verifyFirebaseToken } from './middleware/authMiddleware';
-import authRoutes from './routes/authRoutes';
+import connectDB from './shared/config/database';
+import { initializeFirebase } from './shared/config/firebase';
+import { verifyFirebaseToken } from './shared/middleware/authMiddleware';
+import authRoutes from './features/auth/auth.routes';
+import audioRoutes from './features/audio/audio.routes';
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +50,9 @@ app.get('/api', (_req: Request, res: Response) => {
 
 // Auth routes
 app.use('/api/auth', authRoutes);
+
+// Audio routes
+app.use('/api/audio', audioRoutes);
 
 // Protected route example - requires authentication
 app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => {

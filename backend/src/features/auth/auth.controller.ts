@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { admin } from '../config/firebase';
-import User from '../models/User';
+import { admin } from '../../shared/config/firebase';
+import User from '../../shared/models/User';
 
 // Firebase REST API response types
 interface FirebaseAuthResponse {
