@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, easeInOut, easeOut } from 'framer-motion';
 import { isAuthenticated, logout } from '../../utils/auth';
@@ -21,6 +21,11 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
     const isLoggedIn = isAuthenticated();
+
+    const handleLogout = () => {
+        logout();
+        window.location.href = '/';
+    };
 
   return (
     <motion.nav
