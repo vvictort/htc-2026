@@ -29,7 +29,7 @@ export default function Sidebar() {
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 bg-white/95 backdrop-blur-xl border-r border-warm-cream shadow-2xl flex flex-col transition-all duration-300 ease-in-out ${
+        className={`peer fixed inset-y-0 left-0 z-40 bg-white/95 backdrop-blur-xl border-r border-warm-cream shadow-2xl flex flex-col transition-all duration-300 ease-in-out ${
           isMobileMenuOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0 lg:w-28 lg:hover:w-72"
         } rounded-r-3xl my-2 ml-2 h-[calc(100vh-16px)] group overflow-hidden`}>
         {/* Logo Area */}

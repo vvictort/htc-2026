@@ -13,7 +13,7 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
     <div className="min-h-screen bg-warm-white flex">
       <Sidebar />
 
-      <main className="flex-1 lg:ml-32 min-h-screen p-4 md:p-8 lg:p-10 transition-all duration-300">
+      <main className="flex-1 lg:ml-32 min-h-screen p-4 md:p-8 lg:p-10 transition-all duration-300 lg:peer-hover:ml-80">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           {(title || subtitle) && (
