@@ -143,18 +143,30 @@ io.on('connection', (socket) => {
 
     socket.on('ice-candidate', (id: string, candidate: any) => {
         socket.to(id).emit('ice-candidate', socket.id, candidate);
-    });
-
-    socket.on('disconnect', () => {
+    });    socket.on('disconnect', () => {
+        console.log('Client disconnected:', socket.id);
+        
         // Clean up rooms when broadcaster or viewer disconnects
         rooms.forEach((room, roomId) => {
+            // If disconnected client was the broadcaster
             if (room.broadcaster === socket.id) {
+                console.log(`Broadcaster ${socket.id} disconnected from room ${roomId}`);
                 socket.to(roomId).emit('broadcaster-disconnected');
                 room.broadcaster = undefined;
             }
-            room.viewers.delete(socket.id);
+            
+            // If disconnected client was a viewer
+            if (room.viewers.has(socket.id)) {
+                console.log(`Viewer ${socket.id} disconnected from room ${roomId}`);
+                room.viewers.delete(socket.id);
+                
+                // Notify broadcaster that viewer left
+                if (room.broadcaster) {
+                    io.to(room.broadcaster).emit('viewer-disconnected', socket.id);
+                    console.log(`Notified broadcaster ${room.broadcaster} about viewer ${socket.id} disconnect`);
+                }
+            }
         });
-        console.log('Client disconnected:', socket.id);
     });
 });
 

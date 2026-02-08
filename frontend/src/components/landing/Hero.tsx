@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion, easeInOut, easeOut, useReducedMotion } from 'framer-motion';
+import { isAuthenticated } from '../../utils/auth';
 
 const floatVariants = {
   initial: { y: 0, rotate: 0 },
@@ -45,6 +46,14 @@ export default function Hero() {
   const reduce = useReducedMotion();
   const floatProps = reduce ? {} : { variants: floatVariants, initial: 'initial', animate: 'animate' };
   const textMotion = reduce ? {} : { variants: fadeUp, initial: 'initial', animate: 'animate' };
+
+  // Handle "Start monitoring" button click
+  const handleStartMonitoring = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isAuthenticated()) {
+      e.preventDefault();
+      window.location.href = '/signup';
+    }
+  };
 
   return (
     <section className="relative min-h-screen overflow-hidden pt-28 pb-16">
@@ -99,7 +108,11 @@ export default function Hero() {
             transition={{ delay: 0.35, duration: 0.45 }}
             className="flex flex-wrap gap-4 mt-2"
           >
-            <Link to="/monitor" className="btn-primary no-underline text-base px-8 py-3">
+            <Link 
+              to="/monitor" 
+              onClick={handleStartMonitoring}
+              className="btn-primary no-underline text-base px-8 py-3"
+            >
               Start monitoring
             </Link>
             <a href="#features" className="btn-secondary no-underline text-base px-8 py-3">

@@ -1,7 +1,16 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { isAuthenticated } from '../../utils/auth';
 
 export default function CTA() {
+    // Handle "Start Free Today" button click
+    const handleStartFree = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (!isAuthenticated()) {
+            e.preventDefault();
+            window.location.href = '/signup';
+        }
+    };
+
     return (
         <section className="py-24 relative">
             <div className="max-w-7xl mx-auto px-6">
@@ -42,6 +51,7 @@ export default function CTA() {
                         <div className="flex flex-wrap justify-center gap-4">
                             <Link
                                 to="/monitor"
+                                onClick={handleStartFree}
                                 className="btn-primary no-underline text-base px-10 py-4"
                             >
                                 Start Free Today

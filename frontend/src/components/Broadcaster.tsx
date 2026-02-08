@@ -62,18 +62,24 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
         setIsStreaming(false);
         setViewerCount(0);
         console.log('Broadcasting stopped');
-    };
-
-    useEffect(() => {
+    };    useEffect(() => {
+        console.log('Broadcaster component mounted for room:', roomId);
         socketRef.current = io(BACKEND_URL);
 
         socketRef.current.on('connect', () => {
-            console.log('Connected to signaling server');
+            console.log('Broadcaster connected to signaling server with ID:', socketRef.current?.id);
             socketRef.current?.emit('join-room', roomId);
         });
 
         socketRef.current.on('viewer-joined', async (viewerId: string) => {
             console.log('Viewer joined:', viewerId);
+            
+            // Check if we already have a connection with this viewer
+            if (peerConnectionsRef.current.has(viewerId)) {
+                console.log('Already have connection with viewer:', viewerId);
+                return;
+            }
+            
             setViewerCount(prev => prev + 1);
 
             const peerConnection = createPeerConnection(viewerId);
@@ -92,6 +98,18 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
             socketRef.current?.emit('offer', viewerId, offer);
         });
 
+        socketRef.current.on('viewer-disconnected', (viewerId: string) => {
+            console.log('Viewer disconnected:', viewerId);
+            
+            // Close and remove peer connection
+            const peerConnection = peerConnectionsRef.current.get(viewerId);
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnectionsRef.current.delete(viewerId);
+                setViewerCount(prev => Math.max(0, prev - 1));
+            }
+        });
+
         socketRef.current.on('answer', async (viewerId: string, answer: RTCSessionDescriptionInit) => {
             console.log('Received answer from viewer:', viewerId);
             const peerConnection = peerConnectionsRef.current.get(viewerId);
@@ -108,9 +126,15 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
             }
         });
 
+        // Cleanup function
         return () => {
+            console.log('Broadcaster component unmounting - cleaning up for room:', roomId);
             stopStreaming();
-            socketRef.current?.disconnect();
+            if (socketRef.current) {
+                console.log('Disconnecting broadcaster socket:', socketRef.current.id);
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
         };
     }, [roomId]);
 

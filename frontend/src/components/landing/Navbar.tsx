@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, easeInOut, easeOut } from 'framer-motion';
+import { isAuthenticated, logout } from '../../utils/auth';
 
 const navLinks = [
     { label: 'Home', href: '#' },
@@ -11,6 +12,12 @@ const navLinks = [
 
 export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
+    const isLoggedIn = isAuthenticated();
+
+    const handleLogout = () => {
+        logout();
+        window.location.href = '/';
+    };
 
     return (
         <motion.nav
@@ -43,18 +50,37 @@ export default function Navbar() {
 
                 {/* CTA Buttons */}
                 <div className="hidden md:flex items-center gap-2">
-                    <Link
-                        to="/monitor"
-                        className="text-sm font-semibold px-5 py-2 rounded-full text-charcoal hover:bg-warm-cream/60 transition-all no-underline"
-                    >
-                        Log In
-                    </Link>
-                    <Link
-                        to="/monitor"
-                        className="btn-primary text-sm px-5 py-2 rounded-full no-underline"
-                    >
-                        Get Started
-                    </Link>
+                    {isLoggedIn ? (
+                        <>
+                            <Link
+                                to="/monitor"
+                                className="text-sm font-semibold px-5 py-2 rounded-full text-charcoal hover:bg-warm-cream/60 transition-all no-underline"
+                            >
+                                Dashboard
+                            </Link>
+                            <button
+                                onClick={handleLogout}
+                                className="btn-secondary text-sm px-5 py-2 rounded-full"
+                            >
+                                Log Out
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <Link
+                                to="/login"
+                                className="text-sm font-semibold px-5 py-2 rounded-full text-charcoal hover:bg-warm-cream/60 transition-all no-underline"
+                            >
+                                Log In
+                            </Link>
+                            <Link
+                                to="/signup"
+                                className="btn-primary text-sm px-5 py-2 rounded-full no-underline"
+                            >
+                                Get Started
+                            </Link>
+                        </>
+                    )}
                 </div>
 
                 {/* Mobile Hamburger */}
@@ -100,12 +126,43 @@ export default function Navbar() {
                                 </a>
                             ))}
                             <div className="flex flex-col gap-2 pt-3 mt-2 border-t border-warm-cream/50">
-                                <Link to="/monitor" className="btn-secondary text-center no-underline rounded-full">
-                                    Log In
-                                </Link>
-                                <Link to="/monitor" className="btn-primary text-center no-underline rounded-full">
-                                    Get Started
-                                </Link>
+                                {isLoggedIn ? (
+                                    <>
+                                        <Link 
+                                            to="/monitor" 
+                                            className="btn-secondary text-center no-underline rounded-full"
+                                            onClick={() => setMenuOpen(false)}
+                                        >
+                                            Dashboard
+                                        </Link>
+                                        <button
+                                            onClick={() => {
+                                                setMenuOpen(false);
+                                                handleLogout();
+                                            }}
+                                            className="btn-primary text-center rounded-full"
+                                        >
+                                            Log Out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Link 
+                                            to="/login" 
+                                            className="btn-secondary text-center no-underline rounded-full"
+                                            onClick={() => setMenuOpen(false)}
+                                        >
+                                            Log In
+                                        </Link>
+                                        <Link 
+                                            to="/signup" 
+                                            className="btn-primary text-center no-underline rounded-full"
+                                            onClick={() => setMenuOpen(false)}
+                                        >
+                                            Get Started
+                                        </Link>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </motion.div>
