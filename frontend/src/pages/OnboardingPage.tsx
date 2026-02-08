@@ -25,26 +25,38 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-warm-white flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-card shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+      <div className="w-full max-w-4xl bg-white rounded-card shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-screen md:min-h-[600px] lg:min-h-[700px]">
         {/* Left Panel - Progress/Info */}
-        <div className="bg-coral/10 p-8 md:w-1/3 flex flex-col justify-between border-r border-warm-cream">
+        <div className="bg-coral/10 p-6 md:p-8 md:w-1/3 flex flex-col justify-between border-b md:border-b-0 md:border-r border-warm-cream">
           <div>
-            <div className="text-4xl mb-6">👶</div>
-            <h1 className="text-2xl font-extrabold text-charcoal mb-2">Welcome to BabyWatcher!</h1>
-            <p className="text-mid-gray text-sm">Let's get everything set up perfectly for you and your little one.</p>
+            <div className="text-3xl md:text-4xl mb-4 md:mb-6">👶</div>
+            <h1 className="text-xl md:text-2xl font-extrabold text-charcoal mb-2">Welcome to BabyWatcher!</h1>
+            <p className="text-mid-gray text-xs md:text-sm">
+              Let's get everything set up perfectly for you and your little one.
+            </p>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6 hidden md:block">
             <StepIndicator current={step} number={1} title="Voice Setup" />
             <StepIndicator current={step} number={2} title="Voice Selection" />
             <StepIndicator current={step} number={3} title="Notifications" />
           </div>
 
-          <div className="text-xs text-mid-gray/50">Step {step} of 3</div>
+          {/* Mobile Steps */}
+          <div className="flex md:hidden gap-2 mt-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`h-2 rounded-full flex-1 transition-colors ${i <= step ? "bg-coral" : "bg-warm-cream"}`}
+              />
+            ))}
+          </div>
+
+          <div className="text-xs text-mid-gray/50 mt-4 md:mt-0">Step {step} of 3</div>
         </div>
 
         {/* Right Panel - Content */}
-        <div className="p-8 md:w-2/3 flex flex-col">
+        <div className="p-6 md:p-8 md:w-2/3 flex flex-col">
           <div className="flex-1">
             <AnimatePresence mode="wait">
               {step === 1 && (

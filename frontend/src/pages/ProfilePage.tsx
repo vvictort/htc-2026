@@ -163,15 +163,15 @@ export default function ProfilePage() {
 
           {/* Voice Settings Section */}
           <section>
-            <div className="flex justify-between items-end mb-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-6 gap-4">
               <h3 className="text-xl font-bold text-charcoal flex items-center gap-2">
                 <span className="text-2xl">🎙️</span> Voice Dubbing Settings
               </h3>
-              <div className="bg-warm-white p-1 rounded-xl flex gap-1">
+              <div className="bg-warm-white p-1 rounded-xl flex gap-1 w-full md:w-auto">
                 <button
                   type="button"
                   onClick={() => setVoiceMode("preset")}
-                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
                     voiceMode === "preset" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
                   }`}>
                   Preset Voices
@@ -179,7 +179,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => setVoiceMode("clone")}
-                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+                  className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
                     voiceMode === "clone" ? "bg-white shadow-sm text-charcoal" : "text-mid-gray hover:text-charcoal"
                   }`}>
                   My Voice Clone
