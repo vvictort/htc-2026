@@ -24,6 +24,8 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
   const [error, setError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
   const [lastEvent, setLastEvent] = useState<{ reason: string; at: number } | null>(null);
+  const [lullabyPlaying, setLullabyPlaying] = useState(false);
+  const [lullabyProgress, setLullabyProgress] = useState<{ current: number; duration: number } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -31,6 +33,8 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
   const streamRef = useRef<MediaStream | null>(null);
   const lastEventAtRef = useRef<number>(0);
   const canvasSnapRef = useRef<HTMLCanvasElement | null>(null);
+  const lullabyAudioRef = useRef<HTMLAudioElement | null>(null);
+  const lullabyIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iceServersRef = useRef<RTCIceServer[]>([
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
@@ -251,10 +255,67 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       }
     });
 
+    // ── Lullaby playback commands from parent viewer ──
+    socketRef.current.on('lullaby-play', (payload: { audioBase64: string; durationMs: number; vibe: string }) => {
+      console.log(`[Broadcaster] 🎶 Received lullaby-play (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.vibe})`);
+      // Stop any existing lullaby
+      if (lullabyAudioRef.current) {
+        lullabyAudioRef.current.pause();
+        lullabyAudioRef.current = null;
+      }
+      if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
+
+      // Decode base64 and play
+      const byteString = atob(payload.audioBase64);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+      const blob = new Blob([ab], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      lullabyAudioRef.current = audio;
+
+      audio.play().then(() => {
+        setLullabyPlaying(true);
+        // Report status back to viewers every second
+        lullabyIntervalRef.current = setInterval(() => {
+          if (!audio.paused && socketRef.current) {
+            const status = { state: 'playing', currentTime: audio.currentTime, duration: audio.duration || (payload.durationMs / 1000) };
+            setLullabyProgress({ current: audio.currentTime, duration: status.duration });
+            socketRef.current.emit('lullaby-status', roomId, status);
+          }
+        }, 1000);
+      }).catch(err => console.error('[Broadcaster] lullaby play error:', err));
+
+      audio.onended = () => {
+        setLullabyPlaying(false);
+        setLullabyProgress(null);
+        if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
+        if (socketRef.current) socketRef.current.emit('lullaby-status', roomId, { state: 'ended', currentTime: 0, duration: 0 });
+        URL.revokeObjectURL(url);
+        lullabyAudioRef.current = null;
+      };
+    });
+
+    socketRef.current.on('lullaby-stop', () => {
+      console.log('[Broadcaster] 🎶 Received lullaby-stop');
+      if (lullabyAudioRef.current) {
+        lullabyAudioRef.current.pause();
+        lullabyAudioRef.current = null;
+      }
+      if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
+      setLullabyPlaying(false);
+      setLullabyProgress(null);
+      if (socketRef.current) socketRef.current.emit('lullaby-status', roomId, { state: 'stopped', currentTime: 0, duration: 0 });
+    });
+
     // Cleanup function
     return () => {
       console.log("Broadcaster component unmounting - cleaning up for room:", roomId);
       stopStreaming();
+      // Clean up lullaby audio
+      if (lullabyAudioRef.current) { lullabyAudioRef.current.pause(); lullabyAudioRef.current = null; }
+      if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
       if (socketRef.current) {
         console.log("Disconnecting broadcaster socket:", socketRef.current.id);
         socketRef.current.disconnect();
@@ -385,6 +446,16 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                 <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-soft-blue/20 backdrop-blur-md rounded-full border border-soft-blue/30">
                   <span className="text-base">🔔</span>
                   <span className="text-white/80 text-xs font-medium">{lastEvent.reason}</span>
+                </div>
+              )}
+
+              {/* Lullaby playing indicator */}
+              {lullabyPlaying && lullabyProgress && (
+                <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-purple-500/20 backdrop-blur-md rounded-full border border-purple-400/30">
+                  <span className="text-base animate-pulse">🎶</span>
+                  <span className="text-white/80 text-xs font-medium">
+                    {Math.floor(lullabyProgress.duration - lullabyProgress.current)}s left
+                  </span>
                 </div>
               )}
             </div>

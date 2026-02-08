@@ -1,7 +1,10 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
 import { useAuth } from "../context/useAuth";
 import { AUDIO_ENDPOINTS, getAuthToken } from "../utils/api";
 import Viewer from "../components/Viewer";
+
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 type LullabyVibe = "lullaby" | "classic" | "nature" | "cosmic" | "ocean" | "rainy";
 type LullabyLength = "short" | "medium" | "long";
@@ -41,6 +44,29 @@ export default function MonitorPage() {
   const [lullabyUrl, setLullabyUrl] = useState<string | null>(null);
   const [lullabyError, setLullabyError] = useState<string | null>(null);
 
+  /* Lullaby remote playback state */
+  const [lullabyRemote, setLullabyRemote] = useState<{ state: string; currentTime: number; duration: number } | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Open a lightweight socket connection when in viewer mode for lullaby signaling
+  useEffect(() => {
+    if (mode !== "viewer") return;
+    const sock = io(BACKEND_URL);
+    socketRef.current = sock;
+    sock.on("connect", () => {
+      sock.emit("join-room", roomId);
+      console.log("[MonitorPage] Lullaby socket joined room", roomId);
+    });
+    sock.on("lullaby-status", (status: { state: string; currentTime: number; duration: number }) => {
+      if (status.state === "ended" || status.state === "stopped") {
+        setLullabyRemote(null);
+      } else {
+        setLullabyRemote(status);
+      }
+    });
+    return () => { sock.disconnect(); socketRef.current = null; };
+  }, [mode, roomId]);
+
   useEffect(() => {
     return () => {
       if (lullabyUrl) URL.revokeObjectURL(lullabyUrl);
@@ -75,6 +101,8 @@ export default function MonitorPage() {
   };
 
   /* ── Lullaby handler ── */
+  const DURATION_SECONDS: Record<LullabyLength, number> = { short: 30, medium: 60, long: 120 };
+
   const handleLullaby = async (e: FormEvent) => {
     e.preventDefault();
     const authToken = authCtxToken || getAuthToken();
@@ -101,11 +129,36 @@ export default function MonitorPage() {
       const url = URL.createObjectURL(blob);
       if (lullabyUrl) URL.revokeObjectURL(lullabyUrl);
       setLullabyUrl(url);
+
+      // Send to baby device via socket
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).replace(/^data:audio\/mpeg;base64,/, "").replace(/^data:[^;]+;base64,/, "");
+        socketRef.current?.emit("lullaby-play", roomId, {
+          audioBase64: base64,
+          durationMs: DURATION_SECONDS[length] * 1000,
+          vibe,
+        });
+        setLullabyRemote({ state: "playing", currentTime: 0, duration: DURATION_SECONDS[length] });
+        console.log("[MonitorPage] Sent lullaby to baby device via socket");
+      };
+      reader.readAsDataURL(blob);
     } catch (err) {
       setLullabyError(err instanceof Error ? err.message : "Failed to generate");
     } finally {
       setLullabyLoading(false);
     }
+  };
+
+  const handleStopLullaby = () => {
+    socketRef.current?.emit("lullaby-stop", roomId);
+    setLullabyRemote(null);
+  };
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
   if (loading) {
@@ -283,27 +336,48 @@ export default function MonitorPage() {
 
                 <button
                   type="submit"
-                  disabled={lullabyLoading}
+                  disabled={lullabyLoading || !!lullabyRemote}
                   className="w-full py-3 rounded-xl bg-soft-blue hover:bg-soft-blue/80 text-white font-bold text-sm disabled:opacity-40 transition-colors">
-                  {lullabyLoading ? "Generating…" : "🎵 Generate Lullaby"}
+                  {lullabyLoading ? "Generating…" : "🎵 Generate & Play on Baby Device"}
                 </button>
               </form>
 
-              {/* Audio player */}
-              {lullabyUrl && (
-                <div className="mt-4 bg-white/5 rounded-xl p-3 border border-white/10">
+              {/* Remote playback status */}
+              {lullabyRemote && (
+                <div className="mt-4 bg-purple-500/10 rounded-xl p-3 border border-purple-400/20">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-white/60 font-medium">▶️ Your lullaby</span>
-                    <a
-                      href={lullabyUrl}
-                      download="lullaby.mp3"
-                      className="text-[0.65rem] text-coral font-semibold hover:text-coral-dark">
-                      Download
-                    </a>
+                    <span className="text-xs text-white/70 font-medium flex items-center gap-1.5">
+                      <span className="animate-pulse">🎶</span> Playing on baby device
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleStopLullaby(); }}
+                      className="text-[0.65rem] text-red-400 hover:text-red-300 font-semibold">
+                      ⏹ Stop
+                    </button>
                   </div>
-                  <audio controls className="w-full h-8 [&::-webkit-media-controls-panel]:bg-transparent">
-                    <source src={lullabyUrl} type="audio/mpeg" />
-                  </audio>
+                  {/* Progress bar */}
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-1.5">
+                    <div
+                      className="h-full bg-purple-400 rounded-full transition-all duration-1000"
+                      style={{ width: `${lullabyRemote.duration ? (lullabyRemote.currentTime / lullabyRemote.duration) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[0.6rem] text-white/40">
+                    <span>{formatTime(lullabyRemote.currentTime)}</span>
+                    <span>{formatTime(Math.max(0, lullabyRemote.duration - lullabyRemote.currentTime))} remaining</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Download link (only when not playing) */}
+              {lullabyUrl && !lullabyRemote && (
+                <div className="mt-3 text-center">
+                  <a
+                    href={lullabyUrl}
+                    download="lullaby.mp3"
+                    className="text-[0.65rem] text-coral font-semibold hover:text-coral-dark">
+                    Download last lullaby
+                  </a>
                 </div>
               )}
             </div>
