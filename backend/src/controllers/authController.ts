@@ -1,0 +1,148 @@
+import { Request, Response } from 'express';
+import { admin } from '../config/firebase';
+
+// Sign up - Create new user with Firebase Auth
+export const signUp = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { email, password, displayName } = req.body;
+
+        // Validate input
+        if (!email || !password) {
+            res.status(400).json({ error: 'Email and password are required' });
+            return;
+        }
+
+        if (password.length < 6) {
+            res.status(400).json({ error: 'Password must be at least 6 characters' });
+            return;
+        }
+
+        // Create user in Firebase Auth
+        const userRecord = await admin.auth().createUser({
+            email,
+            password,
+            displayName: displayName || undefined,
+        });
+
+        res.status(201).json({
+            message: 'User created successfully',
+            user: {
+                uid: userRecord.uid,
+                email: userRecord.email,
+                displayName: userRecord.displayName,
+            },
+        });
+    } catch (error: any) {
+        console.error('Sign up error:', error);
+
+        if (error.code === 'auth/email-already-exists') {
+            res.status(400).json({ error: 'Email already exists' });
+            return;
+        }
+
+        res.status(500).json({ error: 'Failed to create user', details: error.message });
+    }
+};
+
+// Login - Verify credentials using Firebase REST API and return token
+export const login = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { email, password } = req.body;
+
+        // Validate input
+        if (!email || !password) {
+            res.status(400).json({ error: 'Email and password are required' });
+            return;
+        }
+
+        const apiKey = process.env.FIREBASE_API_KEY;
+
+        if (!apiKey) {
+            res.status(500).json({ error: 'Firebase API key not configured' });
+            return;
+        }
+
+        // Call Firebase REST API to verify credentials
+        const response = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email,
+                    password,
+                    returnSecureToken: true,
+                }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            const errorMessage = data.error?.message || 'Login failed';
+            console.error('Firebase login error:', data.error);
+
+            if (errorMessage.includes('INVALID_PASSWORD') || errorMessage.includes('EMAIL_NOT_FOUND')) {
+                res.status(401).json({ error: 'Invalid email or password' });
+                return;
+            }
+
+            if (errorMessage.includes('API key not valid')) {
+                res.status(400).json({
+                    error: 'Invalid Firebase API key. Check your .env file',
+                    details: errorMessage
+                });
+                return;
+            }
+
+            res.status(400).json({
+                error: errorMessage,
+                help: 'Make sure Email/Password auth is enabled in Firebase Console'
+            });
+            return;
+        }
+
+        // Get user details from Firebase Admin
+        const userRecord = await admin.auth().getUser(data.localId);
+
+        res.status(200).json({
+            message: 'Login successful',
+            user: {
+                uid: userRecord.uid,
+                email: userRecord.email,
+                displayName: userRecord.displayName,
+            },
+            idToken: data.idToken,
+            refreshToken: data.refreshToken,
+            expiresIn: data.expiresIn,
+        });
+    } catch (error: any) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Login failed', details: error.message });
+    }
+};
+
+// Get current user info (requires authentication)
+export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
+    try {
+        if (!req.user) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+
+        const userRecord = await admin.auth().getUser(req.user.uid);
+
+        res.status(200).json({
+            user: {
+                uid: userRecord.uid,
+                email: userRecord.email,
+                displayName: userRecord.displayName,
+                emailVerified: userRecord.emailVerified,
+                createdAt: userRecord.metadata.creationTime,
+            },
+        });
+    } catch (error: any) {
+        console.error('Get user error:', error);
+        res.status(500).json({ error: 'Failed to get user info' });
+    }
+};

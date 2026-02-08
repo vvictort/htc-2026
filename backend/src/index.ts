@@ -4,9 +4,15 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import connectDB from './config/database';
+import { initializeFirebase } from './config/firebase';
+import { verifyFirebaseToken } from './middleware/authMiddleware';
+import authRoutes from './routes/authRoutes';
 
 // Load environment variables
 dotenv.config();
+
+// Initialize Firebase
+initializeFirebase();
 
 // Create Express app
 const app: Application = express();
@@ -24,9 +30,35 @@ app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
+// Root route
+app.get('/', (req: Request, res: Response) => {
+    res.status(200).json({
+        message: 'Welcome to the TypeScript Express API',
+        version: '1.0.0',
+        endpoints: {
+            health: '/health',
+            api: '/api'
+        }
+    });
+});
+
 // API routes
 app.get('/api', (req: Request, res: Response) => {
     res.status(200).json({ message: 'Welcome to the API' });
+});
+
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+// Protected route example - requires authentication
+app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => {
+    res.status(200).json({
+        message: 'This is a protected route',
+        user: {
+            uid: req.user?.uid,
+            email: req.user?.email
+        }
+    });
 });
 
 // 404 handler
