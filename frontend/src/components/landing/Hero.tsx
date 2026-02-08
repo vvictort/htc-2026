@@ -21,9 +21,9 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-[90vh] overflow-hidden pt-28 pb-16 bg-linear-to-b from-soft-yellow/40 via-soft-yellow/20 to-warm-white">
+    <section className="relative min-h-[85vh] sm:min-h-[90vh] overflow-hidden pt-20 sm:pt-24 md:pt-28 pb-12 sm:pb-16 bg-linear-to-b from-soft-yellow/40 via-soft-yellow/20 to-warm-white">
       {/* Decorative curved shapes at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none">
+      <div className="absolute bottom-0 left-0 right-0 h-32 sm:h-40 md:h-48 pointer-events-none">
         <svg viewBox="0 0 1440 200" className="w-full h-full" preserveAspectRatio="none">
           <path
             d="M0,100 C300,180 600,20 900,100 C1200,180 1350,80 1440,120 L1440,200 L0,200 Z"
@@ -36,92 +36,47 @@ export default function Hero() {
         </svg>
       </div>
 
-      {/* Sun Icon - floating */}
-      <motion.div
-        className="absolute top-20 left-8 md:left-16 w-20 h-20 md:w-28 md:h-28 pointer-events-none"
-        initial={{ opacity: 0, scale: 0.5 }}
-        animate={{
-          opacity: 1,
-          scale: 1,
-          rotate: reduce ? 0 : [0, 5, -5, 0],
-        }}
-        transition={{
-          delay: 0.3,
-          type: "spring",
-          stiffness: 200,
-          rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" },
-        }}>
-        <BabySun className="w-full h-full text-soft-yellow" />
-      </motion.div>
-
-      {/* Other scattered icons */}
-      <motion.div
-        className="absolute top-32 right-10 w-12 h-12 pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{
-          opacity: 1,
-          rotate: reduce ? -15 : [-15, -5, -15],
-          scale: reduce ? 1 : [1, 1.1, 1],
-        }}
-        transition={{
-          delay: 0.5,
-          rotate: { repeat: Infinity, duration: 3, ease: "easeInOut" },
-          scale: { repeat: Infinity, duration: 2, ease: "easeInOut" },
-        }}>
-        <BabyStar className="w-full h-full text-coral/30" />
-      </motion.div>
-
-      <motion.div
-        className="absolute bottom-40 left-10 w-16 h-10 pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{
-          opacity: 1,
-          x: reduce ? 0 : [0, 10, 0],
-          y: reduce ? 0 : [0, -5, 0],
-        }}
-        transition={{
-          delay: 0.6,
-          x: { repeat: Infinity, duration: 6, ease: "easeInOut" },
-          y: { repeat: Infinity, duration: 4, ease: "easeInOut" },
-        }}>
-        <BabyCloud className="w-full h-full text-soft-blue/20" />
-      </motion.div>
-
-      <motion.div
-        className="absolute bottom-32 right-20 w-8 h-12 pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{
-          opacity: 1,
-          y: reduce ? 0 : [0, -15, 0],
-          rotate: reduce ? 0 : [0, 5, -5, 0],
-        }}
-        transition={{
-          delay: 0.7,
-          y: { repeat: Infinity, duration: 3, ease: "easeInOut" },
-          rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" },
-        }}>
-        <BabyBalloon className="w-full h-full text-coral/25" />
-      </motion.div>
-
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center">
           {/* Left - Content */}
-          <div className="flex flex-col gap-6">
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: easeOut }}
-              className="text-5xl md:text-6xl font-black leading-tight">
-              Watch Over Your
-              <br />
-              <span className="text-coral">Little One</span>
-            </motion.h1>
+          <div className="flex flex-col gap-4 sm:gap-6">
+            {/* Sun Icon and Heading - Side by Side */}
+            <div className="flex items-start gap-3 sm:gap-4 md:gap-6">
+              {/* Sun Icon */}
+              <motion.div
+                className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  rotate: reduce ? 0 : [0, 5, -5, 0],
+                }}
+                transition={{
+                  delay: 0.3,
+                  type: "spring",
+                  stiffness: 200,
+                  rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+                }}>
+                <BabySun className="w-full h-full text-soft-yellow" />
+              </motion.div>
+
+              {/* Heading */}
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: easeOut }}
+                className="flex-1 text-4xl sm:text-5xl md:text-6xl font-black leading-tight">
+                Watch Over Your
+                <br />
+                <span className="text-coral">Little One</span>
+              </motion.h1>
+            </div>
 
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1, ease: easeOut }}
-              className="text-lg text-mid-gray max-w-lg">
+              className="text-base sm:text-lg text-mid-gray max-w-lg">
               Real-time baby monitoring with crystal-clear video, voice messaging, and smart alerts. Peace of mind for
               modern parents.
             </motion.p>
@@ -131,13 +86,30 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2, ease: easeOut }}
-              className="flex flex-wrap gap-8 mt-4">
+              className="flex flex-wrap items-center gap-6 sm:gap-8 mt-2 sm:mt-4">
               {heroStats.map((stat, i) => (
                 <div key={i} className="flex flex-col">
-                  <span className={`text-3xl md:text-4xl font-black ${stat.color}`}>{stat.number}</span>
-                  <span className="text-sm text-mid-gray">{stat.label}</span>
+                  <span className={`text-2xl sm:text-3xl md:text-4xl font-black ${stat.color}`}>{stat.number}</span>
+                  <span className="text-xs sm:text-sm text-mid-gray">{stat.label}</span>
                 </div>
               ))}
+              
+              {/* Decorative icons inline with stats */}
+              <motion.div
+                className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 ml-auto"
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  rotate: reduce ? -15 : [-15, -5, -15],
+                  scale: reduce ? 1 : [1, 1.1, 1],
+                }}
+                transition={{
+                  delay: 0.5,
+                  rotate: { repeat: Infinity, duration: 3, ease: "easeInOut" },
+                  scale: { repeat: Infinity, duration: 2, ease: "easeInOut" },
+                }}>
+                <BabyStar className="w-full h-full text-coral/30" />
+              </motion.div>
             </motion.div>
 
             {/* CTA */}
@@ -145,16 +117,33 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3, ease: easeOut }}
-              className="flex flex-wrap gap-4 mt-4">
+              className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2 sm:mt-4">
               <Link
                 to="/monitor"
                 onClick={handleStartMonitoring}
-                className="btn-primary no-underline text-base px-8 py-4 inline-block">
+                className="btn-primary no-underline text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 inline-block">
                 Start Monitoring →
               </Link>
-              <a href="#features" className="btn-secondary no-underline text-base px-8 py-4">
+              <a href="#features" className="btn-secondary no-underline text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4">
                 Explore Features
               </a>
+              
+              {/* Decorative cloud icon */}
+              <motion.div
+                className="w-10 h-6 sm:w-12 sm:h-8 md:w-14 md:h-9"
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  x: reduce ? 0 : [0, 10, 0],
+                  y: reduce ? 0 : [0, -5, 0],
+                }}
+                transition={{
+                  delay: 0.6,
+                  x: { repeat: Infinity, duration: 6, ease: "easeInOut" },
+                  y: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+                }}>
+                <BabyCloud className="w-full h-full text-soft-blue/20" />
+              </motion.div>
             </motion.div>
           </div>
 
@@ -163,9 +152,26 @@ export default function Hero() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="relative">
+            className="relative flex flex-col items-end gap-4">
+            {/* Decorative balloon icon at top */}
+            <motion.div
+              className="w-6 h-10 sm:w-7 sm:h-11 md:w-8 md:h-12"
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: 1,
+                y: reduce ? 0 : [0, -15, 0],
+                rotate: reduce ? 0 : [0, 5, -5, 0],
+              }}
+              transition={{
+                delay: 0.7,
+                y: { repeat: Infinity, duration: 3, ease: "easeInOut" },
+                rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+              }}>
+              <BabyBalloon className="w-full h-full text-coral/25" />
+            </motion.div>
+            
             {/* Wavy/organic shape using SVG clip-path */}
-            <div className="relative">
+            <div className="relative w-full">
               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="none">
                 <defs>
                   <clipPath id="heroImageClip" clipPathUnits="objectBoundingBox">
