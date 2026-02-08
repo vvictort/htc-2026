@@ -26,7 +26,11 @@ interface ApiSuccess {
   expiresIn: string;
 }
 
-export default function LoginForm() {
+interface LoginFormProps {
+  onSuccess?: () => void;
+}
+
+export default function LoginForm({ onSuccess }: LoginFormProps) {
   const [formData, setFormData] = useState<LoginFormData>({
     email: "",
     password: "",
@@ -137,9 +141,13 @@ export default function LoginForm() {
         console.log("Login successful:", successData.user);
 
         // Redirect to dashboard
-        setTimeout(() => {
-          window.location.href = "/monitor";
-        }, 500);
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          setTimeout(() => {
+            window.location.href = "/monitor";
+          }, 500);
+        }
       }
     } catch (error) {
       console.error("Login error:", error);

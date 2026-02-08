@@ -1,6 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { motion } from "framer-motion";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -29,12 +28,10 @@ export default function Sidebar() {
       </button>
 
       {/* Sidebar Container */}
-      <motion.aside
-        initial={false}
-        animate={isMobileMenuOpen ? { x: 0 } : { x: "-100%" }}
-        // Reset transform on large screens (handled by CSS via media query usually,
-        // but Framer Motion overrides inline styles. We'll use a class-based approach for responsive behavior here mostly)
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white/90 backdrop-blur-xl border-r border-warm-cream shadow-xl flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white/90 backdrop-blur-xl border-r border-warm-cream shadow-xl flex flex-col transition-transform duration-300 ease-in-out ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}>
         {/* Logo Area */}
         <div className="p-8 border-b border-warm-cream flex items-center gap-3">
           <span className="text-3xl">👶</span>
@@ -79,7 +76,7 @@ export default function Sidebar() {
             <span>Sign Out</span>
           </button>
         </div>
-      </motion.aside>
+      </aside>
 
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (

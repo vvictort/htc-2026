@@ -23,7 +23,11 @@ interface ApiSuccess {
   };
 }
 
-export default function SignUpForm() {
+interface SignUpFormProps {
+  onSuccess?: () => void;
+}
+
+export default function SignUpForm({ onSuccess }: SignUpFormProps) {
   const [formData, setFormData] = useState<SignUpFormData>({
     email: "",
     password: "",
@@ -161,9 +165,13 @@ export default function SignUpForm() {
         });
 
         // Redirect to login after 2 seconds
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 2000);
+        if (onSuccess) {
+          setTimeout(onSuccess, 2000);
+        } else {
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+        }
       }
     } catch (error) {
       console.error("Sign up error:", error);
