@@ -17,9 +17,9 @@ export default function Navbar() {
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, ease: easeOut }}
-            className="fixed top-0 left-0 right-0 z-50 bg-warm-white/80 backdrop-blur-md"
+            className="fixed top-0 left-0 right-0 z-50 px-4 pt-4"
         >
-            <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="max-w-5xl mx-auto rounded-full bg-white/70 backdrop-blur-xl border border-white/60 px-6 py-3 flex items-center justify-between shadow-[0_8px_32px_rgba(31,29,43,0.08),0_2px_8px_rgba(31,29,43,0.04),inset_0_1px_0_rgba(255,255,255,0.8)]">
                 {/* Logo */}
                 <a href="#" className="flex items-center gap-2 no-underline">
                     <span className="text-2xl">👶</span>
@@ -29,12 +29,12 @@ export default function Navbar() {
                 </a>
 
                 {/* Desktop Nav Links */}
-                <div className="hidden md:flex items-center gap-8">
+                <div className="hidden md:flex items-center gap-1">
                     {navLinks.map((link) => (
                         <a
                             key={link.label}
                             href={link.href}
-                            className="text-sm font-medium text-mid-gray hover:text-charcoal transition-colors no-underline"
+                            className="text-sm font-medium text-mid-gray hover:text-charcoal hover:bg-warm-cream/60 transition-all no-underline px-4 py-2 rounded-full"
                         >
                             {link.label}
                         </a>
@@ -42,16 +42,16 @@ export default function Navbar() {
                 </div>
 
                 {/* CTA Buttons */}
-                <div className="hidden md:flex items-center gap-3">
+                <div className="hidden md:flex items-center gap-2">
                     <Link
                         to="/monitor"
-                        className="btn-secondary text-sm px-5 py-2 no-underline"
+                        className="text-sm font-semibold px-5 py-2 rounded-full text-charcoal hover:bg-warm-cream/60 transition-all no-underline"
                     >
                         Log In
                     </Link>
                     <Link
                         to="/monitor"
-                        className="btn-primary text-sm px-5 py-2 no-underline"
+                        className="btn-primary text-sm px-5 py-2 rounded-full no-underline"
                     >
                         Get Started
                     </Link>
@@ -86,24 +86,24 @@ export default function Navbar() {
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3, ease: easeInOut }}
-                        className="md:hidden overflow-hidden bg-white border-t border-warm-cream"
+                        className="md:hidden mt-2 mx-auto max-w-5xl overflow-hidden bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_32px_rgba(31,29,43,0.08)]"
                     >
-                        <div className="flex flex-col gap-2 px-6 py-4">
+                        <div className="flex flex-col gap-1 px-6 py-4">
                             {navLinks.map((link) => (
                                 <a
                                     key={link.label}
                                     href={link.href}
-                                    className="py-2 text-base font-medium text-charcoal no-underline"
+                                    className="py-2.5 px-4 text-base font-medium text-charcoal no-underline rounded-2xl hover:bg-warm-cream/50 transition-colors"
                                     onClick={() => setMenuOpen(false)}
                                 >
                                     {link.label}
                                 </a>
                             ))}
-                            <div className="flex flex-col gap-2 pt-3 border-t border-warm-cream">
-                                <Link to="/monitor" className="btn-secondary text-center no-underline">
+                            <div className="flex flex-col gap-2 pt-3 mt-2 border-t border-warm-cream/50">
+                                <Link to="/monitor" className="btn-secondary text-center no-underline rounded-full">
                                     Log In
                                 </Link>
-                                <Link to="/monitor" className="btn-primary text-center no-underline">
+                                <Link to="/monitor" className="btn-primary text-center no-underline rounded-full">
                                     Get Started
                                 </Link>
                             </div>
