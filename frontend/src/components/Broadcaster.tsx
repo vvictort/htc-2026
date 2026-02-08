@@ -11,15 +11,62 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
     const [isStreaming, setIsStreaming] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [viewerCount, setViewerCount] = useState(0);
-    
+
     const videoRef = useRef<HTMLVideoElement>(null);
     const socketRef = useRef<Socket | null>(null);
     const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
     const streamRef = useRef<MediaStream | null>(null);
 
+    const createPeerConnection = (viewerId: string): RTCPeerConnection => {
+        const peerConnection = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        });
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                socketRef.current?.emit('ice-candidate', viewerId, event.candidate);
+            }
+        };
+
+        peerConnection.onconnectionstatechange = () => {
+            console.log(`Connection state with ${viewerId}:`, peerConnection.connectionState);
+            if (peerConnection.connectionState === 'disconnected' ||
+                peerConnection.connectionState === 'failed' ||
+                peerConnection.connectionState === 'closed') {
+                peerConnectionsRef.current.delete(viewerId);
+                setViewerCount(prev => Math.max(0, prev - 1));
+            }
+        };
+
+        return peerConnection;
+    };
+
+    const stopStreaming = () => {
+        // Stop all tracks
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+
+        // Close all peer connections
+        peerConnectionsRef.current.forEach(pc => pc.close());
+        peerConnectionsRef.current.clear();
+
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+
+        setIsStreaming(false);
+        setViewerCount(0);
+        console.log('Broadcasting stopped');
+    };
+
     useEffect(() => {
         socketRef.current = io(BACKEND_URL);
-        
+
         socketRef.current.on('connect', () => {
             console.log('Connected to signaling server');
             socketRef.current?.emit('join-room', roomId);
@@ -28,7 +75,7 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
         socketRef.current.on('viewer-joined', async (viewerId: string) => {
             console.log('Viewer joined:', viewerId);
             setViewerCount(prev => prev + 1);
-            
+
             const peerConnection = createPeerConnection(viewerId);
             peerConnectionsRef.current.set(viewerId, peerConnection);
 
@@ -67,37 +114,10 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
         };
     }, [roomId]);
 
-    const createPeerConnection = (viewerId: string): RTCPeerConnection => {
-        const peerConnection = new RTCPeerConnection({
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
-        });
-
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                socketRef.current?.emit('ice-candidate', viewerId, event.candidate);
-            }
-        };
-
-        peerConnection.onconnectionstatechange = () => {
-            console.log(`Connection state with ${viewerId}:`, peerConnection.connectionState);
-            if (peerConnection.connectionState === 'disconnected' || 
-                peerConnection.connectionState === 'failed' ||
-                peerConnection.connectionState === 'closed') {
-                peerConnectionsRef.current.delete(viewerId);
-                setViewerCount(prev => Math.max(0, prev - 1));
-            }
-        };
-
-        return peerConnection;
-    };
-
     const startStreaming = async () => {
         try {
             setError(null);
-            
+
             // Get user media (camera)
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
@@ -117,33 +137,14 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
             // Announce as broadcaster
             socketRef.current?.emit('broadcaster', roomId);
             setIsStreaming(true);
-            
+
             console.log('Broadcasting started');
         } catch (err) {
             console.error('Error starting stream:', err);
             setError('Failed to access camera. Please grant camera permissions.');
         }
     };
-
-    const stopStreaming = () => {
-        // Stop all tracks
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-
-        // Close all peer connections
-        peerConnectionsRef.current.forEach(pc => pc.close());
-        peerConnectionsRef.current.clear();
-
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-
-        setIsStreaming(false);
-        setViewerCount(0);
-        console.log('Broadcasting stopped');
-    };    return (
+    return (
         <div className="flex flex-col gap-4 p-6 max-w-4xl w-full">
             <div className="bg-gray-800 rounded-xl shadow-2xl">
                 <div className="p-6">
@@ -151,7 +152,7 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
                         <i className="fa-solid fa-video"></i>
                         Broadcaster - Room: {roomId}
                     </h2>
-                    
+
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="bg-gray-700 rounded-lg p-4">
                             <div className="text-sm text-gray-400 mb-1">Status</div>
@@ -196,7 +197,7 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
 
                     <div className="flex justify-end">
                         {!isStreaming ? (
-                            <button 
+                            <button
                                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg flex items-center gap-2 transition-colors"
                                 onClick={startStreaming}
                             >
@@ -204,7 +205,7 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
                                 Start Broadcasting
                             </button>
                         ) : (
-                            <button 
+                            <button
                                 className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg flex items-center gap-2 transition-colors"
                                 onClick={stopStreaming}
                             >

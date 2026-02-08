@@ -12,79 +12,11 @@ export default function Viewer({ roomId }: ViewerProps) {
     const [connectionState, setConnectionState] = useState<RTCPeerConnectionState>('new');
     const [error, setError] = useState<string | null>(null);
     const [waitingForBroadcaster, setWaitingForBroadcaster] = useState(true);
-    
+
     const videoRef = useRef<HTMLVideoElement>(null);
     const socketRef = useRef<Socket | null>(null);
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const broadcasterIdRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        socketRef.current = io(BACKEND_URL);
-
-        socketRef.current.on('connect', () => {
-            console.log('Connected to signaling server');
-            socketRef.current?.emit('join-room', roomId);
-            socketRef.current?.emit('viewer', roomId);
-        });        socketRef.current.on('broadcaster-exists', (broadcasterId: string) => {
-            console.log('Broadcaster exists:', broadcasterId);
-            broadcasterIdRef.current = broadcasterId;
-            setWaitingForBroadcaster(false);
-            // Broadcaster will send offer to us automatically
-        });
-
-        socketRef.current.on('broadcaster-ready', async (broadcasterId: string) => {
-            console.log('Broadcaster ready (came online):', broadcasterId);
-            broadcasterIdRef.current = broadcasterId;
-            setWaitingForBroadcaster(false);
-            
-            // Automatically start connection when broadcaster comes online
-            // Close existing connection if any
-            if (peerConnectionRef.current) {
-                peerConnectionRef.current.close();
-            }
-            
-            // The broadcaster will now send us an offer since we're already in the room
-            setError(null);
-        });
-
-        socketRef.current.on('offer', async (broadcasterId: string, offer: RTCSessionDescriptionInit) => {
-            console.log('Received offer from broadcaster:', broadcasterId);
-            broadcasterIdRef.current = broadcasterId;
-            
-            const peerConnection = createPeerConnection();
-            peerConnectionRef.current = peerConnection;
-
-            await peerConnection.setRemoteDescription(offer);
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            socketRef.current?.emit('answer', broadcasterId, answer);
-        });        socketRef.current.on('ice-candidate', (_broadcasterId: string, candidate: RTCIceCandidateInit) => {
-            console.log('Received ICE candidate from broadcaster');
-            if (peerConnectionRef.current) {
-                peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-            }
-        });socketRef.current.on('broadcaster-disconnected', () => {
-            console.log('Broadcaster disconnected');
-            setError('Broadcaster has disconnected');
-            setIsConnected(false);
-            setWaitingForBroadcaster(true);
-            if (peerConnectionRef.current) {
-                peerConnectionRef.current.close();
-                peerConnectionRef.current = null;
-            }
-            if (videoRef.current) {
-                videoRef.current.srcObject = null;
-            }
-        });
-
-        return () => {
-            if (peerConnectionRef.current) {
-                peerConnectionRef.current.close();
-            }
-            socketRef.current?.disconnect();
-        };
-    }, [roomId]);
 
     const createPeerConnection = (): RTCPeerConnection => {
         const peerConnection = new RTCPeerConnection({
@@ -112,19 +44,89 @@ export default function Viewer({ roomId }: ViewerProps) {
         peerConnection.onconnectionstatechange = () => {
             console.log('Connection state:', peerConnection.connectionState);
             setConnectionState(peerConnection.connectionState);
-            
+
             if (peerConnection.connectionState === 'connected') {
                 setIsConnected(true);
                 setError(null);
-            } else if (peerConnection.connectionState === 'disconnected' || 
-                       peerConnection.connectionState === 'failed') {
+            } else if (peerConnection.connectionState === 'disconnected' ||
+                peerConnection.connectionState === 'failed') {
                 setError('Connection lost');
                 setIsConnected(false);
             }
         };
 
         return peerConnection;
-    };    const getConnectionStateColor = () => {
+    };
+
+    useEffect(() => {
+        socketRef.current = io(BACKEND_URL);
+
+        socketRef.current.on('connect', () => {
+            console.log('Connected to signaling server');
+            socketRef.current?.emit('join-room', roomId);
+            socketRef.current?.emit('viewer', roomId);
+        }); socketRef.current.on('broadcaster-exists', (broadcasterId: string) => {
+            console.log('Broadcaster exists:', broadcasterId);
+            broadcasterIdRef.current = broadcasterId;
+            setWaitingForBroadcaster(false);
+            // Broadcaster will send offer to us automatically
+        });
+
+        socketRef.current.on('broadcaster-ready', async (broadcasterId: string) => {
+            console.log('Broadcaster ready (came online):', broadcasterId);
+            broadcasterIdRef.current = broadcasterId;
+            setWaitingForBroadcaster(false);
+
+            // Automatically start connection when broadcaster comes online
+            // Close existing connection if any
+            if (peerConnectionRef.current) {
+                peerConnectionRef.current.close();
+            }
+
+            // The broadcaster will now send us an offer since we're already in the room
+            setError(null);
+        });
+
+        socketRef.current.on('offer', async (broadcasterId: string, offer: RTCSessionDescriptionInit) => {
+            console.log('Received offer from broadcaster:', broadcasterId);
+            broadcasterIdRef.current = broadcasterId;
+
+            const peerConnection = createPeerConnection();
+            peerConnectionRef.current = peerConnection;
+
+            await peerConnection.setRemoteDescription(offer);
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            socketRef.current?.emit('answer', broadcasterId, answer);
+        }); socketRef.current.on('ice-candidate', (_broadcasterId: string, candidate: RTCIceCandidateInit) => {
+            console.log('Received ICE candidate from broadcaster');
+            if (peerConnectionRef.current) {
+                peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        }); socketRef.current.on('broadcaster-disconnected', () => {
+            console.log('Broadcaster disconnected');
+            setError('Broadcaster has disconnected');
+            setIsConnected(false);
+            setWaitingForBroadcaster(true);
+            if (peerConnectionRef.current) {
+                peerConnectionRef.current.close();
+                peerConnectionRef.current = null;
+            }
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
+        });
+
+        return () => {
+            if (peerConnectionRef.current) {
+                peerConnectionRef.current.close();
+            }
+            socketRef.current?.disconnect();
+        };
+    }, [roomId]);
+
+    const getConnectionStateColor = () => {
         switch (connectionState) {
             case 'connected': return 'text-green-500';
             case 'connecting': return 'text-yellow-500';
@@ -142,7 +144,7 @@ export default function Viewer({ roomId }: ViewerProps) {
             case 'disconnected': return '🔴';
             default: return '⚪';
         }
-    };    return (
+    }; return (
         <div className="flex flex-col gap-4 p-6 max-w-4xl w-full">
             <div className="bg-gray-800 rounded-xl shadow-2xl">
                 <div className="p-6">
@@ -150,7 +152,7 @@ export default function Viewer({ roomId }: ViewerProps) {
                         <i className="fa-solid fa-eye"></i>
                         Viewer - Room: {roomId}
                     </h2>
-                    
+
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="bg-gray-700 rounded-lg p-4">
                             <div className="text-sm text-gray-400 mb-1">Connection Status</div>
