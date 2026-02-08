@@ -1,0 +1,81 @@
+<svg width="512" height="512" viewBox="60 60 380 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Filter for the "Clay" effect (Outer shadow + Inner light/shadow) -->
+    <filter id="clay-body" x="-50%" y="-50%" width="200%" height="200%">
+      <!-- Drop Shadow -->
+      <feGaussianBlur in="SourceAlpha" stdDeviation="15" result="blur-out" />
+      <feOffset in="blur-out" dx="15" dy="15" result="shadow-out" />
+      <feFlood flood-color="#c45d42" flood-opacity="0.4" result="color-out" />
+      <feComposite in="color-out" in2="shadow-out" operator="in" result="shadow-out-colored" />
+      
+      <!-- Inner Highlight (Top Left) -->
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur-in" />
+      <feOffset in="blur-in" dx="-8" dy="-8" result="offset-in" />
+      <feComposite in="offset-in" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="diff-in" />
+      <feFlood flood-color="#ffffff" flood-opacity="0.7" result="color-in" />
+      <feComposite in="color-in" in2="diff-in" operator="in" result="highlight-inner" />
+
+      <!-- Inner Shadow (Bottom Right) -->
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur-in-dark" />
+      <feOffset in="blur-in-dark" dx="8" dy="8" result="offset-in-dark" />
+      <feComposite in="offset-in-dark" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="diff-in-dark" />
+      <feFlood flood-color="#c45d42" flood-opacity="0.3" result="color-in-dark" />
+      <feComposite in="color-in-dark" in2="diff-in-dark" operator="in" result="shadow-inner" />
+      
+      <!-- Combine -->
+      <feMerge>
+        <feMergeNode in="shadow-out-colored" />
+        <feMergeNode in="SourceGraphic" />
+        <feMergeNode in="shadow-inner" />
+        <feMergeNode in="highlight-inner" />
+      </feMerge>
+    </filter>
+
+    <filter id="clay-screen" x="-50%" y="-50%" width="200%" height="200%">
+      <!-- Inner Shadow mostly (Inset look) -->
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur-in" />
+      <feOffset in="blur-in" dx="4" dy="4" result="offset-in" />
+      <feComposite in="offset-in" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="diff-in" />
+      <feFlood flood-color="#d1c9bd" flood-opacity="0.5" result="color-in" />
+      <feComposite in="color-in" in2="diff-in" operator="in" result="shadow-inner" />
+
+      <feMerge>
+        <feMergeNode in="SourceGraphic" />
+        <feMergeNode in="shadow-inner" />
+      </feMerge>
+    </filter>
+    
+    <linearGradient id="body-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff9f85" />
+      <stop offset="100%" stop-color="#ff8a6a" />
+    </linearGradient>
+
+    <linearGradient id="antenna-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#b8e4ff" />
+      <stop offset="100%" stop-color="#9ed8ff" />
+    </linearGradient>
+  </defs>
+
+  <!-- Antenna -->
+  <path d="M350 120 C350 90 320 60 290 80 C270 95 280 140 280 140" stroke="#9ed8ff" stroke-width="40" stroke-linecap="round" filter="url(#clay-body)" opacity="0" /> <!-- Placeholder path, doing a shape instead -->
+  <rect x="120" y="80" width="60" height="100" rx="30" fill="url(#antenna-grad)" filter="url(#clay-body)" />
+
+  <!-- Main Body (Monitor) -->
+  <rect x="80" y="140" width="352" height="280" rx="80" fill="url(#body-grad)" filter="url(#clay-body)" />
+
+  <!-- Screen (Inset) -->
+  <rect x="130" y="190" width="252" height="180" rx="40" fill="#fdf5ee" filter="url(#clay-screen)" />
+
+  <!-- Face Elements -->
+  <!-- Eyes -->
+  <circle cx="210" cy="270" r="12" fill="#3b3a4a" opacity="0.8" />
+  <circle cx="302" cy="270" r="12" fill="#3b3a4a" opacity="0.8" />
+  
+  <!-- Smile -->
+  <path d="M226 300 Q 256 330 286 300" stroke="#3b3a4a" stroke-width="8" stroke-linecap="round" opacity="0.8" fill="none" />
+
+  <!-- Cheeks -->
+  <circle cx="190" cy="290" r="10" fill="#ffb3a5" opacity="0.6" />
+  <circle cx="322" cy="290" r="10" fill="#ffb3a5" opacity="0.6" />
+
+</svg>
