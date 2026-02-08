@@ -5,10 +5,11 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import connectDB from './config/database';
-import { initializeFirebase } from './config/firebase';
-import { verifyFirebaseToken } from './middleware/authMiddleware';
-import authRoutes from './routes/authRoutes';
+import connectDB from './shared/config/database';
+import { initializeFirebase } from './shared/config/firebase';
+import { verifyFirebaseToken } from './shared/middleware/authMiddleware';
+import authRoutes from './features/auth/auth.routes';
+import audioRoutes from './features/audio/audio.routes';
 
 // Load environment variables
 dotenv.config();
@@ -61,6 +62,9 @@ app.get('/api', (_req: Request, res: Response) => {
 // Auth routes
 app.use('/api/auth', authRoutes);
 
+// Audio routes
+app.use('/api/audio', audioRoutes);
+
 // Protected route example - requires authentication
 app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => {
     res.status(200).json({
@@ -98,7 +102,9 @@ io.on('connection', (socket) => {
         }
         
         console.log(`Socket ${socket.id} joined room ${roomId}`);
-    });    socket.on('broadcaster', (roomId: string) => {
+    });
+
+    socket.on('broadcaster', (roomId: string) => {
         const room = rooms.get(roomId);
         if (room) {
             room.broadcaster = socket.id;
@@ -114,7 +120,9 @@ io.on('connection', (socket) => {
             
             console.log(`Broadcaster ${socket.id} ready in room ${roomId} with ${room.viewers.size} existing viewers`);
         }
-    });    socket.on('viewer', (roomId: string) => {
+    });
+
+    socket.on('viewer', (roomId: string) => {
         const room = rooms.get(roomId);
         if (room) {
             room.viewers.add(socket.id);
