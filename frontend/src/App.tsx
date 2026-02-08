@@ -11,6 +11,7 @@ import ProfilePage from "./pages/ProfilePage";
 import NotificationsPage from "./pages/NotificationsPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import BabyDevicePage from "./pages/BabyDevicePage";
+import CVDebug from "./components/CVDebug";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/monitor" element={<MonitorPage />} />
         <Route path="/baby" element={<BabyDevicePage />} />
+        <Route path="/cv-debug" element={<CVDebug />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/auth-showcase" element={<AuthShowcase />} />
 

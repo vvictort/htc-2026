@@ -23,6 +23,12 @@ export const WEBRTC_ENDPOINTS = {
 // Status endpoint
 export const STATUS_ENDPOINT = `${API_BASE_URL}/status`;
 
+// Motion / CV endpoints
+export const MOTION_ENDPOINTS = {
+    CREATE: `${API_BASE_URL}/motion`,
+    LIST: `${API_BASE_URL}/motion`,
+};
+
 // Notification endpoints
 export const NOTIFICATION_ENDPOINTS = {
     LIST: `${API_BASE_URL}/notifications`,

@@ -129,7 +129,7 @@ export default function BabyDevicePage() {
     // Camera is active — full-screen broadcaster with HUD
     return (
         <div className="fixed inset-0 bg-black">
-            <Broadcaster roomId={roomId} fullscreen onStop={() => setStarted(false)} />
+            <Broadcaster roomId={roomId} fullscreen autoStart onStop={() => setStarted(false)} />
 
             {/* Wake lock indicator (subtle, bottom-right) */}
             <div className="fixed bottom-12 right-4 z-30">

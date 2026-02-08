@@ -22,12 +22,18 @@ graph TB
         NCTRL["Notification<br/>Controller"]
         ACTRL["Audio<br/>Controller"]
         AUTHCTRL["Auth<br/>Controller"]
+        MCTRL["Motion<br/>Controller"]
+    end
+
+    subgraph "OpenCV Camera Monitor (Python)"
+        OPENCV["📷 OpenCV<br/>Motion Detection"]
     end
 
     subgraph "External Services"
         FB["🔥 Firebase Auth"]
         MONGO[("🍃 MongoDB Atlas")]
         ELEVEN["🎵 ElevenLabs<br/><i>TTS · Cloning · Music</i>"]
+        GEMINI["🤖 Google Gemini<br/><i>Threat Classification</i>"]
         SG["📧 SendGrid"]
         TW["📱 Twilio"]
         TURN["🌐 TURN Server"]
@@ -37,6 +43,9 @@ graph TB
     BABY <-->|"Signaling<br/>(offer/answer/ICE)"| SIG
     PARENT <-->|"Signaling"| SIG
 
+    OPENCV -->|"POST /api/motion<br/>{category, confidence}"| MCTRL
+    MCTRL -->|"classify threat"| GEMINI
+    MCTRL -->|"if caution/danger"| NCTRL
     BABY -->|"POST /notifications<br/>(snapshot)"| NCTRL
     PARENT -->|"POST /audio/stream<br/>POST /audio/lullaby"| ACTRL
     AUTH -->|"POST /auth/signup<br/>POST /auth/login"| AUTHCTRL
@@ -52,12 +61,16 @@ graph TB
     NCTRL --> SIG
     ACTRL --> ELEVEN
     ACTRL <--> MONGO
+    MCTRL <--> MONGO
+    MCTRL --> GEMINI
     BABY -.->|"ICE Servers"| TURN
     PARENT -.->|"ICE Servers"| TURN
 
     style BABY fill:#FF6F61,color:#fff,stroke:#e85d50
     style PARENT fill:#4A90D9,color:#fff,stroke:#3a7bc8
+    style OPENCV fill:#10B981,color:#fff,stroke:#059669
     style ELEVEN fill:#8B5CF6,color:#fff,stroke:#7c4ddb
+    style GEMINI fill:#4285F4,color:#fff,stroke:#3367D6
     style FB fill:#FFA000,color:#fff,stroke:#e69000
     style MONGO fill:#47A248,color:#fff,stroke:#3a8a3c
     style SG fill:#1A82E2,color:#fff,stroke:#1570c6
@@ -100,7 +113,22 @@ sequenceDiagram
     Baby->>Parent: ICE Candidates ↔️
     Note over Parent, Baby: 🎥 WebRTC P2P Video Stream Established
 
-    Note over Parent, Baby: 4️⃣ Monitor Event Detected
+    Note over Parent, Baby: 4️⃣ OpenCV Motion Detection
+    participant CV as OpenCV Camera
+    participant GM as Gemini AI
+    CV->>CV: Detect baby motion category
+    CV->>BE: POST /api/motion {category, confidence, snapshot}
+    BE->>GM: Classify threat (safe/caution/danger)
+    GM-->>BE: {threatLevel, reason}
+    BE->>DB: Save MotionLog
+    alt threatLevel = caution or danger
+        BE->>DB: Create Notification
+        BE-->>Parent: Socket: new-notification
+        BE->>SG: Send email alert (async)
+        BE->>TW: Send SMS alert (async)
+    end
+
+    Note over Parent, Baby: 5️⃣ Legacy Monitor Events
     Baby->>Baby: Pose detection / Sound
     Baby->>BE: POST /api/notifications {reason, snapshot}
     BE->>DB: Save notification
@@ -108,7 +136,7 @@ sequenceDiagram
     BE->>SG: Send email alert (async)
     BE->>TW: Send SMS alert (async)
 
-    Note over Parent, Baby: 5️⃣ Parent Interacts
+    Note over Parent, Baby: 6️⃣ Parent Interacts
     Parent->>BE: POST /api/audio/stream {text}
     BE->>EL: TTS (eleven_turbo_v2)
     EL-->>BE: audio/mpeg stream
@@ -133,10 +161,14 @@ htc-2026/
 │   │   │   ├── audio/               # TTS, lullaby music gen, voice cloning
 │   │   │   │   ├── audio.controller.ts
 │   │   │   │   └── audio.routes.ts
-│   │   │   └── notifications/       # Alerts, email, SMS delivery
-│   │   │       ├── notification.controller.ts
-│   │   │       ├── notification.routes.ts
-│   │   │       └── notification.service.ts
+│   │   │   ├── notifications/       # Alerts, email, SMS delivery
+│   │   │   │   ├── notification.controller.ts
+│   │   │   │   ├── notification.routes.ts
+│   │   │   │   └── notification.service.ts
+│   │   │   └── motion/              # OpenCV motion events + Gemini classification
+│   │   │       ├── motion.controller.ts
+│   │   │       ├── motion.routes.ts
+│   │   │       └── gemini.service.ts
 │   │   ├── shared/
 │   │   │   ├── config/
 │   │   │   │   ├── database.ts      # MongoDB Atlas connection
@@ -146,7 +178,8 @@ htc-2026/
 │   │   │   └── models/
 │   │   │       ├── User.ts          # User profile + prefs
 │   │   │       ├── Notification.ts  # Alert history + snapshots
-│   │   │       └── AudioLog.ts      # TTS usage tracking
+│   │   │       ├── AudioLog.ts      # TTS usage tracking
+│   │   │       └── MotionLog.ts     # Motion events + Gemini threat classification
 │   │   └── index.ts                 # Express + Socket.IO + WebRTC signaling
 │   └── .env
 │
@@ -214,7 +247,7 @@ htc-2026/
 | **Node.js**         | Backend runtime                                                |
 | **TypeScript**      | Type-safe development (frontend & backend)                     |
 | **Express**         | REST API framework                                             |
-| **MongoDB Atlas**   | User profiles, notifications, audio logs                       |
+| **MongoDB Atlas**   | User profiles, notifications, audio logs, motion logs          |
 | **Mongoose**        | MongoDB ODM with schemas & validation                          |
 | **Firebase**        | Authentication (Admin SDK + client SDK + REST API)             |
 | **Socket.IO**       | Real-time notification push + WebRTC signaling                 |
@@ -227,6 +260,8 @@ htc-2026/
 | **Framer Motion**   | Page & component animations                                    |
 | **Lenis**           | Smooth scrolling                                               |
 | **TensorFlow.js**   | Baby pose detection                                            |
+| **OpenCV**          | Baby motion detection & categorization (Python)                |
+| **Google Gemini**   | AI threat classification (`gemini-2.0-flash`)                  |
 
 ---
 
@@ -614,7 +649,109 @@ Content-Type: application/json
 
 ---
 
-### 🏥 Health & Status
+### � Motion Events (`/api/motion`)
+
+Receives motion categories from the OpenCV camera monitor, classifies threat level via Gemini AI, logs the event, and triggers notifications for caution/danger events.
+
+#### Log Motion Event
+```http
+POST /api/motion
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "category": "face_covered",
+  "confidence": 0.92,
+  "snapshot": "base64_jpeg_without_prefix",
+  "metadata": { "bounding_box": [100, 50, 300, 250] }
+}
+```
+
+**Valid categories:**
+| Category          | Description                         |
+| ----------------- | ----------------------------------- |
+| `still`           | Baby lying still / sleeping         |
+| `slight_movement` | Minor twitching, subtle shifts      |
+| `rolling`         | Rolling over                        |
+| `crawling`        | Crawling movement                   |
+| `sitting_up`      | Sitting up from lying position      |
+| `standing`        | Pulling to stand / standing         |
+| `flailing`        | Erratic arm/leg flailing            |
+| `crying_motion`   | Body shaking associated with crying |
+| `face_covered`    | Face covered by blanket/object      |
+| `out_of_frame`    | Baby moved out of camera frame      |
+| `unknown`         | Unclassifiable motion               |
+
+**Response (201):**
+```json
+{
+  "id": "motion_log_id",
+  "category": "face_covered",
+  "confidence": 0.92,
+  "threatLevel": "danger",
+  "threatReason": "Face appears covered — possible suffocation risk.",
+  "notified": true,
+  "time": "2026-02-08T12:00:00.000Z"
+}
+```
+
+**Threat classification (Gemini AI):**
+| Threat Level | Meaning                                    | Notification              |
+| ------------ | ------------------------------------------ | ------------------------- |
+| `safe`       | Normal behaviour, no concern               | No                        |
+| `caution`    | Unusual but not immediately dangerous      | Yes (email/SMS per prefs) |
+| `danger`     | Potentially dangerous, immediate attention | Yes (email/SMS per prefs) |
+
+**Side effects (caution/danger only):**
+- Creates a `Notification` record
+- Emits `new-notification` via Socket.IO
+- Sends email via SendGrid (if `notificationPreferences.email`)
+- Sends SMS via Twilio (if `notificationPreferences.sms` + `phone`)
+
+**Fallback:** If `GEMINI_API_KEY` is not set, a rule-based classifier is used (e.g. `face_covered` → always `danger`).
+
+#### List Motion Logs (Paginated)
+```http
+GET /api/motion?page=1&limit=50&threatLevel=danger&category=face_covered
+Authorization: Bearer <token>
+```
+**Response (200):**
+```json
+{
+  "logs": [
+    {
+      "id": "motion_log_id",
+      "category": "face_covered",
+      "confidence": 0.92,
+      "threatLevel": "danger",
+      "threatReason": "Face appears covered — possible suffocation risk.",
+      "notified": true,
+      "time": "2026-02-08T12:00:00.000Z",
+      "metadata": {}
+    }
+  ],
+  "total": 120,
+  "dangerCount": 3,
+  "cautionCount": 15,
+  "page": 1,
+  "pages": 3
+}
+```
+
+#### List Valid Categories (Public)
+```http
+GET /api/motion/categories
+```
+**Response (200):**
+```json
+{
+  "categories": ["still", "slight_movement", "rolling", "crawling", "sitting_up", "standing", "flailing", "crying_motion", "face_covered", "out_of_frame", "unknown"]
+}
+```
+
+---
+
+### �🏥 Health & Status
 
 ```http
 GET /health          →  { "status": "OK", "message": "Server is running" }
@@ -775,6 +912,23 @@ Devices on the **same account** connect automatically without manual room entry.
 }
 ```
 
+### MotionLog
+```typescript
+{
+  userId: ObjectId;                  // Ref → User (indexed)
+  category: MotionCategory;          // One of 11 predefined categories
+  confidence: number;                // 0–1, from OpenCV detector
+  threatLevel: "safe" | "caution" | "danger";  // Gemini classification
+  threatReason: string;              // Gemini's explanation
+  notified: boolean;                 // Whether alert was sent
+  snapshot?: string;                 // Base64 JPEG thumbnail
+  metadata?: Record<string, unknown>; // Extra data (bounding boxes, etc.)
+  createdAt: Date;                   // Auto (timestamps)
+  updatedAt: Date;
+}
+// Indexes: { userId: 1, createdAt: -1 }, { userId: 1, threatLevel: 1 }
+```
+
 ---
 
 ## Setup & Installation
@@ -784,6 +938,7 @@ Devices on the **same account** connect automatically without manual room entry.
 - MongoDB Atlas account
 - Firebase project (Admin SDK + Web API key)
 - ElevenLabs API key
+- Google Gemini API key (for AI threat classification)
 - SendGrid API key (for email alerts)
 - Twilio account (for SMS alerts)
 
@@ -816,6 +971,9 @@ SENDGRID_FROM_EMAIL=noreply@yourdomain.com
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=xxxxxxxxxxxxx
 TWILIO_FROM_NUMBER=+15551234567
+
+# Google Gemini (AI threat classification)
+GEMINI_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # TURN Server (optional — falls back to openrelay.metered.ca)
 TURN_SERVER_URL=turn:your-turn-server.com:443

@@ -127,6 +127,13 @@ export class PoseEngine {
             requestAnimationFrame(this.loop);
             return;
         }
+
+        // Skip frame if video has no valid dimensions (avoids TF.js 0x0 texture crash)
+        if (!this.video.videoWidth || !this.video.videoHeight) {
+            requestAnimationFrame(this.loop);
+            return;
+        }
+
         this.lastInferAt = now;
 
         const poses = await this.detector.estimatePoses(this.video, { maxPoses: 1 });
@@ -140,15 +147,15 @@ export class PoseEngine {
         const bbox =
             poseOk
                 ? (() => {
-                      const xs = good.map((p) => p.x ?? 0);
-                      const ys = good.map((p) => p.y ?? 0);
-                      return {
-                          x1: Math.min(...xs),
-                          y1: Math.min(...ys),
-                          x2: Math.max(...xs),
-                          y2: Math.max(...ys),
-                      };
-                  })()
+                    const xs = good.map((p) => p.x ?? 0);
+                    const ys = good.map((p) => p.y ?? 0);
+                    return {
+                        x1: Math.min(...xs),
+                        y1: Math.min(...ys),
+                        x2: Math.max(...xs),
+                        y2: Math.max(...ys),
+                    };
+                })()
                 : undefined;
 
         // ---- centroid (trunk) for boundary positioning (unchanged conceptually) ----
@@ -166,14 +173,14 @@ export class PoseEngine {
         const centroid =
             trunkPts.length >= 2
                 ? (() => {
-                      const totalWeight = trunkPts.reduce((s, p) => s + p.w, 0);
-                      const weightedX = trunkPts.reduce((s, p) => s + p.x * p.w, 0);
-                      const weightedY = trunkPts.reduce((s, p) => s + p.y * p.w, 0);
-                      return {
-                          x: weightedX / totalWeight,
-                          y: weightedY / totalWeight,
-                      };
-                  })()
+                    const totalWeight = trunkPts.reduce((s, p) => s + p.w, 0);
+                    const weightedX = trunkPts.reduce((s, p) => s + p.x * p.w, 0);
+                    const weightedY = trunkPts.reduce((s, p) => s + p.y * p.w, 0);
+                    return {
+                        x: weightedX / totalWeight,
+                        y: weightedY / totalWeight,
+                    };
+                })()
                 : undefined;
 
         // centroid speed (always contributes to motion)

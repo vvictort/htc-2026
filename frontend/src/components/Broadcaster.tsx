@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { getAuthToken, NOTIFICATION_ENDPOINTS, WEBRTC_ENDPOINTS } from "../utils/api";
+import { MOTION_ENDPOINTS, WEBRTC_ENDPOINTS } from "../utils/api";
+import { auth } from "../config/firebase";
+import BoundaryOverlay from "./BoundaryOverlay";
 import CVMonitor from "./CVMonitor";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
@@ -11,9 +13,11 @@ interface BroadcasterProps {
   fullscreen?: boolean;
   /** Called when user taps "Stop" inside the fullscreen HUD */
   onStop?: () => void;
+  /** Auto-start the camera when the component mounts (no second click needed) */
+  autoStart?: boolean;
 }
 
-export default function Broadcaster({ roomId, fullscreen = false, onStop }: BroadcasterProps) {
+export default function Broadcaster({ roomId, fullscreen = false, onStop, autoStart = false }: BroadcasterProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [leftPct, setLeftPct] = useState(0.08);
   const [rightPct, setRightPct] = useState(0.92);
@@ -65,37 +69,73 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
   };
 
   // Send a monitor event to the backend notifications endpoint
+  // Rate-limited: 30 s global cooldown + 60 s same-reason dedup
+  const lastReasonRef = useRef("");
+  const lastReasonAtRef = useRef(0);
+  const eventPendingRef = useRef(false);
+
+  /** Map PoseEngine alert types → backend MotionCategory values */
+  const mapToCategory = (reason: string): string => {
+    switch (reason) {
+      case "ACTIVE": return "slight_movement";
+      case "BOUNDARY": return "out_of_frame";
+      case "SOUND": return "crying_motion";
+      default: return "unknown";
+    }
+  };
+
   const sendMonitorEvent = async (
     reason: "ACTIVE" | "BOUNDARY" | "UNKNOWN" | "SOUND",
     details?: Record<string, unknown>
   ) => {
     const now = Date.now();
-    const COOLDOWN_MS = 10_000; // 10s cooldown between events
-    console.log(`[sendMonitorEvent] Attempting monitor event: ${reason}`, { details, now, lastEventAt: lastEventAtRef.current });
+    const COOLDOWN_MS = 5_000;
+    const SAME_REASON_COOLDOWN_MS = 10_000;
+    const category = mapToCategory(reason);
+    console.log(`[sendMonitorEvent] Attempting monitor event: ${reason} → category="${category}"`, { details, now, lastEventAt: lastEventAtRef.current });
     if (now - lastEventAtRef.current < COOLDOWN_MS) {
-      console.log(`[sendMonitorEvent] Blocked by cooldown. lastEventAt=${lastEventAtRef.current}, now=${now}, cooldownMs=${COOLDOWN_MS}`);
+      console.log(`[sendMonitorEvent] Blocked by cooldown (${COOLDOWN_MS / 1000}s)`);
       return;
     }
+    if (category === lastReasonRef.current && now - lastReasonAtRef.current < SAME_REASON_COOLDOWN_MS) {
+      console.log(`[sendMonitorEvent] Blocked by same-reason dedup (${category})`);
+      return;
+    }
+    if (eventPendingRef.current) return;
     lastEventAtRef.current = now;
+    lastReasonRef.current = category;
+    lastReasonAtRef.current = now;
+    eventPendingRef.current = true;
+
+    console.log(`[Broadcaster] 📤 Sending motion event: ${reason} → ${category}`, { details, timestamp: new Date(now).toLocaleTimeString() });
 
     setLastEvent({ reason, at: now });
 
     const snapshot = captureSnapshot();
-    const token = getAuthToken();
+
+    // Get a fresh Firebase ID token (auto-refreshes if expired)
+    let token: string | null = null;
+    try {
+      token = await auth.currentUser?.getIdToken() ?? null;
+    } catch (e) {
+      console.warn("[sendMonitorEvent] Failed to get auth token:", e);
+    }
 
     try {
-      console.log(`[sendMonitorEvent] Sending ${reason} to ${NOTIFICATION_ENDPOINTS.CREATE}`, { snapshotExists: !!snapshot });
-      await fetch(NOTIFICATION_ENDPOINTS.CREATE, {
+      console.log(`[sendMonitorEvent] Sending ${category} to ${MOTION_ENDPOINTS.CREATE}`, { snapshotExists: !!snapshot });
+      await fetch(MOTION_ENDPOINTS.CREATE, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ reason, snapshot, details }),
+        body: JSON.stringify({ category, confidence: 0.7, snapshot, metadata: details }),
       });
-      console.log(`[monitor-event] ${reason} → notification sent`);
+      console.log(`[motion] ${category} → event sent to /api/motion`);
     } catch (err) {
-      console.error("[monitor-event] failed to send:", err);
+      console.error("[motion] failed to send:", err);
+    } finally {
+      eventPendingRef.current = false;
     }
   };
 
@@ -145,31 +185,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
     console.log("Broadcasting stopped");
   };
 
-  // draggable boundary handles for fullscreen HUD
-  const startDrag = (which: "left" | "right", e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    const move = (pageX: number) => {
-      const rect = videoRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const rel = (pageX - rect.left) / rect.width;
-      if (which === "left") setLeftPct(Math.min(Math.max(rel, 0), rightPct - 0.02));
-      else setRightPct(Math.max(Math.min(rel, 1), leftPct + 0.02));
-    };
 
-    const onMove = (ev: MouseEvent) => move(ev.pageX);
-    const onTouch = (ev: TouchEvent) => move(ev.touches[0].pageX);
-    const up = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("touchmove", onTouch);
-      window.removeEventListener("mouseup", up);
-      window.removeEventListener("touchend", up);
-    };
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("touchmove", onTouch, { passive: true } as any);
-    window.addEventListener("mouseup", up);
-    window.addEventListener("touchend", up);
-  };
 
   useEffect(() => {
     console.log("Broadcaster component mounted for room:", roomId);
@@ -247,7 +263,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
     };
   }, [roomId]);
 
-  // Request preview (camera + mic) immediately so CVMonitor and the preview can run
+  // Request preview (camera + mic) immediately so CVMonitor can run before "Start"
   useEffect(() => {
     const openPreview = async () => {
       try {
@@ -258,7 +274,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
         streamRef.current = s;
         if (videoRef.current) {
           videoRef.current.srcObject = s;
-          await videoRef.current.play().catch(() => {});
+          await videoRef.current.play().catch(() => { });
         }
         console.log('[Broadcaster] preview stream started');
       } catch (err) {
@@ -271,6 +287,13 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
       // keep preview running until explicit stopStreaming
     };
   }, []);
+
+  // Auto-start camera if prop is set
+  useEffect(() => {
+    if (autoStart && !isStreaming) {
+      startStreaming();
+    }
+  }, [autoStart]);
 
   const startStreaming = async () => {
     try {
@@ -383,33 +406,12 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
               <span className="text-[0.6rem] text-white/30">Baby Device Mode</span>
             </div>
 
-            {/* Bottom draggable boundary bar */}
-            <div style={{ position: 'absolute', bottom: 56, left: 20, right: 20, height: 84, pointerEvents: 'auto' }}>
-              <div style={{ color: 'white', marginBottom: 6, fontWeight: 700, fontSize: 14 }}>Set the baby's left/right borders</div>
-              <div style={{ position: 'relative', height: 48, background: 'rgba(255,255,255,0.06)', borderRadius: 8 }}>
-                <div
-                  onMouseDown={(e) => startDrag('left', e)}
-                  onTouchStart={(e) => startDrag('left', e)}
-                  style={{
-                    position: 'absolute', top: 0, bottom: 0,
-                    left: `${Math.round(leftPct * 100)}%`, width: 12, transform: 'translateX(-50%)', cursor: 'ew-resize',
-                    background: '#ff9900', borderRadius: 6,
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-                  }}
-                />
-                <div
-                  onMouseDown={(e) => startDrag('right', e)}
-                  onTouchStart={(e) => startDrag('right', e)}
-                  style={{
-                    position: 'absolute', top: 0, bottom: 0,
-                    left: `${Math.round(rightPct * 100)}%`, width: 12, transform: 'translateX(-50%)', cursor: 'ew-resize',
-                    background: '#ff9900', borderRadius: 6,
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-                  }}
-                />
-                <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.round(leftPct * 100)}%`, right: `${100 - Math.round(rightPct * 100)}%`, background: 'rgba(34,197,94,0.12)', borderRadius: 6 }} />
-              </div>
-            </div>
+            {/* Boundary overlay — draggable lines directly on the video */}
+            <BoundaryOverlay
+              leftPct={leftPct}
+              rightPct={rightPct}
+              onChange={(l, r) => { setLeftPct(l); setRightPct(r); }}
+            />
 
             {/* CVMonitor mounted for motion detection */}
             <CVMonitor
@@ -417,8 +419,9 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
               leftPct={leftPct}
               rightPct={rightPct}
               mirror={true}
-              onBoundariesChange={(l, r) => { setLeftPct(l); setRightPct(r); }}
-              onAlert={(a) => {
+              sendApi={isStreaming}
+              showDebugHUD
+              onAlertDebug={(a) => {
                 console.log('[Broadcaster] CVMonitor alert received', a, { isStreaming });
                 if (isStreaming) {
                   if (a.type === 'ACTIVE') sendMonitorEvent('ACTIVE', a.details);

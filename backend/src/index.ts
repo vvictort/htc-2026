@@ -11,7 +11,9 @@ import { verifyFirebaseToken } from './shared/middleware/authMiddleware';
 import authRoutes from './features/auth/auth.routes';
 import audioRoutes from './features/audio/audio.routes';
 import notificationRoutes from './features/notifications/notification.routes';
+import motionRoutes from './features/motion/motion.routes';
 import { setIO } from './features/notifications/notification.controller';
+import { setMotionIO } from './features/motion/motion.controller';
 
 // Load environment variables
 dotenv.config();
@@ -32,8 +34,9 @@ const io = new Server(httpServer, {
     }
 });
 
-// Share Socket.IO instance with notification controller for realtime push
+// Share Socket.IO instance with notification + motion controllers for realtime push
 setIO(io);
+setMotionIO(io);
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -72,6 +75,9 @@ app.use('/api/audio', audioRoutes);
 
 // Notification routes
 app.use('/api/notifications', notificationRoutes);
+
+// Motion event routes (OpenCV camera → Gemini classification)
+app.use('/api/motion', motionRoutes);
 
 // Protected route example - requires authentication
 app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => {
@@ -211,7 +217,7 @@ io.on('connection', (socket) => {
 // WebRTC ICE server credentials endpoint
 // Returns STUN + TURN servers for NAT traversal across different networks
 app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
-    const iceServers: RTCIceServer[] = [
+    const iceServers: Array<{ urls: string; username?: string; credential?: string }> = [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
     ];
