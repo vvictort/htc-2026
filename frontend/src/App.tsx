@@ -6,6 +6,10 @@ import SignUpPage from "./pages/SignUpPage";
 import LoginPage from "./pages/LoginPage";
 import AuthShowcase from "./pages/AuthShowcase";
 import AboutPage from "./pages/AboutPage";
+import DashboardPage from "./pages/DashboardPage";
+import ProfilePage from "./pages/ProfilePage";
+import NotificationsPage from "./pages/NotificationsPage";
+import OnboardingPage from "./pages/OnboardingPage";
 
 function App() {
   return (
@@ -17,6 +21,14 @@ function App() {
         <Route path="/monitor" element={<MonitorPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/auth-showcase" element={<AuthShowcase />} />
+
+        {/* Onboarding Route */}
+        <Route path="/onboarding" element={<OnboardingPage />} />
+
+        {/* Dashboard Routes */}
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
       </Routes>
     </BrowserRouter>
   );
