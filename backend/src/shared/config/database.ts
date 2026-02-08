@@ -5,7 +5,8 @@ const connectDB = async (): Promise<void> => {
         const mongoURI = process.env.MONGODB_URI;
 
         if (!mongoURI) {
-            throw new Error('MONGODB_URI is not defined in environment variables');
+            console.warn('MONGODB_URI is not defined - running without database');
+            return;
         }
 
         await mongoose.connect(mongoURI);
