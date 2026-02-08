@@ -26,27 +26,26 @@ export default function CTA() {
                     <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-soft-blue/15 blur-3xl" />
                     <div className="absolute top-1/2 left-1/4 w-32 h-32 rounded-full bg-soft-green/10 blur-3xl" />
 
-                    <div className="relative z-10 max-w-2xl mx-auto">
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            whileInView={{ scale: 1 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                            className="w-16 h-16 rounded-full bg-coral/20 flex items-center justify-center mx-auto mb-6"
-                        >
-                            <span className="text-3xl">💛</span>
-                        </motion.div>
+          <div className="relative z-10 max-w-2xl mx-auto">
+            <motion.div
+              initial={{ scale: 0 }}
+              whileInView={{ scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              className="w-16 h-16 rounded-full bg-coral/20 flex items-center justify-center mx-auto mb-6">
+              <span className="text-3xl">💛</span>
+            </motion.div>
 
-                        <h2 className="text-white mb-4">
-                            Ready to keep your
-                            <br />
-                            <span className="text-italic text-coral">baby safe?</span>
-                        </h2>
+            <h2 className="text-white mb-4">
+              Ready to keep your
+              <br />
+              <span className="text-italic text-coral">baby safe?</span>
+            </h2>
 
-                        <p className="text-light-gray text-base mb-8 max-w-lg mx-auto">
-                            Join thousands of parents who trust BabyWatcher for real-time
-                            monitoring. Free to start, no credit card required.
-                        </p>
+            <p className="text-light-gray text-base mb-8 max-w-lg mx-auto">
+              Join thousands of parents who trust BabyWatcher for real-time monitoring. Free to start, no credit card
+              required.
+            </p>
 
                         <div className="flex flex-wrap justify-center gap-4">
                             <Link

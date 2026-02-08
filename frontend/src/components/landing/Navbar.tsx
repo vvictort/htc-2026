@@ -4,10 +4,10 @@ import { motion, AnimatePresence, easeInOut, easeOut } from 'framer-motion';
 import { isAuthenticated, logout } from '../../utils/auth';
 
 const navLinks = [
-    { label: 'Home', href: '#' },
-    { label: 'Features', href: '#features' },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Contact', href: '#contact' },
+  { label: "Home", href: "#" },
+  { label: "Features", href: "#features" },
+  { label: "How It Works", href: "#how-it-works" },
+  { label: "Contact", href: "#contact" },
 ];
 
 export default function Navbar() {
@@ -19,34 +19,32 @@ export default function Navbar() {
         window.location.href = '/';
     };
 
-    return (
-        <motion.nav
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, ease: easeOut }}
-            className="fixed top-0 left-0 right-0 z-50 px-4 pt-4"
-        >
-            <div className="max-w-5xl mx-auto rounded-full bg-white/70 backdrop-blur-xl border border-white/60 px-6 py-3 flex items-center justify-between shadow-[0_8px_32px_rgba(31,29,43,0.08),0_2px_8px_rgba(31,29,43,0.04),inset_0_1px_0_rgba(255,255,255,0.8)]">
-                {/* Logo */}
-                <a href="#" className="flex items-center gap-2 no-underline">
-                    <span className="text-2xl">👶</span>
-                    <span className="text-xl font-extrabold text-charcoal tracking-tight">
-                        Baby<span className="text-coral">Watcher</span>
-                    </span>
-                </a>
+  return (
+    <motion.nav
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: easeOut }}
+      className="fixed top-0 left-0 right-0 z-50 px-4 pt-4">
+      <div className="max-w-5xl mx-auto rounded-full bg-white/70 backdrop-blur-xl border border-white/60 px-6 py-3 flex items-center justify-between shadow-[0_8px_32px_rgba(31,29,43,0.08),0_2px_8px_rgba(31,29,43,0.04),inset_0_1px_0_rgba(255,255,255,0.8)]">
+        {/* Logo */}
+        <a href="#" className="flex items-center gap-2 no-underline">
+          <img src="/logo.svg" alt="BabyWatcher Logo" className="w-8 h-8" />
+          <span className="text-xl font-extrabold text-charcoal tracking-tight">
+            Baby<span className="text-coral">Watcher</span>
+          </span>
+        </a>
 
-                {/* Desktop Nav Links */}
-                <div className="hidden md:flex items-center gap-1">
-                    {navLinks.map((link) => (
-                        <a
-                            key={link.label}
-                            href={link.href}
-                            className="text-sm font-medium text-mid-gray hover:text-charcoal hover:bg-warm-cream/60 transition-all no-underline px-4 py-2 rounded-full"
-                        >
-                            {link.label}
-                        </a>
-                    ))}
-                </div>
+        {/* Desktop Nav Links */}
+        <div className="hidden md:flex items-center gap-1">
+          {navLinks.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              className="text-sm font-medium text-mid-gray hover:text-charcoal hover:bg-warm-cream/60 transition-all no-underline px-4 py-2 rounded-full">
+              {link.label}
+            </a>
+          ))}
+        </div>
 
                 {/* CTA Buttons */}
                 <div className="hidden md:flex items-center gap-2">
@@ -83,26 +81,25 @@ export default function Navbar() {
                     )}
                 </div>
 
-                {/* Mobile Hamburger */}
-                <button
-                    className="md:hidden flex flex-col gap-1.5 bg-transparent p-2"
-                    onClick={() => setMenuOpen(!menuOpen)}
-                    aria-label="Toggle menu"
-                >
-                    <motion.span
-                        animate={menuOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
-                        className="block w-6 h-0.5 bg-charcoal rounded-full"
-                    />
-                    <motion.span
-                        animate={menuOpen ? { opacity: 0 } : { opacity: 1 }}
-                        className="block w-6 h-0.5 bg-charcoal rounded-full"
-                    />
-                    <motion.span
-                        animate={menuOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
-                        className="block w-6 h-0.5 bg-charcoal rounded-full"
-                    />
-                </button>
-            </div>
+        {/* Mobile Hamburger */}
+        <button
+          className="md:hidden flex flex-col gap-1.5 bg-transparent p-2"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu">
+          <motion.span
+            animate={menuOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }}
+            className="block w-6 h-0.5 bg-charcoal rounded-full"
+          />
+          <motion.span
+            animate={menuOpen ? { opacity: 0 } : { opacity: 1 }}
+            className="block w-6 h-0.5 bg-charcoal rounded-full"
+          />
+          <motion.span
+            animate={menuOpen ? { rotate: -45, y: -6 } : { rotate: 0, y: 0 }}
+            className="block w-6 h-0.5 bg-charcoal rounded-full"
+          />
+        </button>
+      </div>
 
             {/* Mobile Menu */}
             <AnimatePresence>
