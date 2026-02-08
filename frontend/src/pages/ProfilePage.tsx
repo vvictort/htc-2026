@@ -1,9 +1,9 @@
 import DashboardLayout from "../components/dashboard/DashboardLayout";
 import { useState } from "react";
-import VoiceSelector from "../components/onboarding/VoiceSelector";
-import VoiceRecorder from "../components/onboarding/VoiceRecorder";
+import VoiceSelector from "../components/onboarding/VoiceSelector.tsx";
+import VoiceRecorder from "../components/onboarding/VoiceRecorder.tsx";
 import { motion, AnimatePresence } from "framer-motion";
-import Toast from "../components/ui/Toast";
+import Toast from "../components/ui/Toast.tsx";
 
 export default function ProfilePage() {
   const [formData, setFormData] = useState({

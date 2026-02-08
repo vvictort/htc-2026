@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import VoiceRecorder from "../components/onboarding/VoiceRecorder";
-import VoiceSelector from "../components/onboarding/VoiceSelector";
+import VoiceRecorder from "../components/onboarding/VoiceRecorder.tsx";
+import VoiceSelector from "../components/onboarding/VoiceSelector.tsx";
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
