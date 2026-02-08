@@ -2,13 +2,106 @@ import DashboardLayout from "../components/dashboard/DashboardLayout";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import DailyQuote from "../components/dashboard/DailyQuote";
+import { useEffect, useState } from "react";
+import { io, Socket } from "socket.io-client";
+import { useAuth } from "../context/useAuth";
+import { NOTIFICATION_ENDPOINTS, getAuthToken } from "../utils/api";
+
+interface RecentNotification {
+  id: string;
+  type: string;
+  message: string;
+  snapshot?: string | null;
+  time: string;
+  read: boolean;
+}
+
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
 export default function DashboardPage() {
+  const { currentUser, token } = useAuth();
+  const [recentNotifs, setRecentNotifs] = useState<RecentNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch recent notifications
+  useEffect(() => {
+    const fetchRecent = async () => {
+      const authToken = token || getAuthToken();
+      if (!authToken) return;
+
+      try {
+        const res = await fetch(`${NOTIFICATION_ENDPOINTS.LIST}?limit=5`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setRecentNotifs(data.notifications);
+          setUnreadCount(data.unreadCount);
+        }
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err);
+      }
+    };
+    fetchRecent();
+  }, [token]);
+
+  // Socket.IO — live notification updates
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    const socket: Socket = io(BACKEND_URL);
+
+    socket.on("connect", () => {
+      socket.emit("subscribe-notifications", currentUser.uid);
+    });
+
+    socket.on("new-notification", (notif: RecentNotification) => {
+      setRecentNotifs((prev) => [notif, ...prev].slice(0, 5));
+      setUnreadCount((prev) => prev + 1);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUser?.uid]);
+
+  const formatTime = (time: string) => {
+    const date = new Date(time);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getNotifIcon = (type: string) => {
+    switch (type) {
+      case "sound": return "🔊";
+      case "motion": return "🏃";
+      case "boundary": return "⚠️";
+      case "unknown": return "❓";
+      default: return "ℹ️";
+    }
+  };
+
+  const getNotifTitle = (type: string) => {
+    switch (type) {
+      case "sound": return "Sound Detected";
+      case "motion": return "Motion Detected";
+      case "boundary": return "Boundary Breach";
+      case "unknown": return "Baby Not Detected";
+      default: return "System Event";
+    }
+  };
   const stats = [
     { label: "Active Monitors", value: "1", icon: "📹", color: "bg-coral/10 text-coral", valueColor: "text-charcoal" },
     {
       label: "Notifications",
-      value: "3",
+      value: String(unreadCount),
       icon: "🔔",
       color: "bg-soft-blue/20 text-soft-blue",
       valueColor: "text-charcoal",
@@ -107,21 +200,38 @@ export default function DashboardPage() {
               <div className="w-14 h-14 bg-soft-blue/20 rounded-2xl flex items-center justify-center text-3xl">🔔</div>
             </div>
             <h3 className="text-2xl font-bold text-charcoal mb-2 relative z-10">Recent Alerts</h3>
-            <p className="text-mid-gray mb-8 relative z-10">You have 3 unread notifications from the last 24 hours.</p>
+            <p className="text-mid-gray mb-8 relative z-10">
+              {unreadCount > 0
+                ? `You have ${unreadCount} unread notification${unreadCount > 1 ? "s" : ""} from the last 24 hours.`
+                : "No unread notifications."}
+            </p>
 
             <div className="space-y-4 mb-4 relative z-10">
-              {[
-                { icon: "🔊", title: "Sound Detected", time: "2 hours ago" },
-                { icon: "👀", title: "Motion Detected", time: "5 hours ago" },
-              ].map((n, i) => (
+              {(recentNotifs.length > 0
+                ? recentNotifs.slice(0, 3)
+                : [
+                  { id: "empty-1", type: "system", message: "No alerts yet", time: "", snapshot: null, read: true },
+                ]
+              ).map((n) => (
                 <div
-                  key={i}
+                  key={n.id}
                   className="flex items-center gap-3 p-3 bg-warm-white/80 backdrop-blur-sm rounded-xl border border-warm-cream/50">
-                  <span className="text-lg">{n.icon}</span>
+                  {n.snapshot ? (
+                    <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-warm-cream">
+                      <img
+                        src={`data:image/jpeg;base64,${n.snapshot}`}
+                        alt="Snapshot"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-lg">{getNotifIcon(n.type)}</span>
+                  )}
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-charcoal">{n.title}</p>
-                    <p className="text-xs text-mid-gray">{n.time}</p>
+                    <p className="text-sm font-bold text-charcoal">{getNotifTitle(n.type)}</p>
+                    <p className="text-xs text-mid-gray">{n.time ? formatTime(n.time) : ""}</p>
                   </div>
+                  {!n.read && <div className="w-2 h-2 rounded-full bg-coral shrink-0"></div>}
                 </div>
               ))}
             </div>

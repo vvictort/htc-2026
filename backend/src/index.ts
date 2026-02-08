@@ -10,6 +10,8 @@ import { initializeFirebase } from './shared/config/firebase';
 import { verifyFirebaseToken } from './shared/middleware/authMiddleware';
 import authRoutes from './features/auth/auth.routes';
 import audioRoutes from './features/audio/audio.routes';
+import notificationRoutes from './features/notifications/notification.routes';
+import { setIO } from './features/notifications/notification.controller';
 
 // Load environment variables
 dotenv.config();
@@ -30,11 +32,14 @@ const io = new Server(httpServer, {
     }
 });
 
+// Share Socket.IO instance with notification controller for realtime push
+setIO(io);
+
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors()); // Enable CORS
 app.use(morgan('dev')); // Logging
-app.use(express.json()); // Parse JSON bodies
+app.use(express.json({ limit: '5mb' })); // Parse JSON bodies (increased for base64 snapshots)
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
 // Health check route
@@ -65,6 +70,9 @@ app.use('/api/auth', authRoutes);
 // Audio routes
 app.use('/api/audio', audioRoutes);
 
+// Notification routes
+app.use('/api/notifications', notificationRoutes);
+
 // Protected route example - requires authentication
 app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => {
     res.status(200).json({
@@ -86,6 +94,12 @@ const rooms = new Map<string, Room>();
 
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
+
+    // Allow authenticated clients to join a user-specific room for realtime notifications
+    socket.on('subscribe-notifications', (firebaseUid: string) => {
+        socket.join(`user:${firebaseUid}`);
+        console.log(`Socket ${socket.id} subscribed to notifications for user ${firebaseUid}`);
+    });
 
     socket.on('join-room', (roomId: string) => {
         socket.join(roomId);
@@ -143,9 +157,9 @@ io.on('connection', (socket) => {
 
     socket.on('ice-candidate', (id: string, candidate: any) => {
         socket.to(id).emit('ice-candidate', socket.id, candidate);
-    });    socket.on('disconnect', () => {
+    }); socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
-        
+
         // Clean up rooms when broadcaster or viewer disconnects
         rooms.forEach((room, roomId) => {
             // If disconnected client was the broadcaster
@@ -154,12 +168,12 @@ io.on('connection', (socket) => {
                 socket.to(roomId).emit('broadcaster-disconnected');
                 room.broadcaster = undefined;
             }
-            
+
             // If disconnected client was a viewer
             if (room.viewers.has(socket.id)) {
                 console.log(`Viewer ${socket.id} disconnected from room ${roomId}`);
                 room.viewers.delete(socket.id);
-                
+
                 // Notify broadcaster that viewer left
                 if (room.broadcaster) {
                     io.to(room.broadcaster).emit('viewer-disconnected', socket.id);

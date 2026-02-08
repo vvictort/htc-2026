@@ -1,11 +1,19 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+export interface INotificationPreferences {
+  email: boolean;
+  sms: boolean;
+  push: boolean;
+}
+
 export interface IUser extends Document {
   firebaseUid: string;
   email: string;
   displayName?: string;
+  phone?: string;
   customVoiceId?: string;
   enableCustomVoice?: boolean;
+  notificationPreferences: INotificationPreferences;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +37,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
     },
+    phone: {
+      type: String,
+      trim: true,
+    },
     customVoiceId: {
       type: String,
       trim: true,
@@ -36,6 +48,11 @@ const userSchema = new Schema<IUser>(
     enableCustomVoice: {
       type: Boolean,
       default: true,
+    },
+    notificationPreferences: {
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false },
+      push: { type: Boolean, default: true },
     },
   },
   {

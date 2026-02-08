@@ -8,6 +8,15 @@ export const AUTH_ENDPOINTS = {
     ME: `${API_BASE_URL}/auth/me`,
 };
 
+// Notification endpoints
+export const NOTIFICATION_ENDPOINTS = {
+    LIST: `${API_BASE_URL}/notifications`,
+    CREATE: `${API_BASE_URL}/notifications`,
+    READ_ALL: `${API_BASE_URL}/notifications/read-all`,
+    READ: (id: string) => `${API_BASE_URL}/notifications/${id}/read`,
+    PREFERENCES: `${API_BASE_URL}/notifications/preferences`,
+};
+
 // API helper function with error handling
 export async function apiCall<T>(
     endpoint: string,

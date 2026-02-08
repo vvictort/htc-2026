@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { getAuthToken, NOTIFICATION_ENDPOINTS } from "../utils/api";
 
 const BACKEND_URL = "http://localhost:5000";
 
@@ -11,11 +12,65 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
+  const [lastEvent, setLastEvent] = useState<{ reason: string; at: number } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const streamRef = useRef<MediaStream | null>(null);
+  const lastEventAtRef = useRef<number>(0);
+  const canvasSnapRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Capture a JPEG snapshot from the live video element
+  const captureSnapshot = (): string | undefined => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return undefined;
+
+    if (!canvasSnapRef.current) {
+      canvasSnapRef.current = document.createElement("canvas");
+    }
+    const canvas = canvasSnapRef.current;
+    // Thumbnail size to keep payload small
+    const scale = 320 / video.videoWidth;
+    canvas.width = 320;
+    canvas.height = Math.round(video.videoHeight * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return undefined;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Return raw base64 without the data-url prefix
+    return canvas.toDataURL("image/jpeg", 0.7).replace(/^data:image\/jpeg;base64,/, "");
+  };
+
+  // Send a monitor event to the backend notifications endpoint
+  const sendMonitorEvent = async (
+    reason: "ACTIVE" | "BOUNDARY" | "UNKNOWN" | "SOUND",
+    details?: Record<string, unknown>
+  ) => {
+    const now = Date.now();
+    const COOLDOWN_MS = 10_000; // 10s cooldown between events
+    if (now - lastEventAtRef.current < COOLDOWN_MS) return;
+    lastEventAtRef.current = now;
+
+    setLastEvent({ reason, at: now });
+
+    const snapshot = captureSnapshot();
+    const token = getAuthToken();
+
+    try {
+      await fetch(NOTIFICATION_ENDPOINTS.CREATE, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reason, snapshot, details }),
+      });
+      console.log(`[monitor-event] ${reason} → notification sent`);
+    } catch (err) {
+      console.error("[monitor-event] failed to send:", err);
+    }
+  };
 
   const createPeerConnection = (viewerId: string): RTCPeerConnection => {
     const peerConnection = new RTCPeerConnection({
@@ -193,6 +248,13 @@ export default function Broadcaster({ roomId }: BroadcasterProps) {
               <div className="text-lg font-semibold text-white">{viewerCount}</div>
             </div>
           </div>
+
+          {lastEvent && (
+            <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-3 mb-4 flex items-center gap-2 text-sm text-blue-200">
+              🔔 Notification sent: <strong>{lastEvent.reason}</strong> at{" "}
+              {new Date(lastEvent.at).toLocaleTimeString()}
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-4 flex items-center gap-2">
