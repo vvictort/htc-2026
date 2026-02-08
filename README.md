@@ -168,26 +168,27 @@ Content-Type: application/json
 
 **Voice priority:** `voiceId` param → user's custom voice → default voice
 
-#### Generate Lullaby
+#### Generate Lullaby (Music Generation)
+Uses ElevenLabs Music Generation to create soothing instrumental music, ambient sounds, and humming to help baby relax and fall asleep.
 ```http
 POST /api/audio/lullaby
 Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "babyName": "Mia",                    // optional
   "babyDeviceId": "device123",          // required
-  "theme": "classic",                   // "classic" | "nature" | "cosmic"
-  "length": "medium",                   // "short" | "medium" | "long"
-  "voiceId": "optional-voice-override"  // optional
+  "vibe": "classic",                    // "classic" | "nature" | "cosmic" | "ocean" | "rainy"
+  "length": "medium"                    // "short" (30s) | "medium" (1min) | "long" (2min)
 }
 ```
-**Response:** `audio/mpeg` binary stream (MP3 lullaby)
+**Response:** `audio/mpeg` binary stream (AI-generated instrumental music)
 
-**Themes:**
-- `classic` — gentle, timeless lullaby lines
-- `nature` — forest hush, fireflies and streams
-- `cosmic` — stars, comets and dreamy space
+**Vibes:**
+- `classic` — music box melody, soft piano arpeggios & warm humming
+- `nature` — birdsong, crickets, flowing streams with celeste melody
+- `cosmic` — ethereal synth pads, twinkling chimes, weightless drones
+- `ocean` — gentle waves, harp glissandos & acoustic guitar
+- `rainy` — rain on glass, distant thunder & solo piano
 
 #### Get Available Voices
 ```http

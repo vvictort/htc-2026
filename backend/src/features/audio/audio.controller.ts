@@ -9,76 +9,68 @@ interface TextToSpeechRequest {
   babyDeviceId: string;
 }
 
-type LullabyTheme = "classic" | "nature" | "cosmic";
+type LullabyVibe = "lullaby" | "classic" | "nature" | "cosmic" | "ocean" | "rainy";
 type LullabyLength = "short" | "medium" | "long";
 
 interface LullabyRequest {
   babyName?: string;
   babyDeviceId: string;
-  theme?: LullabyTheme;
+  vibe?: LullabyVibe;
   length?: LullabyLength;
-  voiceId?: string;
 }
 
-const LULLABY_TEMPLATES: Record<LullabyTheme, string[]> = {
-  classic: [
-    "Hush now, {name}, the daylight is through,",
-    "Fireflies gather to dance just for you,",
-    "Moonbeams are stitching a soft silver seam,",
-    "Closing your eyes is the start of a dream,",
-    "Clouds are your pillows, the night is your guide,",
-    "Drifting on wishes with me by your side,",
-    "Safe in this quiet, the world gently sings,",
-    "Rock-a-bye, {name}, on nighttime wings.",
-  ],
-  nature: [
-    "Rest little {name}, hear leaves whisper low,",
-    "Owls keep a watch where the cool rivers flow,",
-    "Crickets are plucking their soft violin,",
-    "Breezes hum lullabies brushing your skin,",
-    "Stars sprinkle dew on the branches above,",
-    "Wrapped in the scent of the pine forest's love,",
-    "Dreams follow fireflies lighting the streams,",
-    "Sleep in the hush of the forest's sweet dreams.",
-  ],
-  cosmic: [
-    "Close your eyes, {name}, the night ship departs,",
-    "Sailing past planets and velvety stars,",
-    "Saturn's soft rings are a carousel light,",
-    "Comets write wishes across gentle night,",
-    "Nebulas pillow your head in their glow,",
-    "Milky Way currents will rock you so slow,",
-    "Galaxy guardians hum as you gleam,",
-    "Rest in the cradle of infinite dreams.",
-  ],
+// Music generation prompts for each vibe — to help baby sleep
+const MUSIC_PROMPTS: Record<LullabyVibe, { prompt: string; instrumental: boolean }> = {
+  lullaby: {
+    prompt:
+      "A tender, warm female voice softly singing a gentle lullaby to a baby. " +
+      "Sweet humming and soft 'la la la' melodies layered over a delicate music box, " +
+      "light acoustic guitar fingerpicking and warm piano chords. Very slow tempo, " +
+      "breathy and intimate vocals like a mother singing her baby to sleep. " +
+      "Nursery lullaby, deeply soothing, minimal instrumentation.",
+    instrumental: false,
+  },
+  classic: {
+    prompt:
+      "A very gentle, slow, soft instrumental lullaby with a soothing music box melody, soft humming, " +
+      "delicate piano arpeggios and warm pad synths. Calm, peaceful, dreamy nursery atmosphere. " +
+      "No vocals, no drums, no percussion. Perfect for helping a baby fall asleep.",
+    instrumental: true,
+  },
+  nature: {
+    prompt:
+      "A calming ambient soundscape for a baby to fall asleep: gentle birdsong fading into soft crickets, " +
+      "a quiet flowing stream in the background, light breeze through leaves, layered with a barely-there " +
+      "celeste melody humming a lullaby. Ultra-soothing, natural, no drums, no vocals.",
+    instrumental: true,
+  },
+  cosmic: {
+    prompt:
+      "A dreamy, ethereal ambient lullaby with soft synthesizer pads, twinkling chimes like distant stars, " +
+      "warm low drone tones like floating through space, gentle rising and falling arpeggios. " +
+      "Slow, weightless, deeply relaxing. No vocals, no beats. For a baby drifting to sleep.",
+    instrumental: true,
+  },
+  ocean: {
+    prompt:
+      "Soft ocean waves gently lapping on shore, combined with a warm, slow acoustic guitar lullaby " +
+      "and light harp glissandos. Distant seagulls fading away. Peaceful, sleepy, waterfront nursery vibes. " +
+      "No drums, no vocals, purely instrumental and calming.",
+    instrumental: true,
+  },
+  rainy: {
+    prompt:
+      "Gentle rain falling on a window pane with soft thunder rumbling far away, mixed with a slow " +
+      "solo piano lullaby in a minor key, warm and cozy atmosphere. Lo-fi warmth, " +
+      "no percussion, no vocals. Deeply relaxing for a baby to fall asleep.",
+    instrumental: true,
+  },
 };
 
-const buildLullabyText = ({
-  babyName,
-  theme = "classic",
-  length = "medium",
-}: {
-  babyName?: string;
-  theme?: LullabyTheme;
-  length?: LullabyLength;
-}): string => {
-  const allowedThemes: LullabyTheme[] = ["classic", "nature", "cosmic"];
-  const allowedLengths: LullabyLength[] = ["short", "medium", "long"];
-
-  const resolvedTheme: LullabyTheme = allowedThemes.includes(theme as LullabyTheme)
-    ? (theme as LullabyTheme)
-    : "classic";
-
-  const resolvedLength: LullabyLength = allowedLengths.includes(length as LullabyLength)
-    ? (length as LullabyLength)
-    : "medium";
-
-  const name = (babyName?.trim() || "little one").substring(0, 40);
-  const lines = LULLABY_TEMPLATES[resolvedTheme].map((line) => line.replace(/\{name\}/g, name));
-
-  const sliceCount = resolvedLength === "short" ? 4 : resolvedLength === "long" ? lines.length : Math.min(6, lines.length);
-
-  return lines.slice(0, sliceCount).join("\n");
+const DURATION_MS: Record<LullabyLength, number> = {
+  short: 30000,    // 30 seconds
+  medium: 60000,   // 1 minute
+  long: 120000,    // 2 minutes
 };
 
 const streamFromElevenLabs = async ({
@@ -220,7 +212,7 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
             });
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     res.status(500).json({
@@ -230,10 +222,10 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-// Auto-generate a lullaby and stream it with ElevenLabs
+// Generate a soothing lullaby using ElevenLabs Music Generation API
 export const streamLullaby = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { babyName, babyDeviceId, theme, length, voiceId } = req.body as LullabyRequest;
+    const { babyDeviceId, vibe, length } = req.body as LullabyRequest;
 
     if (!babyDeviceId) {
       res.status(400).json({ error: "babyDeviceId is required" });
@@ -246,29 +238,46 @@ export const streamLullaby = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Determine voice: request override -> user's custom -> default
-    let voice = voiceId;
-    if (!voice && req.user?.uid) {
-      const user = await User.findOne({ firebaseUid: req.user.uid });
-      if (user?.customVoiceId && user.enableCustomVoice !== false) {
-        voice = user.customVoiceId;
-      }
-    }
-    voice = voice || process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
+    const allowedVibes: LullabyVibe[] = ["lullaby", "classic", "nature", "cosmic", "ocean", "rainy"];
+    const allowedLengths: LullabyLength[] = ["short", "medium", "long"];
 
-    const lullabyText = buildLullabyText({ babyName, theme, length });
-    console.log(`🎶 Generating lullaby for device ${babyDeviceId} using voice ${voice}`);
+    const resolvedVibe: LullabyVibe = allowedVibes.includes(vibe as LullabyVibe)
+      ? (vibe as LullabyVibe)
+      : "classic";
+    const resolvedLength: LullabyLength = allowedLengths.includes(length as LullabyLength)
+      ? (length as LullabyLength)
+      : "medium";
 
-    const { buffer, status, error } = await streamFromElevenLabs({
-      text: lullabyText,
-      voice,
-      elevenLabsApiKey,
+    const { prompt, instrumental } = MUSIC_PROMPTS[resolvedVibe];
+    const durationMs = DURATION_MS[resolvedLength];
+
+    console.log(`🎶 Generating ${resolvedVibe} lullaby (${resolvedLength}, instrumental=${instrumental}) for device ${babyDeviceId}`);
+
+    const response = await fetch("https://api.elevenlabs.io/v1/music", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": elevenLabsApiKey,
+      },
+      body: JSON.stringify({
+        prompt,
+        music_length_ms: durationMs,
+        model_id: "music_v1",
+        force_instrumental: instrumental,
+      }),
     });
 
-    if (error) {
-      res.status(status).json({ error: "Failed to generate lullaby", details: error });
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("❌ ElevenLabs Music Gen error:", errorData);
+      res.status(response.status).json({ error: "Failed to generate lullaby", details: errorData });
       return;
     }
+
+    const audioBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(audioBuffer);
+
+    console.log(`✓ Lullaby generated (${buffer.length} bytes)`);
 
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Content-Length", buffer.length);
