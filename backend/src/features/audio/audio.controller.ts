@@ -111,11 +111,36 @@ const streamFromElevenLabs = async ({
 // Generate and stream audio directly (no storage)
 export const streamAudio = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log("[streamAudio] Raw request body:", JSON.stringify(req.body));
     const { text, voiceId, babyDeviceId } = req.body as TextToSpeechRequest;
 
-    // Validate input
-    if (!text) {
-      res.status(400).json({ error: "Text is required" });
+    console.log("[streamAudio] Received request:", { 
+      text: text?.substring(0, 50), 
+      hasVoiceId: !!voiceId,
+      babyDeviceId,
+      hasText: !!text,
+      hasBabyDeviceId: !!babyDeviceId,
+      textLength: text?.length,
+      textType: typeof text,
+      babyDeviceIdType: typeof babyDeviceId,
+      userId: req.user?.uid
+    });
+
+    // Validate input - check for both falsy and empty strings
+    if (!text || text.trim() === "" || !babyDeviceId || babyDeviceId.trim() === "") {
+      console.error("[streamAudio] Validation failed:", { 
+        text: text, 
+        babyDeviceId: babyDeviceId,
+        textTrimmed: text?.trim(),
+        babyDeviceIdTrimmed: babyDeviceId?.trim()
+      });
+      res.status(400).json({ 
+        error: "Text and babyDeviceId are required",
+        received: {
+          text: !!text,
+          babyDeviceId: !!babyDeviceId
+        }
+      });
       return;
     }
 

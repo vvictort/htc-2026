@@ -24,6 +24,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
   const [error, setError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
   const [lastEvent, setLastEvent] = useState<{ reason: string; at: number } | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [lullabyPlaying, setLullabyPlaying] = useState(false);
   const [lullabyProgress, setLullabyProgress] = useState<{ current: number; duration: number } | null>(null);
 
@@ -245,14 +246,93 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       if (peerConnection) {
         await peerConnection.setRemoteDescription(answer);
       }
-    });
-
-    socketRef.current.on("ice-candidate", (viewerId: string, candidate: RTCIceCandidateInit) => {
+    });    socketRef.current.on("ice-candidate", (viewerId: string, candidate: RTCIceCandidateInit) => {
       console.log("Received ICE candidate from viewer:", viewerId);
       const peerConnection = peerConnectionsRef.current.get(viewerId);
       if (peerConnection) {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       }
+    });    // Audio playback - listen for audio from monitor
+    socketRef.current.on("play-audio", (audioUrl: string) => {
+      console.log("[Broadcaster] Received play-audio event, data length:", audioUrl.length);
+      setIsPlayingAudio(true);
+      
+      try {
+        const audio = new Audio(audioUrl);
+        audio.play()
+          .then(() => console.log("[Broadcaster] Audio playing on baby device"))
+          .catch((err) => console.error("[Broadcaster] Audio playback error:", err));
+        
+        // Clean up the audio element after it finishes
+        audio.onended = () => {
+          console.log("[Broadcaster] Audio playback completed");
+          setIsPlayingAudio(false);
+          audio.remove();
+        };
+        
+        audio.onerror = () => {
+          console.error("[Broadcaster] Audio error");
+          setIsPlayingAudio(false);
+          audio.remove();
+        };
+      } catch (err) {
+        console.error("[Broadcaster] Failed to create audio element:", err);
+        setIsPlayingAudio(false);
+      }
+    });
+
+    // ── Lullaby playback commands from parent viewer ──
+    socketRef.current.on('lullaby-play', (payload: { audioBase64: string; durationMs: number; vibe: string }) => {
+      console.log(`[Broadcaster] 🎶 Received lullaby-play (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.vibe})`);
+      // Stop any existing lullaby
+      if (lullabyAudioRef.current) {
+        lullabyAudioRef.current.pause();
+        lullabyAudioRef.current = null;
+      }
+      if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
+
+      // Decode base64 and play
+      const byteString = atob(payload.audioBase64);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+      const blob = new Blob([ab], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      lullabyAudioRef.current = audio;
+
+      audio.play().then(() => {
+        setLullabyPlaying(true);
+        // Report status back to viewers every second
+        lullabyIntervalRef.current = setInterval(() => {
+          if (!audio.paused && socketRef.current) {
+            const status = { state: 'playing', currentTime: audio.currentTime, duration: audio.duration || (payload.durationMs / 1000) };
+            setLullabyProgress({ current: audio.currentTime, duration: status.duration });
+            socketRef.current.emit('lullaby-status', roomId, status);
+          }
+        }, 1000);
+      }).catch(err => console.error('[Broadcaster] lullaby play error:', err));
+
+      audio.onended = () => {
+        setLullabyPlaying(false);
+        setLullabyProgress(null);
+        if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
+        if (socketRef.current) socketRef.current.emit('lullaby-status', roomId, { state: 'ended', currentTime: 0, duration: 0 });
+        URL.revokeObjectURL(url);
+        lullabyAudioRef.current = null;
+      };
+    });
+
+    socketRef.current.on('lullaby-stop', () => {
+      console.log('[Broadcaster] 🎶 Received lullaby-stop');
+      if (lullabyAudioRef.current) {
+        lullabyAudioRef.current.pause();
+        lullabyAudioRef.current = null;
+      }
+      if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
+      setLullabyPlaying(false);
+      setLullabyProgress(null);
+      if (socketRef.current) socketRef.current.emit('lullaby-status', roomId, { state: 'stopped', currentTime: 0, duration: 0 });
     });
 
     // ── Lullaby playback commands from parent viewer ──
@@ -469,13 +549,26 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                   <button onClick={() => setError(null)} className="text-white/70 hover:text-white ml-2">✕</button>
                 </div>
               </div>
-            )}
-
-            {/* Bottom gradient bar */}
+            )}            {/* Bottom gradient bar */}
             <div className="pointer-events-auto absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-linear-to-t from-black/70 to-transparent">
               <span className="text-xs text-white/40 font-mono">Room: {roomId}</span>
               <span className="text-[0.6rem] text-white/30">Baby Device Mode</span>
             </div>
+
+            {/* Audio playing indicator */}
+            {isPlayingAudio && (
+              <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
+                <div className="bg-black/80 backdrop-blur-xl rounded-2xl px-8 py-6 flex flex-col items-center gap-3 shadow-2xl border border-white/10">
+                  <div className="text-4xl animate-pulse">🔊</div>
+                  <div className="text-white font-semibold text-lg">Playing Message</div>
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Boundary overlay — draggable lines directly on the video */}
             <BoundaryOverlay
