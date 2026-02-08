@@ -1,165 +1,179 @@
-import { motion, easeOut } from "framer-motion";
-import { BabyRattle, BabyBlock, BabyTeddy, BabyPacifier, BabySocks, BabyOnesie } from "./BabyIcons";
-
-// Scattered icons for Features section
-const featureIcons = [
-  { Icon: BabyRattle, top: "10%", left: "4%", size: "w-12 h-16", color: "text-coral/18", rotate: -15 },
-  { Icon: BabyBlock, top: "20%", right: "6%", size: "w-10 h-10", color: "text-soft-blue/20", rotate: 10 },
-  { Icon: BabyTeddy, bottom: "15%", right: "4%", size: "w-14 h-14", color: "text-soft-green/18", rotate: -8 },
-  { Icon: BabyPacifier, bottom: "25%", left: "5%", size: "w-12 h-10", color: "text-coral/15", rotate: 12 },
-  { Icon: BabySocks, top: "50%", right: "3%", size: "w-14 h-10", color: "text-soft-blue/15", rotate: -5 },
-  { Icon: BabyOnesie, top: "60%", left: "3%", size: "w-12 h-12", color: "text-soft-green/12", rotate: 8 },
-];
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { BabySun, BabyHeart, BabyRattle } from "./BabyIcons";
 
 const features = [
   {
-    icon: "📹",
     title: "Live Video Streaming",
-    description: "Crystal-clear real-time video monitoring powered by WebRTC. See your baby anytime, anywhere.",
+    description: "Crystal-clear real-time video powered by WebRTC. See your baby anytime, anywhere with HD quality.",
+    color: "bg-soft-yellow/50",
+    imageLabel: "Video Demo",
+    emoji: "📹",
+  },
+  {
+    title: "Voice Messaging",
+    description: "Send soothing voice messages or use text-to-speech to comfort your little one from any room.",
     color: "bg-ice-blue",
-    accent: "text-soft-blue",
+    imageLabel: "Voice Feature",
+    emoji: "🎤",
   },
   {
-    icon: "🎤",
-    title: "Voice Cloning",
-    description:
-      "Clone your voice and send personalized audio messages to soothe your little one, even when you're away.",
-    color: "bg-coral/10",
-    accent: "text-coral",
-  },
-  {
-    icon: "🔔",
     title: "Smart Alerts",
-    description: "Get instant notifications when your baby needs attention. Never miss a moment that matters.",
-    color: "bg-soft-green/15",
-    accent: "text-soft-green",
-  },
-  {
-    icon: "🔒",
-    title: "Secure & Private",
-    description: "End-to-end encrypted connections with Firebase authentication. Your family's data stays yours.",
-    color: "bg-warm-cream",
-    accent: "text-dark-gray",
-  },
-  {
-    icon: "🎵",
-    title: "Text-to-Speech",
-    description: "Type a message and hear it spoken in high-quality audio. Perfect lullabies and bedtime stories.",
-    color: "bg-soft-red/10",
-    accent: "text-soft-red",
-  },
-  {
-    icon: "📱",
-    title: "Multi-Device",
-    description: "Works across all your devices. Start on your phone, switch to tablet, or check from your laptop.",
-    color: "bg-ice-blue/60",
-    accent: "text-soft-blue",
+    description:
+      "Get instant notifications when your baby needs attention. AI-powered sound detection keeps you informed.",
+    color: "bg-coral/10",
+    imageLabel: "Alert System",
+    emoji: "🔔",
   },
 ];
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.1, duration: 0.5, ease: easeOut },
-  }),
-};
+// Organic wavy clip-path for images
+const WavyImagePlaceholder = ({ emoji, label, large = false }: { emoji: string; label: string; large?: boolean }) => (
+  <div className="relative w-full h-full">
+    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 200" preserveAspectRatio="none">
+      <defs>
+        <clipPath id={`featureClip-${label.replace(/\s/g, "")}`} clipPathUnits="objectBoundingBox">
+          <path d="M0.08,0.1 C0.2,0 0.4,0.02 0.55,0.05 C0.75,0.08 0.9,0 0.95,0.12 C1,0.25 0.98,0.45 0.95,0.6 C0.9,0.8 1,0.9 0.9,0.95 C0.75,1 0.5,0.98 0.35,0.95 C0.15,0.9 0.05,1 0.05,0.88 C0.02,0.7 0,0.45 0.03,0.25 C0.05,0.12 0,0.12 0.08,0.1" />
+        </clipPath>
+      </defs>
+    </svg>
+
+    <div
+      className={`w-full ${large ? "aspect-video" : "aspect-square"} bg-white/60 border border-white/40 flex items-center justify-center`}
+      style={{ clipPath: `url(#featureClip-${label.replace(/\s/g, "")})` }}>
+      <div className="text-center text-charcoal/30">
+        <span className={`${large ? "text-4xl" : "text-3xl"} block mb-2`}>{emoji}</span>
+        <span className="text-xs">{label} Placeholder</span>
+      </div>
+    </div>
+  </div>
+);
 
 export default function Features() {
   return (
-    <section id="features" className="relative py-24 overflow-hidden">
-      {/* Seamless gradient background - connects Hero to Features */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `linear-gradient(to bottom,
-                        rgba(253, 245, 238, 1) 0%,
-                        rgba(253, 245, 238, 0.98) 10%,
-                        rgba(255, 255, 255, 0.6) 50%,
-                        rgba(255, 255, 255, 1) 100%
-                    )`,
+    <section id="features" className="py-24 bg-warm-white relative">
+      {/* Decorative Icons */}
+      <motion.div
+        className="absolute top-16 right-10 w-16 h-16 pointer-events-none"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        animate={{ rotate: [0, 5, -5, 0] }}
+        transition={{ rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" } }}
+        viewport={{ once: true }}>
+        <BabySun className="w-full h-full text-soft-yellow/60" />
+      </motion.div>
+
+      <motion.div
+        className="absolute bottom-20 left-8 w-10 h-10 pointer-events-none"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        animate={{ scale: [1, 1.15, 1], rotate: [15, 20, 15] }}
+        transition={{
+          scale: { repeat: Infinity, duration: 2, ease: "easeInOut" },
+          rotate: { repeat: Infinity, duration: 3, ease: "easeInOut" },
         }}
-      />
+        viewport={{ once: true }}>
+        <BabyHeart className="w-full h-full text-coral/25" />
+      </motion.div>
 
-      {/* Decorative blobs for visual continuity */}
-      <div className="absolute top-20 right-0 w-72 h-72 rounded-full bg-soft-blue/15 blur-[80px]" />
-      <div className="absolute bottom-20 left-0 w-64 h-64 rounded-full bg-coral/10 blur-[70px]" />
+      <motion.div
+        className="absolute top-1/2 right-5 w-12 h-16 pointer-events-none"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        animate={{ rotate: [-10, 10, -10], y: [0, -5, 0] }}
+        transition={{
+          rotate: { repeat: Infinity, duration: 2, ease: "easeInOut" },
+          y: { repeat: Infinity, duration: 3, ease: "easeInOut" },
+        }}
+        viewport={{ once: true }}>
+        <BabyRattle className="w-full h-full text-soft-blue/20" />
+      </motion.div>
 
-      {/* Scattered playful icons */}
-      {featureIcons.map((item, idx) => (
-        <motion.div
-          key={idx}
-          className={`absolute ${item.size} ${item.color} pointer-events-none`}
-          style={{
-            top: item.top,
-            left: item.left,
-            right: item.right,
-            bottom: item.bottom,
-          }}
-          initial={{ opacity: 0, rotate: 0 }}
-          whileInView={{ opacity: 1, rotate: item.rotate }}
-          viewport={{ once: true }}
-          transition={{ delay: idx * 0.1, duration: 0.4 }}>
-          <item.Icon className="w-full h-full" />
-        </motion.div>
-      ))}
+      <div className="max-w-7xl mx-auto px-6">
+        {/* Header Row */}
+        <div className="grid lg:grid-cols-2 gap-12 mb-16">
+          <div>
+            <motion.span
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-block px-4 py-1.5 rounded-full bg-coral/15 text-coral text-xs font-semibold uppercase tracking-wider shadow-[0_0_20px_rgba(255,111,97,0.3),inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-sm border border-coral/20">
+              ✨ Our Features
+            </motion.span>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
-        {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <motion.span
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="label-accent">
-            Why BabyWatcher?
-          </motion.span>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-4xl md:text-5xl font-black mt-3 leading-tight">
+              Everything You
+              <br />
+              Need, <span className="text-coral">Simplified</span>
+            </motion.h2>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="mt-3">
-            Everything you need,
-            <br />
-            <span className="text-italic text-coral">nothing you don't</span>
-          </motion.h2>
-
-          <motion.p
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="mt-4 text-base">
-            Built with love for modern parents who want simplicity without sacrificing the features that matter most.
-          </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="text-mid-gray mt-4 max-w-md text-base leading-relaxed">
+              Enjoy peace of mind with our fully integrated baby monitoring solution. Simple setup, powerful features,
+              and designed with parents in mind.
+            </motion.p>
+          </div>
         </div>
 
-        {/* Feature Cards Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, i) => (
-            <motion.div
-              key={feature.title}
-              custom={i}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-50px" }}
-              variants={cardVariants}
-              whileHover={{ y: -6, transition: { duration: 0.25 } }}
-              className="clay-feature-card flex flex-col gap-4 cursor-default">
-              {/* Icon */}
-              <div
-                className={`w-14 h-14 ${feature.color} rounded-2xl flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),0_4px_12px_rgba(31,29,43,0.06)]`}>
-                <span className="text-2xl">{feature.icon}</span>
-              </div>
+        {/* Bento Grid */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Large Feature Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className={`${features[0].color} rounded-4xl p-8 md:p-10 flex flex-col min-h-[400px]`}>
+            <h3 className="text-2xl md:text-3xl font-bold text-charcoal mb-3">{features[0].title}</h3>
+            <p className="text-mid-gray max-w-sm mb-6">{features[0].description}</p>
+            <Link
+              to="#features"
+              className="text-sm font-semibold text-charcoal no-underline flex items-center gap-2 hover:text-coral transition-colors">
+              Read More <span>→</span>
+            </Link>
 
-              {/* Content */}
-              <h4 className="text-charcoal">{feature.title}</h4>
-              <p className="text-sm leading-relaxed">{feature.description}</p>
-            </motion.div>
-          ))}
+            {/* Placeholder Image with wavy edge */}
+            <div className="mt-auto pt-8">
+              <WavyImagePlaceholder emoji={features[0].emoji} label={features[0].imageLabel} large />
+            </div>
+          </motion.div>
+
+          {/* Right Column - Stacked Cards */}
+          <div className="flex flex-col gap-6">
+            {features.slice(1).map((feature, i) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 * (i + 1), duration: 0.5 }}
+                className={`${feature.color} rounded-4xl p-8 flex flex-col md:flex-row gap-6 min-h-[180px]`}>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-charcoal mb-2">{feature.title}</h3>
+                  <p className="text-sm text-mid-gray mb-4">{feature.description}</p>
+                  <Link
+                    to="#features"
+                    className="text-sm font-semibold text-charcoal no-underline flex items-center gap-2 hover:text-coral transition-colors">
+                    Read More <span>→</span>
+                  </Link>
+                </div>
+
+                {/* Placeholder Image with wavy edge */}
+                <div className="w-full md:w-40 shrink-0">
+                  <WavyImagePlaceholder emoji={feature.emoji} label={feature.imageLabel} />
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

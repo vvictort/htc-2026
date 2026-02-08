@@ -18,6 +18,34 @@ export const BabyFootprints = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
+export const BabySun = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 80 80" className={className}>
+    {/* Rays */}
+    <g stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.8">
+      <line x1="40" y1="8" x2="40" y2="16" />
+      <line x1="40" y1="64" x2="40" y2="72" />
+      <line x1="8" y1="40" x2="16" y2="40" />
+      <line x1="64" y1="40" x2="72" y2="40" />
+      <line x1="17" y1="17" x2="23" y2="23" />
+      <line x1="57" y1="57" x2="63" y2="63" />
+      <line x1="63" y1="17" x2="57" y2="23" />
+      <line x1="23" y1="57" x2="17" y2="63" />
+    </g>
+    {/* Face circle */}
+    <circle cx="40" cy="40" r="22" fill="currentColor" />
+    {/* Eyes */}
+    <circle cx="33" cy="36" r="2.5" fill="white" />
+    <circle cx="47" cy="36" r="2.5" fill="white" />
+    <circle cx="33" cy="36" r="1" fill="black" />
+    <circle cx="47" cy="36" r="1" fill="black" />
+    {/* Smile */}
+    <path d="M32 46 Q40 52 48 46" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" />
+    {/* Rosy cheeks */}
+    <circle cx="28" cy="44" r="3" fill="rgba(255,200,200,0.5)" />
+    <circle cx="52" cy="44" r="3" fill="rgba(255,200,200,0.5)" />
+  </svg>
+);
+
 export const BabyCloud = ({ className = "" }: { className?: string }) => (
   <svg viewBox="0 0 100 60" className={className} fill="currentColor">
     <ellipse cx="30" cy="38" rx="22" ry="18" />

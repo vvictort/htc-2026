@@ -6,7 +6,7 @@ import { isAuthenticated, logout } from '../../utils/auth';
 const navLinks = [
   { label: "Features", href: "#features" },
   { label: "How It Works", href: "#how-it-works" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "About Us", href: "/about" },
 ];
 
 export default function Navbar() {
@@ -50,17 +50,31 @@ export default function Navbar() {
 
         {/* Desktop Nav - Minimal centered links */}
         <div className="hidden md:flex items-center gap-5">
-          {navLinks.map((link, i) => (
-            <motion.a
-              key={link.label}
-              href={link.href}
-              className="text-sm font-medium text-mid-gray hover:text-charcoal transition-colors no-underline"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.05 }}>
-              {link.label}
-            </motion.a>
-          ))}
+          {navLinks.map((link, i) =>
+            link.href.startsWith("/") ? (
+              <motion.div
+                key={link.label}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }}>
+                <Link
+                  to={link.href}
+                  className="text-sm font-medium text-mid-gray hover:text-charcoal transition-colors no-underline">
+                  {link.label}
+                </Link>
+              </motion.div>
+            ) : (
+              <motion.a
+                key={link.label}
+                href={link.href}
+                className="text-sm font-medium text-mid-gray hover:text-charcoal transition-colors no-underline"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }}>
+                {link.label}
+              </motion.a>
+            ),
+          )}
         </div>
 
                 {/* CTA Buttons */}
