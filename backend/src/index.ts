@@ -89,18 +89,18 @@ io.on('connection', (socket) => {
 
     socket.on('join-room', (roomId: string) => {
         socket.join(roomId);
-        
+
         if (!rooms.has(roomId)) {
             rooms.set(roomId, { viewers: new Set() });
         }
-        
+
         const room = rooms.get(roomId)!;
-        
+
         // If there's already a broadcaster, tell this viewer about them
         if (room.broadcaster) {
             socket.emit('broadcaster-exists', room.broadcaster);
         }
-        
+
         console.log(`Socket ${socket.id} joined room ${roomId}`);
     });
 
@@ -108,16 +108,16 @@ io.on('connection', (socket) => {
         const room = rooms.get(roomId);
         if (room) {
             room.broadcaster = socket.id;
-            
+
             // Notify all viewers in the room that broadcaster is ready
             socket.to(roomId).emit('broadcaster-ready', socket.id);
-            
+
             // Tell the broadcaster about all existing viewers so it can send offers
             room.viewers.forEach(viewerId => {
                 socket.emit('viewer-joined', viewerId);
                 console.log(`Notifying broadcaster ${socket.id} about existing viewer ${viewerId}`);
             });
-            
+
             console.log(`Broadcaster ${socket.id} ready in room ${roomId} with ${room.viewers.size} existing viewers`);
         }
     });
