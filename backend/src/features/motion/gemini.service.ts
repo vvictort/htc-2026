@@ -16,7 +16,7 @@ interface GeminiClassification {
   reason: string;
 }
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-3-flash-preview";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 /**
@@ -87,7 +87,6 @@ export async function classifyMotion(
         generationConfig: {
           temperature: 0.1, // near-deterministic
           maxOutputTokens: 150,
-          responseMimeType: "application/json",
         },
       }),
     });
@@ -95,6 +94,14 @@ export async function classifyMotion(
     if (!res.ok) {
       const errText = await res.text();
       console.error(`❌ Gemini API error (${res.status}):`, errText);
+
+      if (res.status === 429) {
+        return {
+          threatLevel: "safe",
+          reason: "Gemini rate limit exceeded. Skipping classification (assumed safe).",
+        };
+      }
+
       return {
         threatLevel: "caution",
         reason: `Gemini API error: ${res.status}`,
@@ -109,25 +116,50 @@ export async function classifyMotion(
 
     // Extract the text from Gemini's response
     const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    console.log("📝 Gemini raw response:", text);
 
-    // Strip potential markdown fences just in case
-    const cleaned = text.replace(/```json\s*|```/g, "").trim();
-    const parsed = JSON.parse(cleaned) as {
-      threatLevel?: string;
-      reason?: string;
-    };
+    // Try to parse as JSON first
+    try {
+      // Strip potential markdown fences just in case
+      const cleaned = text.replace(/```json\s*|```/g, "").trim();
+      const parsed = JSON.parse(cleaned) as {
+        threatLevel?: string;
+        reason?: string;
+      };
 
-    const validLevels: ThreatLevel[] = ["safe", "caution", "danger"];
-    const level = validLevels.includes(parsed.threatLevel as ThreatLevel)
-      ? (parsed.threatLevel as ThreatLevel)
-      : "caution";
+      const validLevels: ThreatLevel[] = ["safe", "caution", "danger"];
+      const level = validLevels.includes(parsed.threatLevel as ThreatLevel)
+        ? (parsed.threatLevel as ThreatLevel)
+        : "caution";
 
-    console.log("✨ Gemini API called successfully and returned classification.");
+      console.log("✨ Gemini API called successfully and returned JSON classification.");
 
-    return {
-      threatLevel: level,
-      reason: parsed.reason || "Classified by Gemini.",
-    };
+      return {
+        threatLevel: level,
+        reason: parsed.reason || "Classified by Gemini.",
+      };
+    } catch {
+      // Fallback: extract threat level from prose response
+      console.warn("⚠️ Gemini returned non-JSON response, attempting to extract threat level...");
+      const lowerText = text.toLowerCase();
+
+      if (lowerText.includes("danger") || lowerText.includes("suffocation") || lowerText.includes("face covered")) {
+        return { threatLevel: "danger", reason: "Gemini detected a dangerous situation (parsed from prose)." };
+      }
+      if (lowerText.includes("caution") || lowerText.includes("unusual") || lowerText.includes("attention")) {
+        return { threatLevel: "caution", reason: "Gemini suggests caution (parsed from prose)." };
+      }
+      if (lowerText.includes("safe") || lowerText.includes("normal") || lowerText.includes("no concern")) {
+        return { threatLevel: "safe", reason: "Gemini determined situation is safe (parsed from prose)." };
+      }
+
+      // Default to safe for slight_movement and still categories
+      if (category === "slight_movement" || category === "still") {
+        return { threatLevel: "safe", reason: "Normal baby behaviour (default for slight_movement/still)." };
+      }
+
+      return { threatLevel: "caution", reason: "Unable to parse Gemini response." };
+    }
   } catch (err) {
     console.error("❌ Gemini classification failed:", err);
     return {

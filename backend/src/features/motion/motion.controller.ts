@@ -14,8 +14,8 @@ export function setMotionIO(io: any) {
 // ── Per-user rate limiting ──
 // Prevents amassing requests from the continuously-running OpenCV detector
 const RATE_WINDOW_MS = 60_000; // 1-minute window
-const MAX_EVENTS_PER_WINDOW = 100; // max 100 events / user / minute (increased from 30)
-const SAME_CATEGORY_COOLDOWN_MS = 500; // same category within 0.5s → skip (reduced from 5s)
+const MAX_EVENTS_PER_WINDOW = 5; // max 5 events / user / minute (very conservative for free tier)
+const SAME_CATEGORY_COOLDOWN_MS = 10_000; // same category within 10s → skip (prevent spamming same event)
 
 interface UserRateBucket {
   count: number;
@@ -162,8 +162,15 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
         },
       });
 
+      // ── External delivery (fire-and-forget) ──
+      const prefs = user.notificationPreferences || {
+        email: true,
+        sms: false,
+        push: true,
+      };
+
       // ── Realtime push via Socket.IO ──
-      if (ioInstance) {
+      if (ioInstance && prefs.push) {
         ioInstance.to(`user:${user.firebaseUid}`).emit("new-notification", {
           id: notification._id,
           type: notification.type,
@@ -173,13 +180,6 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
           read: notification.read,
         });
       }
-
-      // ── External delivery (fire-and-forget) ──
-      const prefs = user.notificationPreferences || {
-        email: true,
-        sms: false,
-        push: true,
-      };
       const timeStr = new Date().toLocaleTimeString();
 
       if (prefs.email && user.email) {
