@@ -1,0 +1,216 @@
+import { Link } from "react-router-dom";
+import { motion, easeOut, useReducedMotion } from "framer-motion";
+import { BabySun, BabyStar, BabyCloud, BabyBalloon } from "./BabyIcons";
+import { isAuthenticated } from "../../utils/auth";
+
+const heroStats = [
+  { number: "1000+", label: "families trust us", color: "text-coral" },
+  { number: "24/7", label: "monitoring available", color: "text-soft-blue" },
+  { number: "99%", label: "uptime guaranteed", color: "text-soft-green" },
+];
+
+export default function Hero() {
+  const reduce = useReducedMotion();
+
+  // Handle "Start monitoring" button click
+  const handleStartMonitoring = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isAuthenticated()) {
+      e.preventDefault();
+      window.location.href = "/signup";
+    }
+  };
+
+  return (
+    <section className="relative min-h-[85vh] sm:min-h-[90vh] overflow-hidden pt-20 sm:pt-24 md:pt-28 pb-12 sm:pb-16 bg-linear-to-b from-soft-yellow/40 via-soft-yellow/20 to-warm-white">
+      {/* Decorative curved shapes at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 sm:h-40 md:h-48 pointer-events-none">
+        <svg viewBox="0 0 1440 200" className="w-full h-full" preserveAspectRatio="none">
+          <path
+            d="M0,100 C300,180 600,20 900,100 C1200,180 1350,80 1440,120 L1440,200 L0,200 Z"
+            fill="rgba(31,29,43,0.08)"
+          />
+          <path
+            d="M0,140 C400,80 700,180 1100,100 C1300,60 1400,120 1440,100 L1440,200 L0,200 Z"
+            fill="rgba(31,29,43,0.05)"
+          />
+        </svg>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center">
+          {/* Left - Content */}
+          <div className="flex flex-col gap-4 sm:gap-6">
+            {/* Sun Icon and Heading - Side by Side */}
+            <div className="flex items-start gap-3 sm:gap-4 md:gap-6">
+              {/* Sun Icon */}
+              <motion.div
+                className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  rotate: reduce ? 0 : [0, 5, -5, 0],
+                }}
+                transition={{
+                  delay: 0.3,
+                  type: "spring",
+                  stiffness: 200,
+                  rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+                }}>
+                <BabySun className="w-full h-full text-soft-yellow" />
+              </motion.div>
+
+              {/* Heading */}
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: easeOut }}
+                className="flex-1 text-4xl sm:text-5xl md:text-6xl font-black leading-tight">
+                Watch Over Your
+                <br />
+                <span className="text-coral">Little One</span>
+              </motion.h1>
+            </div>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1, ease: easeOut }}
+              className="text-base sm:text-lg text-mid-gray max-w-lg">
+              Real-time baby monitoring with crystal-clear video, voice messaging, and smart alerts. Peace of mind for
+              modern parents.
+            </motion.p>
+
+            {/* Stats Row */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2, ease: easeOut }}
+              className="flex flex-wrap items-center gap-6 sm:gap-8 mt-2 sm:mt-4">
+              {heroStats.map((stat, i) => (
+                <div key={i} className="flex flex-col">
+                  <span className={`text-2xl sm:text-3xl md:text-4xl font-black ${stat.color}`}>{stat.number}</span>
+                  <span className="text-xs sm:text-sm text-mid-gray">{stat.label}</span>
+                </div>
+              ))}
+              
+              {/* Decorative icons inline with stats */}
+              <motion.div
+                className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 ml-auto"
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  rotate: reduce ? -15 : [-15, -5, -15],
+                  scale: reduce ? 1 : [1, 1.1, 1],
+                }}
+                transition={{
+                  delay: 0.5,
+                  rotate: { repeat: Infinity, duration: 3, ease: "easeInOut" },
+                  scale: { repeat: Infinity, duration: 2, ease: "easeInOut" },
+                }}>
+                <BabyStar className="w-full h-full text-coral/30" />
+              </motion.div>
+            </motion.div>
+
+            {/* CTA */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3, ease: easeOut }}
+              className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2 sm:mt-4">
+              <Link
+                to="/monitor"
+                onClick={handleStartMonitoring}
+                className="btn-primary no-underline text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4 inline-block">
+                Start Monitoring →
+              </Link>
+              <a href="#features" className="btn-secondary no-underline text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4">
+                Explore Features
+              </a>
+              
+              {/* Decorative cloud icon */}
+              <motion.div
+                className="w-10 h-6 sm:w-12 sm:h-8 md:w-14 md:h-9"
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  x: reduce ? 0 : [0, 10, 0],
+                  y: reduce ? 0 : [0, -5, 0],
+                }}
+                transition={{
+                  delay: 0.6,
+                  x: { repeat: Infinity, duration: 6, ease: "easeInOut" },
+                  y: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+                }}>
+                <BabyCloud className="w-full h-full text-soft-blue/20" />
+              </motion.div>
+            </motion.div>
+          </div>
+
+          {/* Right - Placeholder Image Area with organic wavy edge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="relative flex flex-col items-end gap-4">
+            {/* Decorative balloon icon at top */}
+            <motion.div
+              className="w-6 h-10 sm:w-7 sm:h-11 md:w-8 md:h-12"
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: 1,
+                y: reduce ? 0 : [0, -15, 0],
+                rotate: reduce ? 0 : [0, 5, -5, 0],
+              }}
+              transition={{
+                delay: 0.7,
+                y: { repeat: Infinity, duration: 3, ease: "easeInOut" },
+                rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+              }}>
+              <BabyBalloon className="w-full h-full text-coral/25" />
+            </motion.div>
+            
+            {/* Wavy/organic shape using SVG clip-path */}
+            <div className="relative w-full">
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="none">
+                <defs>
+                  <clipPath id="heroImageClip" clipPathUnits="objectBoundingBox">
+                    <path d="M0.05,0.15 C0.15,0 0.35,0 0.5,0.03 C0.7,0.06 0.85,0 0.95,0.1 C1,0.2 1,0.4 0.98,0.55 C0.95,0.75 1,0.85 0.92,0.95 C0.8,1 0.6,1 0.45,0.97 C0.25,0.93 0.1,1 0.05,0.9 C0,0.75 0,0.5 0.02,0.3 C0.03,0.2 0,0.18 0.05,0.15" />
+                  </clipPath>
+                </defs>
+              </svg>
+
+              <div className="aspect-4/3 bg-charcoal/80 overflow-hidden" style={{ clipPath: "url(#heroImageClip)" }}>
+                {/* Decorative blobs inside */}
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-coral/20 blur-2xl" />
+                <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full bg-soft-blue/15 blur-2xl" />
+
+                {/* Placeholder content */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white/40">
+                  <span className="text-6xl mb-4">👶</span>
+                  <span className="text-sm font-medium">Hero Image Placeholder</span>
+                  <span className="text-xs mt-1">Add your baby monitoring visual here</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+              className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-soft-green/20 flex items-center justify-center">
+                <span className="text-xl">🔒</span>
+              </div>
+              <div>
+                <span className="text-xs text-mid-gray">End-to-end</span>
+                <p className="text-sm font-semibold text-charcoal">Encrypted & Secure</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
