@@ -56,16 +56,17 @@ export default function Viewer({ roomId }: ViewerProps) {
         };
 
         return peerConnection;
-    };
-
-    useEffect(() => {
+    };    useEffect(() => {
+        console.log('Viewer component mounted for room:', roomId);
         socketRef.current = io(BACKEND_URL);
 
         socketRef.current.on('connect', () => {
-            console.log('Connected to signaling server');
+            console.log('Viewer connected to signaling server with ID:', socketRef.current?.id);
             socketRef.current?.emit('join-room', roomId);
             socketRef.current?.emit('viewer', roomId);
-        }); socketRef.current.on('broadcaster-exists', (broadcasterId: string) => {
+        });
+
+        socketRef.current.on('broadcaster-exists', (broadcasterId: string) => {
             console.log('Broadcaster exists:', broadcasterId);
             broadcasterIdRef.current = broadcasterId;
             setWaitingForBroadcaster(false);
@@ -99,12 +100,16 @@ export default function Viewer({ roomId }: ViewerProps) {
             await peerConnection.setLocalDescription(answer);
 
             socketRef.current?.emit('answer', broadcasterId, answer);
-        }); socketRef.current.on('ice-candidate', (_broadcasterId: string, candidate: RTCIceCandidateInit) => {
+        });
+
+        socketRef.current.on('ice-candidate', (_broadcasterId: string, candidate: RTCIceCandidateInit) => {
             console.log('Received ICE candidate from broadcaster');
             if (peerConnectionRef.current) {
                 peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
             }
-        }); socketRef.current.on('broadcaster-disconnected', () => {
+        });
+
+        socketRef.current.on('broadcaster-disconnected', () => {
             console.log('Broadcaster disconnected');
             setError('Broadcaster has disconnected');
             setIsConnected(false);
@@ -118,11 +123,28 @@ export default function Viewer({ roomId }: ViewerProps) {
             }
         });
 
+        // Cleanup function - called when component unmounts or roomId changes
         return () => {
+            console.log('Viewer component unmounting - cleaning up for room:', roomId);
+            
+            // Close peer connection
             if (peerConnectionRef.current) {
+                console.log('Closing peer connection');
                 peerConnectionRef.current.close();
+                peerConnectionRef.current = null;
             }
-            socketRef.current?.disconnect();
+            
+            // Stop video
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
+            
+            // Disconnect socket - this will trigger server-side cleanup
+            if (socketRef.current) {
+                console.log('Disconnecting viewer socket:', socketRef.current.id);
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
         };
     }, [roomId]);
 
