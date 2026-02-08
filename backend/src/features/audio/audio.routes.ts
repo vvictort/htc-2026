@@ -1,6 +1,7 @@
 import express from "express";
 import {
   streamAudio,
+  streamLullaby,
   getVoices,
   createCustomVoice,
   getCustomVoice,
@@ -14,6 +15,7 @@ const router = express.Router();
 
 // Protected routes - require authentication
 router.post("/stream", verifyFirebaseToken, streamAudio);
+router.post("/lullaby", verifyFirebaseToken, streamLullaby);
 router.get("/voices", verifyFirebaseToken, getVoices);
 
 // Custom voice management

@@ -9,6 +9,113 @@ interface TextToSpeechRequest {
   babyDeviceId: string;
 }
 
+type LullabyTheme = "classic" | "nature" | "cosmic";
+type LullabyLength = "short" | "medium" | "long";
+
+interface LullabyRequest {
+  babyName?: string;
+  babyDeviceId: string;
+  theme?: LullabyTheme;
+  length?: LullabyLength;
+  voiceId?: string;
+}
+
+const LULLABY_TEMPLATES: Record<LullabyTheme, string[]> = {
+  classic: [
+    "Hush now, {name}, the daylight is through,",
+    "Fireflies gather to dance just for you,",
+    "Moonbeams are stitching a soft silver seam,",
+    "Closing your eyes is the start of a dream,",
+    "Clouds are your pillows, the night is your guide,",
+    "Drifting on wishes with me by your side,",
+    "Safe in this quiet, the world gently sings,",
+    "Rock-a-bye, {name}, on nighttime wings.",
+  ],
+  nature: [
+    "Rest little {name}, hear leaves whisper low,",
+    "Owls keep a watch where the cool rivers flow,",
+    "Crickets are plucking their soft violin,",
+    "Breezes hum lullabies brushing your skin,",
+    "Stars sprinkle dew on the branches above,",
+    "Wrapped in the scent of the pine forest's love,",
+    "Dreams follow fireflies lighting the streams,",
+    "Sleep in the hush of the forest's sweet dreams.",
+  ],
+  cosmic: [
+    "Close your eyes, {name}, the night ship departs,",
+    "Sailing past planets and velvety stars,",
+    "Saturn's soft rings are a carousel light,",
+    "Comets write wishes across gentle night,",
+    "Nebulas pillow your head in their glow,",
+    "Milky Way currents will rock you so slow,",
+    "Galaxy guardians hum as you gleam,",
+    "Rest in the cradle of infinite dreams.",
+  ],
+};
+
+const buildLullabyText = ({
+  babyName,
+  theme = "classic",
+  length = "medium",
+}: {
+  babyName?: string;
+  theme?: LullabyTheme;
+  length?: LullabyLength;
+}): string => {
+  const allowedThemes: LullabyTheme[] = ["classic", "nature", "cosmic"];
+  const allowedLengths: LullabyLength[] = ["short", "medium", "long"];
+
+  const resolvedTheme: LullabyTheme = allowedThemes.includes(theme as LullabyTheme)
+    ? (theme as LullabyTheme)
+    : "classic";
+
+  const resolvedLength: LullabyLength = allowedLengths.includes(length as LullabyLength)
+    ? (length as LullabyLength)
+    : "medium";
+
+  const name = (babyName?.trim() || "little one").substring(0, 40);
+  const lines = LULLABY_TEMPLATES[resolvedTheme].map((line) => line.replace(/\{name\}/g, name));
+
+  const sliceCount = resolvedLength === "short" ? 4 : resolvedLength === "long" ? lines.length : Math.min(6, lines.length);
+
+  return lines.slice(0, sliceCount).join("\n");
+};
+
+const streamFromElevenLabs = async ({
+  text,
+  voice,
+  elevenLabsApiKey,
+}: {
+  text: string;
+  voice: string;
+  elevenLabsApiKey: string;
+}): Promise<{ buffer: Buffer; status: number; error?: string }> => {
+  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+    method: "POST",
+    headers: {
+      Accept: "audio/mpeg",
+      "Content-Type": "application/json",
+      "xi-api-key": elevenLabsApiKey,
+    },
+    body: JSON.stringify({
+      text,
+      model_id: "eleven_turbo_v2",
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    return { buffer: Buffer.alloc(0), status: response.status, error: errorData };
+  }
+
+  const audioBuffer = await response.arrayBuffer();
+  return { buffer: Buffer.from(audioBuffer), status: 200 };
+};
+
 // Generate and stream audio directly (no storage)
 export const streamAudio = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -44,39 +151,21 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
 
     console.log(`🎵 Streaming audio for device ${babyDeviceId}: "${text}"`);
 
-    // Call ElevenLabs API
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
-      method: "POST",
-      headers: {
-        Accept: "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": elevenLabsApiKey,
-      },
-      body: JSON.stringify({
-        text,
-        model_id: "eleven_turbo_v2",
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-        },
-      }),
+    const { buffer, status, error } = await streamFromElevenLabs({
+      text,
+      voice,
+      elevenLabsApiKey,
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error("❌ ElevenLabs API error:", errorData);
-
-      res.status(response.status).json({
+    if (error) {
+      console.error("❌ ElevenLabs API error:", error);
+      res.status(status).json({
         error: "Failed to generate audio",
-        status: response.status,
-        details: errorData,
+        status,
+        details: error,
       });
       return;
     }
-
-    // Stream audio directly to client
-    const audioBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(audioBuffer);
 
     console.log(`✓ Audio generated (${buffer.length} bytes) - streaming to client`);
 
@@ -138,6 +227,57 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
       error: "Failed to stream audio",
       details: error.message,
     });
+  }
+};
+
+// Auto-generate a lullaby and stream it with ElevenLabs
+export const streamLullaby = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { babyName, babyDeviceId, theme, length, voiceId } = req.body as LullabyRequest;
+
+    if (!babyDeviceId) {
+      res.status(400).json({ error: "babyDeviceId is required" });
+      return;
+    }
+
+    const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+    if (!elevenLabsApiKey) {
+      res.status(500).json({ error: "ElevenLabs API key not configured" });
+      return;
+    }
+
+    // Determine voice: request override -> user's custom -> default
+    let voice = voiceId;
+    if (!voice && req.user?.uid) {
+      const user = await User.findOne({ firebaseUid: req.user.uid });
+      if (user?.customVoiceId && user.enableCustomVoice !== false) {
+        voice = user.customVoiceId;
+      }
+    }
+    voice = voice || process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
+
+    const lullabyText = buildLullabyText({ babyName, theme, length });
+    console.log(`🎶 Generating lullaby for device ${babyDeviceId} using voice ${voice}`);
+
+    const { buffer, status, error } = await streamFromElevenLabs({
+      text: lullabyText,
+      voice,
+      elevenLabsApiKey,
+    });
+
+    if (error) {
+      res.status(status).json({ error: "Failed to generate lullaby", details: error });
+      return;
+    }
+
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Length", buffer.length);
+    res.setHeader("Content-Disposition", `attachment; filename="lullaby-${Date.now()}.mp3"`);
+    res.setHeader("X-Baby-Device-Id", babyDeviceId);
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("❌ Stream lullaby error:", error);
+    res.status(500).json({ error: "Failed to stream lullaby", details: error.message });
   }
 };
 

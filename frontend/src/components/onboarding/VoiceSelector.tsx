@@ -101,11 +101,10 @@ export default function VoiceSelector({ onSelect }: VoiceSelectorProps) {
                 <button
                   key={voice.voice_id}
                   onClick={() => handleSelect(voice.voice_id)}
-                  className={`p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${
-                    selectedId === voice.voice_id
+                  className={`p-3 rounded-xl border-2 flex items-center gap-3 transition-all text-left ${selectedId === voice.voice_id
                       ? "border-coral bg-coral/5 shadow-md"
                       : "border-warm-cream hover:border-coral/50 hover:bg-white"
-                  }`}>
+                    }`}>
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-lg shadow-sm border border-warm-cream shrink-0">
                     {voice.labels?.gender === "female" ? "👩" : "👨"}
                   </div>
@@ -125,9 +124,8 @@ export default function VoiceSelector({ onSelect }: VoiceSelectorProps) {
                     </div>
                   </div>
                   <div
-                    className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      selectedId === voice.voice_id ? "border-coral bg-coral" : "border-mid-gray/30"
-                    }`}>
+                    className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedId === voice.voice_id ? "border-coral bg-coral" : "border-mid-gray/30"
+                      }`}>
                     {selectedId === voice.voice_id && <div className="w-2 h-2 bg-white rounded-full" />}
                   </div>
                 </button>

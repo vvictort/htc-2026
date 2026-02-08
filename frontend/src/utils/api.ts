@@ -8,6 +8,13 @@ export const AUTH_ENDPOINTS = {
     ME: `${API_BASE_URL}/auth/me`,
 };
 
+// Audio endpoints
+export const AUDIO_ENDPOINTS = {
+    LULLABY: `${API_BASE_URL}/audio/lullaby`,
+    STREAM: `${API_BASE_URL}/audio/stream`,
+    VOICES: `${API_BASE_URL}/audio/voices`,
+};
+
 // Notification endpoints
 export const NOTIFICATION_ENDPOINTS = {
     LIST: `${API_BASE_URL}/notifications`,

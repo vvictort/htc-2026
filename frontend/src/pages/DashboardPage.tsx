@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../context/useAuth";
 import { NOTIFICATION_ENDPOINTS, getAuthToken } from "../utils/api";
+import LullabyGenerator from "../components/dashboard/LullabyGenerator";
 
 interface RecentNotification {
   id: string;
@@ -163,7 +164,7 @@ export default function DashboardPage() {
         </motion.div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
           {/* Monitor Card */}
           <motion.div
             variants={item}
@@ -241,6 +242,11 @@ export default function DashboardPage() {
               className="block text-center text-sm font-bold text-coral hover:text-coral-dark mt-4 relative z-10">
               View All Notifications →
             </Link>
+          </motion.div>
+
+          {/* Lullaby Generator Card */}
+          <motion.div variants={item} className="xl:col-span-1 md:col-span-2">
+            <LullabyGenerator />
           </motion.div>
         </div>
       </motion.div>
