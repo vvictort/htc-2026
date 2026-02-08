@@ -164,6 +164,9 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
           displayName: "",
         });
 
+        // Mark as new user for onboarding redirection after login
+        sessionStorage.setItem("isNewUser", "true");
+
         // Redirect to login after 2 seconds
         if (onSuccess) {
           setTimeout(onSuccess, 2000);

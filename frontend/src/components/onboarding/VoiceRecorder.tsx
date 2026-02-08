@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 interface VoiceRecorderProps {
   onComplete: (blob: Blob) => void;
@@ -8,25 +8,60 @@ export default function VoiceRecorder({ onComplete }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
-  const startRecording = () => {
-    setIsRecording(true);
-    // Logic to start recording (MediaRecorder API) would go here
-    // Simulating completion for UI demo
-    setTimeout(() => {
-      setIsRecording(false);
-      setRecordedBlob(new Blob(["audio data"], { type: "audio/webm" }));
-      onComplete(new Blob());
-    }, 3000);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+      }
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        chunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunksRef.current.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+          setRecordedBlob(blob);
+          onComplete(blob);
+          stream.getTracks().forEach((track) => track.stop());
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error("Error accessing microphone:", err);
+        alert("Microphone access denied or not available.");
+      }
+    }
+  };
+
+  const resetRecording = () => {
+    setRecordedBlob(null);
   };
 
   return (
     <div className="flex flex-col items-center justify-center p-8 bg-warm-white rounded-xl border border-warm-cream text-center">
       <div
-        className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 transition-all duration-300 ${isRecording ? "bg-red-500 animate-pulse shadow-lg shadow-red-500/30" : "bg-coral shadow-lg shadow-coral/30"}`}>
+        className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 transition-all duration-300 ${
+          isRecording ? "bg-red-500 animate-pulse shadow-lg shadow-red-500/30" : "bg-coral shadow-lg shadow-coral/30"
+        }`}>
         <button
-          onClick={startRecording}
-          disabled={isRecording || !!recordedBlob}
-          className="text-4xl text-white outline-none">
+          onClick={toggleRecording}
+          disabled={!!recordedBlob && !isRecording}
+          className="text-4xl text-white outline-none w-full h-full rounded-full flex items-center justify-center">
           {isRecording ? "⏹" : recordedBlob ? "✅" : "🎙️"}
         </button>
       </div>
@@ -44,7 +79,7 @@ export default function VoiceRecorder({ onComplete }: VoiceRecorderProps) {
       </p>
 
       {recordedBlob && (
-        <button onClick={() => setRecordedBlob(null)} className="mt-4 text-sm text-coral hover:underline">
+        <button onClick={resetRecording} className="mt-4 text-sm text-coral hover:underline">
           Record Again
         </button>
       )}

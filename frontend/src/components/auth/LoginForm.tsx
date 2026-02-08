@@ -140,13 +140,21 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 
         console.log("Login successful:", successData.user);
 
-        // Redirect to dashboard
+        // Redirect based on user status (new vs returning)
         if (onSuccess) {
           onSuccess();
         } else {
-          setTimeout(() => {
-            window.location.href = "/monitor";
-          }, 500);
+          const isNewUser = sessionStorage.getItem("isNewUser") === "true";
+          if (isNewUser) {
+            sessionStorage.removeItem("isNewUser"); // Clear flag
+            setTimeout(() => {
+              window.location.href = "/onboarding";
+            }, 500);
+          } else {
+            setTimeout(() => {
+              window.location.href = "/dashboard";
+            }, 500);
+          }
         }
       }
     } catch (error) {

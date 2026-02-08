@@ -1,5 +1,5 @@
 import DashboardLayout from "../components/dashboard/DashboardLayout";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import VoiceSelector from "../components/onboarding/VoiceSelector.tsx";
 import VoiceRecorder from "../components/onboarding/VoiceRecorder.tsx";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,10 +38,118 @@ export default function ProfilePage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Track initial voice state to determine if we need to delete a custom voice
+  const [initialVoiceId, setInitialVoiceId] = useState<string | null>(null);
+  const [initialVoiceIsCloned, setInitialVoiceIsCloned] = useState(false);
+
+  useEffect(() => {
+    const fetchCurrentVoice = async () => {
+      try {
+        const token = sessionStorage.getItem("idToken") || localStorage.getItem("idToken");
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+        const res = await fetch(`${apiUrl}/audio/voice/custom`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const voiceData = await res.json();
+          setInitialVoiceId(voiceData.voice_id);
+          // ElevenLabs categories: 'premade', 'cloned', 'generated'
+          if (voiceData.category === "cloned" || voiceData.category === "generated") {
+            setInitialVoiceIsCloned(true);
+            setVoiceMode("clone"); // Default to clone tab if user has one
+          } else {
+            setInitialVoiceIsCloned(false);
+            setVoiceMode("preset");
+            setSelectedVoiceId(voiceData.voice_id); // Pre-select
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch current voice:", error);
+      }
+    };
+    fetchCurrentVoice();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Save logic here
-    setShowToast(true);
+    setIsSaving(true);
+
+    try {
+      const token = sessionStorage.getItem("idToken") || localStorage.getItem("idToken");
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+      // Logic: If we are replacing a CLONED voice with something else (new clone or preset),
+      // we must DELETE the old one first to avoid hitting ElevenLabs limits.
+      let shouldDeleteOld = false;
+      if (initialVoiceIsCloned && initialVoiceId) {
+        // If switching to Preset OR (switching to Clone AND we have a NEW recording)
+        if (voiceMode === "preset" || (voiceMode === "clone" && recordedBlob)) {
+          shouldDeleteOld = true;
+        }
+      }
+
+      if (shouldDeleteOld) {
+        console.log("Deleting old custom voice...");
+        await fetch(`${apiUrl}/audio/voice/custom`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // Reset flags after deletion
+        setInitialVoiceIsCloned(false);
+        setInitialVoiceId(null);
+      }
+
+      // 1. Upload Voice if recorded and in clone mode
+      if (voiceMode === "clone" && recordedBlob) {
+        const voiceData = new FormData();
+        voiceData.append("name", formData.displayName + "'s Voice");
+        voiceData.append("samples", recordedBlob, "recording.webm");
+
+        const voiceRes = await fetch(`${apiUrl}/audio/voice/clone`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: voiceData,
+        });
+
+        if (!voiceRes.ok) throw new Error("Failed to upload voice");
+
+        // Update initial state for next save
+        const newVoice = await voiceRes.json();
+        setInitialVoiceId(newVoice.voiceId);
+        setInitialVoiceIsCloned(true);
+      } else if (voiceMode === "preset" && selectedVoiceId) {
+        // Only save if it changed
+        if (selectedVoiceId !== initialVoiceId) {
+          const voiceRes = await fetch(`${apiUrl}/audio/voice`, {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ voiceId: selectedVoiceId }),
+          });
+          if (!voiceRes.ok) throw new Error("Failed to update voice selection");
+
+          setInitialVoiceId(selectedVoiceId);
+          setInitialVoiceIsCloned(false);
+        }
+      }
+
+      // 2. Update Profile Data
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      setShowToast(true);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      alert("Failed to save changes. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -198,7 +306,7 @@ export default function ProfilePage() {
                     <p className="text-sm text-mid-gray mb-4">
                       Choose a soothing AI voice for reading stories or comforting your baby.
                     </p>
-                    <VoiceSelector onSelect={(id) => console.log("Selected voice:", id)} />
+                    <VoiceSelector onSelect={(id) => setSelectedVoiceId(id)} />
                   </motion.div>
                 ) : (
                   <motion.div
@@ -209,7 +317,7 @@ export default function ProfilePage() {
                     <p className="text-sm text-mid-gray mb-4">
                       Record your own voice to create a custom AI clone. Your baby will hear you, even when you're away.
                     </p>
-                    <VoiceRecorder onComplete={(blob) => console.log("Recorded blob:", blob)} />
+                    <VoiceRecorder onComplete={(blob) => setRecordedBlob(blob)} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -220,8 +328,8 @@ export default function ProfilePage() {
             <button type="button" className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" className="btn-primary px-8">
-              Save All Changes
+            <button type="submit" className="btn-primary px-8" disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save All Changes"}
             </button>
           </div>
         </form>
