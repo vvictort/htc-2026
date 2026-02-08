@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import { CameraPage } from "./pages/CameraPage";
 
-export default function App() {
+export default function CVDebug() {
     const [mode, setMode] = useState<"camera" | "viewer">("camera");
 
     return (
