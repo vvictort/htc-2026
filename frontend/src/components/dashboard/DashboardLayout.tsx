@@ -20,7 +20,7 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
             <motion.header
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-8 md:mb-12 mt-12 lg:mt-0">
+              className="mb-8 md:mb-12 mt-16 lg:mt-0">
               {title && <h1 className="text-3xl md:text-4xl font-extrabold text-charcoal mb-2">{title}</h1>}
               {subtitle && <p className="text-mid-gray text-lg">{subtitle}</p>}
             </motion.header>
