@@ -77,7 +77,7 @@ export default function HowItWorks() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: i * 0.15, duration: 0.5 }}
-                            className={`relative rounded-[24px] border ${item.borderColor} ${item.color} p-8 flex flex-col gap-4`}
+                            className={`clay-step-card relative rounded-[28px] border ${item.borderColor} ${item.color} p-8 flex flex-col gap-4`}
                         >
                             {/* Step number */}
                             <span className="text-5xl font-black text-charcoal/8">
@@ -87,7 +87,7 @@ export default function HowItWorks() {
                             {/* Emoji badge */}
                             <motion.div
                                 whileHover={{ rotate: [0, -10, 10, 0], transition: { duration: 0.4 } }}
-                                className="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center"
+                                className="w-14 h-14 rounded-2xl bg-white shadow-[0_6px_20px_rgba(31,29,43,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] flex items-center justify-center"
                             >
                                 <span className="text-2xl">{item.emoji}</span>
                             </motion.div>

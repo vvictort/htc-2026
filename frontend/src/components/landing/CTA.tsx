@@ -10,7 +10,7 @@ export default function CTA() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6 }}
-                    className="relative bg-charcoal rounded-[32px] overflow-hidden px-8 py-16 md:px-16 md:py-20 text-center"
+                    className="relative bg-charcoal rounded-[36px] overflow-hidden px-8 py-16 md:px-16 md:py-20 text-center shadow-[0_24px_60px_rgba(31,29,43,0.25),0_8px_24px_rgba(31,29,43,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
                 >
                     {/* Decorative blobs */}
                     <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-coral/20 blur-3xl" />

@@ -14,7 +14,7 @@ const features = [
         title: 'Voice Cloning',
         description:
             'Clone your voice and send personalized audio messages to soothe your little one, even when you\'re away.',
-    color: 'bg-coral/10',
+        color: 'bg-coral/10',
         accent: 'text-coral',
     },
     {
@@ -30,7 +30,7 @@ const features = [
         title: 'Secure & Private',
         description:
             'End-to-end encrypted connections with Firebase authentication. Your family\'s data stays yours.',
-    color: 'bg-warm-cream',
+        color: 'bg-warm-cream',
         accent: 'text-dark-gray',
     },
     {
@@ -110,11 +110,11 @@ export default function Features() {
                             viewport={{ once: true, margin: '-50px' }}
                             variants={cardVariants}
                             whileHover={{ y: -6, transition: { duration: 0.25 } }}
-                            className="card flex flex-col gap-4 cursor-default"
+                            className="clay-feature-card flex flex-col gap-4 cursor-default"
                         >
                             {/* Icon */}
                             <div
-                                className={`w-14 h-14 ${feature.color} rounded-2xl flex items-center justify-center`}
+                                className={`w-14 h-14 ${feature.color} rounded-2xl flex items-center justify-center shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),0_4px_12px_rgba(31,29,43,0.06)]`}
                             >
                                 <span className="text-2xl">{feature.icon}</span>
                             </div>
