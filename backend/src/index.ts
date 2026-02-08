@@ -10,6 +10,8 @@ import { initializeFirebase } from './shared/config/firebase';
 import { verifyFirebaseToken } from './shared/middleware/authMiddleware';
 import authRoutes from './features/auth/auth.routes';
 import audioRoutes from './features/audio/audio.routes';
+import notificationRoutes from './features/notifications/notification.routes';
+import { setIO } from './features/notifications/notification.controller';
 
 // Load environment variables
 dotenv.config();
@@ -30,11 +32,14 @@ const io = new Server(httpServer, {
     }
 });
 
+// Share Socket.IO instance with notification controller for realtime push
+setIO(io);
+
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors()); // Enable CORS
 app.use(morgan('dev')); // Logging
-app.use(express.json()); // Parse JSON bodies
+app.use(express.json({ limit: '5mb' })); // Parse JSON bodies (increased for base64 snapshots)
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
 // Health check route
@@ -65,6 +70,9 @@ app.use('/api/auth', authRoutes);
 // Audio routes
 app.use('/api/audio', audioRoutes);
 
+// Notification routes
+app.use('/api/notifications', notificationRoutes);
+
 // Protected route example - requires authentication
 app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => {
     res.status(200).json({
@@ -84,8 +92,38 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 
+// Live status endpoint — exposes active monitors / viewers from in-memory rooms
+app.get('/api/status', (_req: Request, res: Response) => {
+    let activeMonitors = 0;
+    let totalViewers = 0;
+    const activeRooms: { roomId: string; hasCamera: boolean; viewers: number }[] = [];
+
+    rooms.forEach((room, roomId) => {
+        const hasCamera = !!room.broadcaster;
+        if (hasCamera) activeMonitors++;
+        totalViewers += room.viewers.size;
+        if (hasCamera || room.viewers.size > 0) {
+            activeRooms.push({ roomId, hasCamera, viewers: room.viewers.size });
+        }
+    });
+
+    res.json({
+        activeMonitors,
+        totalViewers,
+        activeRooms,
+        serverStatus: 'online',
+        uptime: process.uptime(),
+    });
+});
+
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
+
+    // Allow authenticated clients to join a user-specific room for realtime notifications
+    socket.on('subscribe-notifications', (firebaseUid: string) => {
+        socket.join(`user:${firebaseUid}`);
+        console.log(`Socket ${socket.id} subscribed to notifications for user ${firebaseUid}`);
+    });
 
     socket.on('join-room', (roomId: string) => {
         socket.join(roomId);
@@ -143,9 +181,9 @@ io.on('connection', (socket) => {
 
     socket.on('ice-candidate', (id: string, candidate: any) => {
         socket.to(id).emit('ice-candidate', socket.id, candidate);
-    });    socket.on('disconnect', () => {
+    }); socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
-        
+
         // Clean up rooms when broadcaster or viewer disconnects
         rooms.forEach((room, roomId) => {
             // If disconnected client was the broadcaster
@@ -154,12 +192,12 @@ io.on('connection', (socket) => {
                 socket.to(roomId).emit('broadcaster-disconnected');
                 room.broadcaster = undefined;
             }
-            
+
             // If disconnected client was a viewer
             if (room.viewers.has(socket.id)) {
                 console.log(`Viewer ${socket.id} disconnected from room ${roomId}`);
                 room.viewers.delete(socket.id);
-                
+
                 // Notify broadcaster that viewer left
                 if (room.broadcaster) {
                     io.to(room.broadcaster).emit('viewer-disconnected', socket.id);
@@ -168,6 +206,47 @@ io.on('connection', (socket) => {
             }
         });
     });
+});
+
+// WebRTC ICE server credentials endpoint
+// Returns STUN + TURN servers for NAT traversal across different networks
+app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
+    const iceServers: RTCIceServer[] = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+    ];
+
+    // Add TURN server if configured
+    const turnUrl = process.env.TURN_SERVER_URL;
+    const turnUser = process.env.TURN_USERNAME;
+    const turnCred = process.env.TURN_CREDENTIAL;
+
+    if (turnUrl && turnUser && turnCred) {
+        iceServers.push(
+            { urls: turnUrl, username: turnUser, credential: turnCred },
+        );
+    } else {
+        // Fallback: open relay TURN servers for development/hackathon
+        iceServers.push(
+            {
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject',
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject',
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject',
+            },
+        );
+    }
+
+    res.json({ iceServers });
 });
 
 // 404 handler

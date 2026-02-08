@@ -8,6 +8,30 @@ export const AUTH_ENDPOINTS = {
     ME: `${API_BASE_URL}/auth/me`,
 };
 
+// Audio endpoints
+export const AUDIO_ENDPOINTS = {
+    LULLABY: `${API_BASE_URL}/audio/lullaby`,
+    STREAM: `${API_BASE_URL}/audio/stream`,
+    VOICES: `${API_BASE_URL}/audio/voices`,
+};
+
+// WebRTC endpoints
+export const WEBRTC_ENDPOINTS = {
+    ICE_SERVERS: `${API_BASE_URL}/webrtc/ice-servers`,
+};
+
+// Status endpoint
+export const STATUS_ENDPOINT = `${API_BASE_URL}/status`;
+
+// Notification endpoints
+export const NOTIFICATION_ENDPOINTS = {
+    LIST: `${API_BASE_URL}/notifications`,
+    CREATE: `${API_BASE_URL}/notifications`,
+    READ_ALL: `${API_BASE_URL}/notifications/read-all`,
+    READ: (id: string) => `${API_BASE_URL}/notifications/${id}/read`,
+    PREFERENCES: `${API_BASE_URL}/notifications/preferences`,
+};
+
 // API helper function with error handling
 export async function apiCall<T>(
     endpoint: string,

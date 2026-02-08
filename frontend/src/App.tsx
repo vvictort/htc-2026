@@ -10,6 +10,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotificationsPage from "./pages/NotificationsPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import BabyDevicePage from "./pages/BabyDevicePage";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/monitor" element={<MonitorPage />} />
+        <Route path="/baby" element={<BabyDevicePage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/auth-showcase" element={<AuthShowcase />} />
 
