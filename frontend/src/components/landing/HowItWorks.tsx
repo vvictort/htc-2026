@@ -17,8 +17,8 @@ const steps = [
     title: "Create an Account",
     description: "Sign up in seconds with your email. Your account is secured with Firebase authentication.",
     emoji: "✨",
-    color: "bg-coral/10",
-    borderColor: "border-coral/30",
+    color: "bg-coral/20",
+    borderColor: "border-coral/40",
   },
   {
     step: "02",
@@ -26,15 +26,15 @@ const steps = [
     description: "Place a device near your baby and start broadcasting with one click. No complicated setup needed.",
     emoji: "📱",
     color: "bg-ice-blue",
-    borderColor: "border-soft-blue/30",
+    borderColor: "border-soft-blue/40",
   },
   {
     step: "03",
     title: "Watch & Interact",
     description: "View the live feed from any device. Send voice messages or type a text to be read aloud.",
     emoji: "👀",
-    color: "bg-soft-green/15",
-    borderColor: "border-soft-green/30",
+    color: "bg-soft-green/25",
+    borderColor: "border-soft-green/40",
   },
 ];
 

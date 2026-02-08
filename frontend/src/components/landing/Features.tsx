@@ -6,7 +6,7 @@ const features = [
   {
     title: "Live Video Streaming",
     description: "Crystal-clear real-time video powered by WebRTC. See your baby anytime, anywhere with HD quality.",
-    color: "bg-soft-yellow/50",
+    color: "bg-soft-yellow",
     imageLabel: "Video Demo",
     emoji: "📹",
   },
@@ -19,11 +19,17 @@ const features = [
   },
   {
     title: "Smart Alerts",
-    description:
-      "Get instant notifications when your baby needs attention. AI-powered sound detection keeps you informed.",
-    color: "bg-coral/10",
-    imageLabel: "Alert System",
+    description: "Get notified instantly when your baby cries or moves. Customizable sensitivity levels.",
+    color: "bg-soft-green/30",
+    imageLabel: "Alerts Demo",
     emoji: "🔔",
+  },
+  {
+    title: "Secure & Private",
+    description: "Your data is encrypted and only accessible by you. We prioritize your family's privacy.",
+    color: "bg-coral/15",
+    imageLabel: "Security Shield",
+    emoji: "🛡️",
   },
 ];
 
@@ -39,7 +45,7 @@ const WavyImagePlaceholder = ({ emoji, label, large = false }: { emoji: string; 
     </svg>
 
     <div
-      className={`w-full ${large ? "aspect-video" : "aspect-square"} bg-white/60 border border-white/40 flex items-center justify-center`}
+      className={`w-full ${large ? "aspect-video" : "aspect-square"} bg-white/90 border border-white/40 flex items-center justify-center`}
       style={{ clipPath: `url(#featureClip-${label.replace(/\s/g, "")})` }}>
       <div className="text-center text-charcoal/30">
         <span className={`${large ? "text-4xl" : "text-3xl"} block mb-2`}>{emoji}</span>

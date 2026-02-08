@@ -197,7 +197,7 @@
   }
 
   .btn-primary {
-    background: linear-gradient(135deg, #ff8a6a 0%, #ffb89f 100%);
+    background: linear-gradient(135deg, #ff6b4f 0%, #ff9e80 100%);
     color: white;
     padding: 0.85rem 2.4rem;
     border-radius: var(--radius-btn);
@@ -255,7 +255,7 @@
 
   /* ── Claymorphism helpers (Dreamy Update) ── */
   .clay-card {
-    background: rgba(255, 252, 248, 0.6);
+    background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(20px);
     border-radius: 36px;
     box-shadow:
@@ -297,7 +297,7 @@
 
   /* ── Feature cards with clay look (Dreamy) ── */
   .clay-feature-card {
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
     border-radius: 32px;
