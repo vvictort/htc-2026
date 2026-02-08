@@ -114,9 +114,7 @@ io.on('connection', (socket) => {
             
             console.log(`Broadcaster ${socket.id} ready in room ${roomId} with ${room.viewers.size} existing viewers`);
         }
-    });
-
-    socket.on('viewer', (roomId: string) => {
+    });    socket.on('viewer', (roomId: string) => {
         const room = rooms.get(roomId);
         if (room) {
             room.viewers.add(socket.id);
@@ -127,15 +125,15 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('offer', (id: string, description: RTCSessionDescriptionInit) => {
+    socket.on('offer', (id: string, description: any) => {
         socket.to(id).emit('offer', socket.id, description);
     });
 
-    socket.on('answer', (id: string, description: RTCSessionDescriptionInit) => {
+    socket.on('answer', (id: string, description: any) => {
         socket.to(id).emit('answer', socket.id, description);
     });
 
-    socket.on('ice-candidate', (id: string, candidate: RTCIceCandidateInit) => {
+    socket.on('ice-candidate', (id: string, candidate: any) => {
         socket.to(id).emit('ice-candidate', socket.id, candidate);
     });
 
