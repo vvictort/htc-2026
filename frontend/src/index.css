@@ -169,13 +169,31 @@
     color: var(--color-coral);
   }
 
-  .btn {
+  /* Global button reset + base styles */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  button {
     font-family: var(--font-sans);
     font-size: 1rem;
     font-weight: 500;
     border: none;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy transition */
+    /* Clean, modern spring-like transition without wobble */
+    transition:
+      transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+
+  /* Clean Lift on Hover */
+  .btn:hover,
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  button:hover {
+    transform: translateY(-4px) scale(1.02);
+    z-index: 10;
   }
 
   .btn-primary {
@@ -190,17 +208,21 @@
   }
 
   .btn-primary:hover {
-    transform: translateY(-2px) scale(1.02);
     box-shadow:
-      0 14px 24px -5px rgba(255, 138, 106, 0.5),
+      0 16px 32px -5px rgba(255, 138, 106, 0.6),
       inset 0 -2px 0 rgba(0, 0, 0, 0.1),
-      inset 0 2px 0 rgba(255, 255, 255, 0.4);
+      inset 0 2px 0 rgba(255, 255, 255, 0.5);
+    /* We let animation handle transform, but we can add lift if we want,
+       but mixing transform animation vs transition is tricky.
+       Let's stick to the jelly pop which resets to 1.
+       If we want it to stay lifted, we need to transition the parent or use margins (bad).
+       For "bubbly", the wobble is key. */
   }
 
   .btn-primary:active {
-    transform: translateY(1px);
+    transform: scale(0.95);
     box-shadow:
-      0 4px 10px -2px rgba(255, 138, 106, 0.4),
+      0 2px 8px -2px rgba(255, 138, 106, 0.4),
       inset 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
@@ -218,7 +240,7 @@
     background-color: white;
     border-color: var(--color-coral);
     color: var(--color-coral);
-    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 138, 106, 0.2);
   }
 
   /* ── Cards ── */
