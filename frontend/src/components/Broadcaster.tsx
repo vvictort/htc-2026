@@ -252,7 +252,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop }: Broa
           autoPlay
           playsInline
           muted
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
         />
 
         {/* Camera-off placeholder */}
