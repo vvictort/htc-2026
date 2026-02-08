@@ -85,8 +85,8 @@ export default function HowItWorks() {
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="label-accent">
-            Getting Started
+            className="inline-block px-4 py-1.5 rounded-full bg-soft-blue/15 text-soft-blue text-xs font-semibold uppercase tracking-wider shadow-[0_0_20px_rgba(137,207,240,0.4),inset_0_1px_0_rgba(255,255,255,0.5)] backdrop-blur-sm border border-soft-blue/25">
+            🚀 Getting Started
           </motion.span>
 
           <motion.h2

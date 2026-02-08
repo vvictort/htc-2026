@@ -5,7 +5,7 @@ import { motion, AnimatePresence, easeOut } from "framer-motion";
 const navLinks = [
   { label: "Features", href: "#features" },
   { label: "How It Works", href: "#how-it-works" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "About Us", href: "/about" },
 ];
 
 export default function Navbar() {
@@ -48,17 +48,31 @@ export default function Navbar() {
 
         {/* Desktop Nav - Minimal centered links */}
         <div className="hidden md:flex items-center gap-5">
-          {navLinks.map((link, i) => (
-            <motion.a
-              key={link.label}
-              href={link.href}
-              className="text-sm font-medium text-mid-gray hover:text-charcoal transition-colors no-underline"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.05 }}>
-              {link.label}
-            </motion.a>
-          ))}
+          {navLinks.map((link, i) =>
+            link.href.startsWith("/") ? (
+              <motion.div
+                key={link.label}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }}>
+                <Link
+                  to={link.href}
+                  className="text-sm font-medium text-mid-gray hover:text-charcoal transition-colors no-underline">
+                  {link.label}
+                </Link>
+              </motion.div>
+            ) : (
+              <motion.a
+                key={link.label}
+                href={link.href}
+                className="text-sm font-medium text-mid-gray hover:text-charcoal transition-colors no-underline"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.05 }}>
+                {link.label}
+              </motion.a>
+            ),
+          )}
         </div>
 
         {/* CTA - Single prominent button */}
@@ -105,15 +119,25 @@ export default function Navbar() {
             transition={{ duration: 0.2 }}
             className="md:hidden mt-2 mx-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
             <div className="flex flex-col py-4">
-              {navLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="px-6 py-3 text-base font-medium text-charcoal no-underline hover:bg-warm-cream/50 transition-colors"
-                  onClick={() => setMenuOpen(false)}>
-                  {link.label}
-                </a>
-              ))}
+              {navLinks.map((link) =>
+                link.href.startsWith("/") ? (
+                  <Link
+                    key={link.label}
+                    to={link.href}
+                    className="px-6 py-3 text-base font-medium text-charcoal no-underline hover:bg-warm-cream/50 transition-colors"
+                    onClick={() => setMenuOpen(false)}>
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    className="px-6 py-3 text-base font-medium text-charcoal no-underline hover:bg-warm-cream/50 transition-colors"
+                    onClick={() => setMenuOpen(false)}>
+                    {link.label}
+                  </a>
+                ),
+              )}
               <div className="px-6 pt-3 mt-2 border-t border-gray-100">
                 <Link
                   to="/monitor"
