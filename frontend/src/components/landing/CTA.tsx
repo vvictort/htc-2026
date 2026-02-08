@@ -3,36 +3,51 @@ import { motion } from "framer-motion";
 
 export default function CTA() {
   return (
-    <section className="py-20 text-center">
+    <section className="py-16 px-6">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
-        className="max-w-2xl mx-auto px-6">
-        <motion.div
-          initial={{ scale: 0 }}
-          whileInView={{ scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-          className="w-20 h-20 rounded-full bg-white/80 shadow-lg flex items-center justify-center mx-auto mb-6">
-          <span className="text-4xl">👶</span>
-        </motion.div>
+        className="max-w-6xl mx-auto bg-charcoal rounded-[40px] overflow-hidden">
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Left - Content */}
+          <div className="p-10 md:p-14 flex flex-col justify-center">
+            <h2 className="text-3xl md:text-4xl font-black text-white leading-tight mb-4">
+              Are You Ready to
+              <br />
+              <span className="text-coral">Start Watching?</span>
+            </h2>
 
-        <h2 className="text-charcoal mb-4">
-          Ready to keep your
-          <br />
-          <span className="text-italic text-coral">little one safe?</span>
-        </h2>
+            <p className="text-light-gray text-base mb-8 max-w-md">
+              Don't miss out on your baby's precious moments. Set up in seconds and enjoy peace of mind with real-time
+              monitoring.
+            </p>
 
-        <p className="text-mid-gray text-base mb-8 max-w-lg mx-auto">
-          Join thousands of parents who trust BabyWatcher for real-time monitoring. Free to start, no credit card
-          required.
-        </p>
+            <Link to="/monitor" className="btn-primary no-underline text-base px-8 py-4 inline-block w-fit">
+              Start Monitoring →
+            </Link>
+          </div>
 
-        <Link to="/monitor" className="btn-primary no-underline text-base px-10 py-4">
-          Start Free Today
-        </Link>
+          {/* Right - Placeholder Image */}
+          <div className="relative min-h-[300px] md:min-h-0">
+            {/* Decorative blobs */}
+            <div className="absolute top-4 right-4 w-24 h-24 rounded-full bg-coral/20 blur-xl" />
+            <div className="absolute bottom-10 left-10 w-16 h-16 rounded-full bg-soft-blue/15 blur-xl" />
+
+            {/* Placeholder */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center text-white/30">
+                <span className="text-6xl block mb-3">📱</span>
+                <span className="text-sm font-medium">CTA Image Placeholder</span>
+                <p className="text-xs mt-1 text-white/20">Add a happy parent/baby visual</p>
+              </div>
+            </div>
+
+            {/* Decorative corner shapes */}
+            <div className="absolute top-0 right-0 w-20 h-20 bg-soft-yellow/30 rounded-bl-[40px]" />
+          </div>
+        </div>
       </motion.div>
     </section>
   );
