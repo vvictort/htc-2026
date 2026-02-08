@@ -10,10 +10,68 @@ export default function OnboardingPage() {
   const [voiceMethod, setVoiceMethod] = useState<"clone" | "preset" | null>(null);
   const [notificationMethod, setNotificationMethod] = useState<string[]>([]);
 
-  const handleNext = () => {
+  const [recordedBlobs, setRecordedBlobs] = useState<Blob[]>([]);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleNext = async () => {
+    // Validate Step 2 (Voice)
+    if (step === 2) {
+      if (voiceMethod === "clone" && recordedBlobs.length === 0) {
+        alert("Please record at least one sample.");
+        return;
+      }
+      // ... (rest of validation)
+      if (voiceMethod === "preset" && !selectedVoiceId) {
+        alert("Please select a voice.");
+        return;
+      }
+      setStep(step + 1);
+      return;
+    }
+
+    // Step 3: Finish & Save All
     if (step === 3) {
-      // Save all data and redirect
-      navigate("/dashboard");
+      setIsUploading(true);
+      try {
+        const token = sessionStorage.getItem("idToken") || localStorage.getItem("idToken");
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+        // 1. Save Voice (Clone or Preset)
+        if (voiceMethod === "clone" && recordedBlobs.length > 0) {
+          const formData = new FormData();
+          formData.append("name", "My Voice");
+
+          recordedBlobs.forEach((blob, index) => {
+            formData.append("samples", blob, `sample_${index}.webm`);
+          });
+
+          const response = await fetch(`${apiUrl}/audio/voice/clone`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          });
+          if (!response.ok) throw new Error("Failed to upload voice");
+        } else if (voiceMethod === "preset" && selectedVoiceId) {
+          // ... (preset logic)
+          const response = await fetch(`${apiUrl}/audio/voice`, {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ voiceId: selectedVoiceId }),
+          });
+          if (!response.ok) throw new Error("Failed to save voice selection");
+        }
+
+        navigate("/dashboard");
+      } catch (error: any) {
+        console.error("Error saving setup:", error);
+        alert(`Failed to complete setup: ${error.message}`);
+      } finally {
+        setIsUploading(false);
+      }
     } else {
       setStep(step + 1);
     }
@@ -124,9 +182,9 @@ export default function OnboardingPage() {
                   </p>
 
                   {voiceMethod === "clone" ? (
-                    <VoiceRecorder onComplete={() => {}} />
+                    <VoiceRecorder onSamplesChange={(blobs) => setRecordedBlobs(blobs)} />
                   ) : (
-                    <VoiceSelector onSelect={() => {}} />
+                    <VoiceSelector onSelect={(id) => setSelectedVoiceId(id)} />
                   )}
                 </motion.div>
               )}
@@ -171,8 +229,8 @@ export default function OnboardingPage() {
           {/* Footer Navigation (only for steps > 1) */}
           {step > 1 && (
             <div className="mt-8 pt-6 border-t border-warm-cream flex justify-end">
-              <button onClick={handleNext} className="btn-primary">
-                {step === 3 ? "Finish Setup" : "Continue"}
+              <button onClick={handleNext} className="btn-primary" disabled={isUploading}>
+                {isUploading ? "Saving Voice..." : step === 3 ? "Finish Setup" : "Continue"}
               </button>
             </div>
           )}
