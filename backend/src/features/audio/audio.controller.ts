@@ -114,8 +114,8 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
     const { text, voiceId, babyDeviceId } = req.body as TextToSpeechRequest;
 
     // Validate input
-    if (!text || !babyDeviceId) {
-      res.status(400).json({ error: "Text and babyDeviceId are required" });
+    if (!text) {
+      res.status(400).json({ error: "Text is required" });
       return;
     }
 

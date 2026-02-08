@@ -187,7 +187,40 @@ io.on('connection', (socket) => {
 
     socket.on('ice-candidate', (id: string, candidate: any) => {
         socket.to(id).emit('ice-candidate', socket.id, candidate);
-    }); socket.on('disconnect', () => {
+    });
+
+    // ── Lullaby relay: viewer → broadcaster (same room) ──
+    socket.on('lullaby-play', (roomId: string, payload: { audioBase64: string; durationMs: number; vibe: string }) => {
+        const room = rooms.get(roomId);
+        if (room?.broadcaster) {
+            io.to(room.broadcaster).emit('lullaby-play', payload);
+            console.log(`[Lullaby] Relayed play command to broadcaster in room ${roomId} (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.durationMs}ms, ${payload.vibe})`);
+        }
+    });
+
+    socket.on('lullaby-stop', (roomId: string) => {
+        const room = rooms.get(roomId);
+        if (room?.broadcaster) {
+            io.to(room.broadcaster).emit('lullaby-stop');
+            console.log(`[Lullaby] Relayed stop command to broadcaster in room ${roomId}`);
+        }
+    });
+
+    // Broadcaster → viewers: playback status updates
+    socket.on('lullaby-status', (roomId: string, status: { state: string; currentTime: number; duration: number }) => {
+        socket.to(roomId).emit('lullaby-status', status);
+    });
+
+    // ── TTS relay: viewer → broadcaster (same room) ──
+    socket.on('tts-play', (roomId: string, payload: { audioBase64: string }) => {
+        const room = rooms.get(roomId);
+        if (room?.broadcaster) {
+            io.to(room.broadcaster).emit('tts-play', payload);
+            console.log(`[TTS] Relayed TTS to broadcaster in room ${roomId} (${(payload.audioBase64.length / 1024).toFixed(0)} KB)`);
+        }
+    });
+
+    socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
 
         // Clean up rooms when broadcaster or viewer disconnects
