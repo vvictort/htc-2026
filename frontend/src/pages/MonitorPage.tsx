@@ -3,7 +3,6 @@ import { io, Socket } from "socket.io-client";
 import { useAuth } from "../context/useAuth";
 import { AUDIO_ENDPOINTS, getAuthToken } from "../utils/api";
 import Viewer from "../components/Viewer";
-import { io, Socket } from "socket.io-client";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
 
@@ -48,7 +47,6 @@ export default function MonitorPage() {
 
   /* Lullaby remote playback state */
   const [lullabyRemote, setLullabyRemote] = useState<{ state: string; currentTime: number; duration: number } | null>(null);
-  const socketRef = useRef<Socket | null>(null);
 
   // Update roomId when currentUser changes
   useEffect(() => {
