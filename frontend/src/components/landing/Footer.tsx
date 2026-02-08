@@ -3,8 +3,16 @@ import CTA from "./CTA";
 import { BabyFootprints } from "./BabyIcons";
 
 const footerLinks = {
-  left: ["About Us", "Pricing", "Features"],
-  right: ["Our Team", "Events", "Contact Us"],
+  left: [
+    { label: "About Us", href: "/about" },
+    { label: "Pricing", href: "/#pricing" },
+    { label: "Features", href: "/#features" },
+  ],
+  right: [
+    { label: "Our Team", href: "/about" },
+    { label: "Events", href: "#" },
+    { label: "Contact Us", href: "mailto:hello@babywatcher.com" },
+  ],
 };
 
 const socialIcons = [
@@ -32,10 +40,10 @@ export default function Footer() {
               className="flex flex-wrap justify-center gap-6">
               {footerLinks.left.map((link) => (
                 <a
-                  key={link}
-                  href="#"
+                  key={link.label}
+                  href={link.href}
                   className="text-sm text-charcoal hover:text-coral no-underline transition-colors">
-                  {link}
+                  {link.label}
                 </a>
               ))}
             </motion.nav>
@@ -77,10 +85,10 @@ export default function Footer() {
               className="flex flex-wrap justify-center gap-6">
               {footerLinks.right.map((link) => (
                 <a
-                  key={link}
-                  href="#"
+                  key={link.label}
+                  href={link.href}
                   className="text-sm text-charcoal hover:text-coral no-underline transition-colors">
-                  {link}
+                  {link.label}
                 </a>
               ))}
             </motion.nav>

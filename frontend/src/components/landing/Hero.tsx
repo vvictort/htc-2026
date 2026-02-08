@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { motion, easeInOut, easeOut, useReducedMotion } from "framer-motion";
-import { BabyCloud, BabyStar, BabyHeart, BabyMoon, BabyDuck, BabyBalloon, BabyTeddy } from "./BabyIcons";
-import { isAuthenticated } from '../../utils/auth';
+import { motion, easeOut, useReducedMotion } from "framer-motion";
+import { BabySun, BabyStar, BabyCloud, BabyBalloon } from "./BabyIcons";
+import { isAuthenticated } from "../../utils/auth";
 
 const heroStats = [
   { number: "1000+", label: "families trust us", color: "text-coral" },
@@ -11,14 +11,12 @@ const heroStats = [
 
 export default function Hero() {
   const reduce = useReducedMotion();
-  const floatProps = reduce ? {} : { variants: floatVariants, initial: "initial", animate: "animate" };
-  const textMotion = reduce ? {} : { variants: fadeUp, initial: "initial", animate: "animate" };
 
   // Handle "Start monitoring" button click
   const handleStartMonitoring = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!isAuthenticated()) {
       e.preventDefault();
-      window.location.href = '/signup';
+      window.location.href = "/signup";
     }
   };
 
@@ -45,61 +43,120 @@ export default function Hero() {
         animate={{
           opacity: 1,
           scale: 1,
-          rotate: [0, 5, -5, 0],
+          rotate: reduce ? 0 : [0, 5, -5, 0],
         }}
-      />
+        transition={{
+          delay: 0.3,
+          type: "spring",
+          stiffness: 200,
+          rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+        }}>
+        <BabySun className="w-full h-full text-soft-yellow" />
+      </motion.div>
 
-      {/* Floating clay candies */}
-      {!reduce &&
-        candyShapes.map((shape, idx) => (
-          <motion.div
-            key={idx}
-            style={{ top: shape.top, left: shape.left, width: shape.size, height: shape.size }}
-            className={`absolute rounded-[28px] ${shape.color} clay-float opacity-70 z-[1]`}
-            {...floatProps}
-            custom={{ distance: 18, duration: shape.duration, delay: shape.delay }}
-          />
-        ))}
+      {/* Other scattered icons */}
+      <motion.div
+        className="absolute top-32 right-10 w-12 h-12 pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{
+          opacity: 1,
+          rotate: reduce ? -15 : [-15, -5, -15],
+          scale: reduce ? 1 : [1, 1.1, 1],
+        }}
+        transition={{
+          delay: 0.5,
+          rotate: { repeat: Infinity, duration: 3, ease: "easeInOut" },
+          scale: { repeat: Infinity, duration: 2, ease: "easeInOut" },
+        }}>
+        <BabyStar className="w-full h-full text-coral/30" />
+      </motion.div>
 
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-[1.1fr,0.95fr] gap-14 items-center relative z-10">
-        {/* Left — Copy */}
-        <div className="flex flex-col gap-6">
-          <motion.span {...textMotion} transition={{ delay: 0.05 }} className="label-accent">
-            Clay-soft comfort, real-time calm
-          </motion.span>
+      <motion.div
+        className="absolute bottom-40 left-10 w-16 h-10 pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{
+          opacity: 1,
+          x: reduce ? 0 : [0, 10, 0],
+          y: reduce ? 0 : [0, -5, 0],
+        }}
+        transition={{
+          delay: 0.6,
+          x: { repeat: Infinity, duration: 6, ease: "easeInOut" },
+          y: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+        }}>
+        <BabyCloud className="w-full h-full text-soft-blue/20" />
+      </motion.div>
 
-          <motion.h1
-            {...textMotion}
-            transition={{ delay: 0.15, duration: 0.65, ease: easeOut }}
-            className="leading-tight">
-            Watch over your <span className="text-italic text-coral">little one</span>
-            <br />
-            with claymorphic ease
-          </motion.h1>
+      <motion.div
+        className="absolute bottom-32 right-20 w-8 h-12 pointer-events-none"
+        initial={{ opacity: 0 }}
+        animate={{
+          opacity: 1,
+          y: reduce ? 0 : [0, -15, 0],
+          rotate: reduce ? 0 : [0, 5, -5, 0],
+        }}
+        transition={{
+          delay: 0.7,
+          y: { repeat: Infinity, duration: 3, ease: "easeInOut" },
+          rotate: { repeat: Infinity, duration: 4, ease: "easeInOut" },
+        }}>
+        <BabyBalloon className="w-full h-full text-coral/25" />
+      </motion.div>
 
-          <motion.p
-            {...textMotion}
-            transition={{ delay: 0.25, duration: 0.65 }}
-            className="text-base max-w-xl leading-relaxed text-mid-gray">
-            Soft gradients, rounded edges, and calm motion — the interface feels as cozy as holding your baby. Monitor
-            live video, talk back with warmth, and get gentle alerts built on WebRTC + Firebase.
-          </motion.p>
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left - Content */}
+          <div className="flex flex-col gap-6">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: easeOut }}
+              className="text-5xl md:text-6xl font-black leading-tight">
+              Watch Over Your
+              <br />
+              <span className="text-coral">Little One</span>
+            </motion.h1>
 
-          <motion.div
-            {...textMotion}
-            transition={{ delay: 0.35, duration: 0.45 }}
-            className="flex flex-wrap gap-4 mt-2">
-            <Link 
-              to="/monitor" 
-              onClick={handleStartMonitoring}
-              className="btn-primary no-underline text-base px-8 py-3"
-            >
-              Start monitoring
-            </Link>
-            <a href="#features" className="btn-secondary no-underline text-base px-8 py-3">
-              Explore features
-            </a>
-          </motion.div>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1, ease: easeOut }}
+              className="text-lg text-mid-gray max-w-lg">
+              Real-time baby monitoring with crystal-clear video, voice messaging, and smart alerts. Peace of mind for
+              modern parents.
+            </motion.p>
+
+            {/* Stats Row */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2, ease: easeOut }}
+              className="flex flex-wrap gap-8 mt-4">
+              {heroStats.map((stat, i) => (
+                <div key={i} className="flex flex-col">
+                  <span className={`text-3xl md:text-4xl font-black ${stat.color}`}>{stat.number}</span>
+                  <span className="text-sm text-mid-gray">{stat.label}</span>
+                </div>
+              ))}
+            </motion.div>
+
+            {/* CTA */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3, ease: easeOut }}
+              className="flex flex-wrap gap-4 mt-4">
+              <Link
+                to="/monitor"
+                onClick={handleStartMonitoring}
+                className="btn-primary no-underline text-base px-8 py-4 inline-block">
+                Start Monitoring →
+              </Link>
+              <a href="#features" className="btn-secondary no-underline text-base px-8 py-4">
+                Explore Features
+              </a>
+            </motion.div>
+          </div>
 
           {/* Right - Placeholder Image Area with organic wavy edge */}
           <motion.div
