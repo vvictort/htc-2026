@@ -1,6 +1,6 @@
 // Firebase Client Configuration
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -23,7 +23,7 @@ export const googleProvider = new GoogleAuthProvider();
 
 // Optional: Configure Google provider
 googleProvider.setCustomParameters({
-  prompt: 'select_account', // Always show account selection
+  prompt: "select_account", // Always show account selection
 });
 
 export default app;
