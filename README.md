@@ -2,7 +2,7 @@
 
 **AI-Powered Baby Monitor for Generation Alpha Parents**
 
-Lullalink is a smart baby monitoring system that uses computer vision (OpenCV) and Generative AI (Google Gemini 2.0 Flash) to detect potential threats in real-time. It doesn't just tell you _that_ your baby is moving—it tells you _why_ success is a threat.
+Lullalink is a smart baby monitoring system that uses computer vision (MoveNet pose detection via TensorFlow.js) and Generative AI (Google Gemini 2.0 Flash) to detect potential threats in real-time. It doesn't just tell you _that_ your baby is moving—it tells you _why_ success is a threat.
 
 ## 🚀 Features
 
