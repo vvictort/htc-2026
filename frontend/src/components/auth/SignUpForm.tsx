@@ -65,15 +65,38 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     return emailRegex.test(email);
   };
 
-  // Validate password strength
+  // OWASP password strength validation
   const validatePassword = (password: string): string | null => {
-    if (password.length < 6) {
-      return "Password must be at least 6 characters";
+    if (password.length < 8) {
+      return "Password must be at least 8 characters long";
     }
     if (password.length > 128) {
       return "Password is too long";
     }
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/[a-z]/.test(password)) {
+      return "Password must contain at least one lowercase letter";
+    }
+    if (!/[0-9]/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    if (!/[!@#$%^&*()_+\-=[]{}|;:,.<>?]/.test(password)) {
+      return "Password must contain at least one special character";
+    }
     return null;
+  };
+
+  // Get individual password requirement statuses for UI feedback
+  const getPasswordRequirements = (password: string) => {
+    return {
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecial: /[!@#$%^&*()_+\-=[]{}|;:,.<>?]/.test(password),
+    };
   };
 
   // Validate phone number format (accepts various formats, will be normalized on backend)
@@ -455,7 +478,33 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
               </button>
             </div>
             {errors.password && <p className="text-xs text-coral mt-1">{errors.password}</p>}
-            <p className="text-xs text-mid-gray mt-1">Minimum 6 characters</p>
+
+            {/* Password Requirements Indicator */}
+            {formData.password && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs font-semibold text-charcoal mb-1.5">Password must contain:</p>
+                {Object.entries({
+                  minLength: "At least 8 characters",
+                  hasUppercase: "One uppercase letter (A-Z)",
+                  hasLowercase: "One lowercase letter (a-z)",
+                  hasNumber: "One number (0-9)",
+                  hasSpecial: "One special character (!@#$%^&*...)",
+                }).map(([key, label]) => {
+                  const requirements = getPasswordRequirements(formData.password);
+                  const isMet = requirements[key as keyof typeof requirements];
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className={`text-xs ${isMet ? "text-soft-green" : "text-mid-gray"}`}>
+                        {isMet ? "✓" : "○"}
+                      </span>
+                      <span className={`text-xs ${isMet ? "text-soft-green font-medium" : "text-mid-gray"}`}>
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Confirm Password */}
