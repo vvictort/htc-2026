@@ -82,22 +82,30 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
   /** Map PoseEngine alert types → backend MotionCategory values */
   const mapToCategory = (reason: string): string => {
     switch (reason) {
-      case "ACTIVE": return "slight_movement";
-      case "BOUNDARY": return "out_of_frame";
-      case "SOUND": return "crying_motion";
-      default: return "unknown";
+      case "ACTIVE":
+        return "slight_movement";
+      case "BOUNDARY":
+        return "out_of_frame";
+      case "SOUND":
+        return "crying_motion";
+      default:
+        return "unknown";
     }
   };
 
   const sendMonitorEvent = async (
     reason: "ACTIVE" | "BOUNDARY" | "UNKNOWN" | "SOUND",
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ) => {
     const now = Date.now();
     const COOLDOWN_MS = 5_000;
     const SAME_REASON_COOLDOWN_MS = 10_000;
     const category = mapToCategory(reason);
-    console.log(`[sendMonitorEvent] Attempting monitor event: ${reason} → category="${category}"`, { details, now, lastEventAt: lastEventAtRef.current });
+    console.log(`[sendMonitorEvent] Attempting monitor event: ${reason} → category="${category}"`, {
+      details,
+      now,
+      lastEventAt: lastEventAtRef.current,
+    });
     if (now - lastEventAtRef.current < COOLDOWN_MS) {
       console.log(`[sendMonitorEvent] Blocked by cooldown (${COOLDOWN_MS / 1000}s)`);
       return;
@@ -112,7 +120,10 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     lastReasonAtRef.current = now;
     eventPendingRef.current = true;
 
-    console.log(`[Broadcaster] 📤 Sending motion event: ${reason} → ${category}`, { details, timestamp: new Date(now).toLocaleTimeString() });
+    console.log(`[Broadcaster] 📤 Sending motion event: ${reason} → ${category}`, {
+      details,
+      timestamp: new Date(now).toLocaleTimeString(),
+    });
 
     setLastEvent({ reason, at: now });
 
@@ -121,13 +132,15 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     // Get a fresh Firebase ID token (auto-refreshes if expired)
     let token: string | null = null;
     try {
-      token = await auth.currentUser?.getIdToken() ?? null;
+      token = (await auth.currentUser?.getIdToken()) ?? null;
     } catch (e) {
       console.warn("[sendMonitorEvent] Failed to get auth token:", e);
     }
 
     try {
-      console.log(`[sendMonitorEvent] Sending ${category} to ${MOTION_ENDPOINTS.CREATE}`, { snapshotExists: !!snapshot });
+      console.log(`[sendMonitorEvent] Sending ${category} to ${MOTION_ENDPOINTS.CREATE}`, {
+        snapshotExists: !!snapshot,
+      });
       await fetch(MOTION_ENDPOINTS.CREATE, {
         method: "POST",
         headers: {
@@ -190,8 +203,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     console.log("Broadcasting stopped");
   };
 
-
-
   useEffect(() => {
     console.log("Broadcaster component mounted for room:", roomId);
     socketRef.current = io(BACKEND_URL);
@@ -246,30 +257,32 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       if (peerConnection) {
         await peerConnection.setRemoteDescription(answer);
       }
-    });    socketRef.current.on("ice-candidate", (viewerId: string, candidate: RTCIceCandidateInit) => {
+    });
+    socketRef.current.on("ice-candidate", (viewerId: string, candidate: RTCIceCandidateInit) => {
       console.log("Received ICE candidate from viewer:", viewerId);
       const peerConnection = peerConnectionsRef.current.get(viewerId);
       if (peerConnection) {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       }
-    });    // Audio playback - listen for audio from monitor
+    }); // Audio playback - listen for audio from monitor
     socketRef.current.on("play-audio", (audioUrl: string) => {
       console.log("[Broadcaster] Received play-audio event, data length:", audioUrl.length);
       setIsPlayingAudio(true);
-      
+
       try {
         const audio = new Audio(audioUrl);
-        audio.play()
+        audio
+          .play()
           .then(() => console.log("[Broadcaster] Audio playing on baby device"))
           .catch((err) => console.error("[Broadcaster] Audio playback error:", err));
-        
+
         // Clean up the audio element after it finishes
         audio.onended = () => {
           console.log("[Broadcaster] Audio playback completed");
           setIsPlayingAudio(false);
           audio.remove();
         };
-        
+
         audio.onerror = () => {
           console.error("[Broadcaster] Audio error");
           setIsPlayingAudio(false);
@@ -282,8 +295,10 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     });
 
     // ── Lullaby playback commands from parent viewer ──
-    socketRef.current.on('lullaby-play', (payload: { audioBase64: string; durationMs: number; vibe: string }) => {
-      console.log(`[Broadcaster] 🎶 Received lullaby-play (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.vibe})`);
+    socketRef.current.on("lullaby-play", (payload: { audioBase64: string; durationMs: number; vibe: string }) => {
+      console.log(
+        `[Broadcaster] 🎶 Received lullaby-play (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.vibe})`,
+      );
       // Stop any existing lullaby
       if (lullabyAudioRef.current) {
         lullabyAudioRef.current.pause();
@@ -296,35 +311,43 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       const ab = new ArrayBuffer(byteString.length);
       const ia = new Uint8Array(ab);
       for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-      const blob = new Blob([ab], { type: 'audio/mpeg' });
+      const blob = new Blob([ab], { type: "audio/mpeg" });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       lullabyAudioRef.current = audio;
 
-      audio.play().then(() => {
-        setLullabyPlaying(true);
-        // Report status back to viewers every second
-        lullabyIntervalRef.current = setInterval(() => {
-          if (!audio.paused && socketRef.current) {
-            const status = { state: 'playing', currentTime: audio.currentTime, duration: audio.duration || (payload.durationMs / 1000) };
-            setLullabyProgress({ current: audio.currentTime, duration: status.duration });
-            socketRef.current.emit('lullaby-status', roomId, status);
-          }
-        }, 1000);
-      }).catch(err => console.error('[Broadcaster] lullaby play error:', err));
+      audio
+        .play()
+        .then(() => {
+          setLullabyPlaying(true);
+          // Report status back to viewers every second
+          lullabyIntervalRef.current = setInterval(() => {
+            if (!audio.paused && socketRef.current) {
+              const status = {
+                state: "playing",
+                currentTime: audio.currentTime,
+                duration: audio.duration || payload.durationMs / 1000,
+              };
+              setLullabyProgress({ current: audio.currentTime, duration: status.duration });
+              socketRef.current.emit("lullaby-status", roomId, status);
+            }
+          }, 1000);
+        })
+        .catch((err) => console.error("[Broadcaster] lullaby play error:", err));
 
       audio.onended = () => {
         setLullabyPlaying(false);
         setLullabyProgress(null);
         if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
-        if (socketRef.current) socketRef.current.emit('lullaby-status', roomId, { state: 'ended', currentTime: 0, duration: 0 });
+        if (socketRef.current)
+          socketRef.current.emit("lullaby-status", roomId, { state: "ended", currentTime: 0, duration: 0 });
         URL.revokeObjectURL(url);
         lullabyAudioRef.current = null;
       };
     });
 
-    socketRef.current.on('lullaby-stop', () => {
-      console.log('[Broadcaster] 🎶 Received lullaby-stop');
+    socketRef.current.on("lullaby-stop", () => {
+      console.log("[Broadcaster] 🎶 Received lullaby-stop");
       if (lullabyAudioRef.current) {
         lullabyAudioRef.current.pause();
         lullabyAudioRef.current = null;
@@ -332,12 +355,15 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
       setLullabyPlaying(false);
       setLullabyProgress(null);
-      if (socketRef.current) socketRef.current.emit('lullaby-status', roomId, { state: 'stopped', currentTime: 0, duration: 0 });
+      if (socketRef.current)
+        socketRef.current.emit("lullaby-status", roomId, { state: "stopped", currentTime: 0, duration: 0 });
     });
 
     // ── Lullaby playback commands from parent viewer ──
-    socketRef.current.on('lullaby-play', (payload: { audioBase64: string; durationMs: number; vibe: string }) => {
-      console.log(`[Broadcaster] 🎶 Received lullaby-play (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.vibe})`);
+    socketRef.current.on("lullaby-play", (payload: { audioBase64: string; durationMs: number; vibe: string }) => {
+      console.log(
+        `[Broadcaster] 🎶 Received lullaby-play (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.vibe})`,
+      );
       // Stop any existing lullaby
       if (lullabyAudioRef.current) {
         lullabyAudioRef.current.pause();
@@ -350,35 +376,43 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       const ab = new ArrayBuffer(byteString.length);
       const ia = new Uint8Array(ab);
       for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-      const blob = new Blob([ab], { type: 'audio/mpeg' });
+      const blob = new Blob([ab], { type: "audio/mpeg" });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       lullabyAudioRef.current = audio;
 
-      audio.play().then(() => {
-        setLullabyPlaying(true);
-        // Report status back to viewers every second
-        lullabyIntervalRef.current = setInterval(() => {
-          if (!audio.paused && socketRef.current) {
-            const status = { state: 'playing', currentTime: audio.currentTime, duration: audio.duration || (payload.durationMs / 1000) };
-            setLullabyProgress({ current: audio.currentTime, duration: status.duration });
-            socketRef.current.emit('lullaby-status', roomId, status);
-          }
-        }, 1000);
-      }).catch(err => console.error('[Broadcaster] lullaby play error:', err));
+      audio
+        .play()
+        .then(() => {
+          setLullabyPlaying(true);
+          // Report status back to viewers every second
+          lullabyIntervalRef.current = setInterval(() => {
+            if (!audio.paused && socketRef.current) {
+              const status = {
+                state: "playing",
+                currentTime: audio.currentTime,
+                duration: audio.duration || payload.durationMs / 1000,
+              };
+              setLullabyProgress({ current: audio.currentTime, duration: status.duration });
+              socketRef.current.emit("lullaby-status", roomId, status);
+            }
+          }, 1000);
+        })
+        .catch((err) => console.error("[Broadcaster] lullaby play error:", err));
 
       audio.onended = () => {
         setLullabyPlaying(false);
         setLullabyProgress(null);
         if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
-        if (socketRef.current) socketRef.current.emit('lullaby-status', roomId, { state: 'ended', currentTime: 0, duration: 0 });
+        if (socketRef.current)
+          socketRef.current.emit("lullaby-status", roomId, { state: "ended", currentTime: 0, duration: 0 });
         URL.revokeObjectURL(url);
         lullabyAudioRef.current = null;
       };
     });
 
-    socketRef.current.on('lullaby-stop', () => {
-      console.log('[Broadcaster] 🎶 Received lullaby-stop');
+    socketRef.current.on("lullaby-stop", () => {
+      console.log("[Broadcaster] 🎶 Received lullaby-stop");
       if (lullabyAudioRef.current) {
         lullabyAudioRef.current.pause();
         lullabyAudioRef.current = null;
@@ -386,7 +420,8 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
       setLullabyPlaying(false);
       setLullabyProgress(null);
-      if (socketRef.current) socketRef.current.emit('lullaby-status', roomId, { state: 'stopped', currentTime: 0, duration: 0 });
+      if (socketRef.current)
+        socketRef.current.emit("lullaby-status", roomId, { state: "stopped", currentTime: 0, duration: 0 });
     });
 
     // Cleanup function
@@ -394,7 +429,10 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       console.log("Broadcaster component unmounting - cleaning up for room:", roomId);
       stopStreaming();
       // Clean up lullaby audio
-      if (lullabyAudioRef.current) { lullabyAudioRef.current.pause(); lullabyAudioRef.current = null; }
+      if (lullabyAudioRef.current) {
+        lullabyAudioRef.current.pause();
+        lullabyAudioRef.current = null;
+      }
       if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
       if (socketRef.current) {
         console.log("Disconnecting broadcaster socket:", socketRef.current.id);
@@ -415,11 +453,11 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
         streamRef.current = s;
         if (videoRef.current) {
           videoRef.current.srcObject = s;
-          await videoRef.current.play().catch(() => { });
+          await videoRef.current.play().catch(() => {});
         }
-        console.log('[Broadcaster] preview stream started');
+        console.log("[Broadcaster] preview stream started");
       } catch (err) {
-        console.warn('[Broadcaster] preview permission failed', err);
+        console.warn("[Broadcaster] preview permission failed", err);
       }
     };
 
@@ -497,7 +535,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
               <div className="flex items-center gap-3">
                 <span className="text-xl">👶</span>
                 <span className="text-white font-bold text-sm tracking-wide">
-                  Baby<span className="text-coral">Watcher</span>
+                  Lulla<span className="text-coral">link</span>
                 </span>
                 <span className="ml-1 flex items-center gap-1.5 text-xs text-white/60">
                   <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse" />
@@ -506,12 +544,14 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
               </div>
 
               <button
-                onClick={() => { stopStreaming(); onStop?.(); }}
+                onClick={() => {
+                  stopStreaming();
+                  onStop?.();
+                }}
                 className="px-4 py-1.5 text-sm text-white/80 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-full backdrop-blur-sm transition-all">
                 ⏹ Stop
               </button>
             </div>
-
             {/* ── Floating status pills (right edge) ── */}
             <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 items-end">
               {/* Viewer count */}
@@ -539,22 +579,23 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                 </div>
               )}
             </div>
-
             {/* Error toast */}
             {error && (
               <div className="pointer-events-auto absolute top-16 left-1/2 -translate-x-1/2 max-w-sm w-full mx-4">
                 <div className="bg-red-500/80 backdrop-blur-md text-white text-sm rounded-xl px-4 py-3 flex items-center gap-2 shadow-lg border border-red-400/30">
                   <span>⚠️</span>
                   <span className="flex-1">{error}</span>
-                  <button onClick={() => setError(null)} className="text-white/70 hover:text-white ml-2">✕</button>
+                  <button onClick={() => setError(null)} className="text-white/70 hover:text-white ml-2">
+                    ✕
+                  </button>
                 </div>
               </div>
-            )}            {/* Bottom gradient bar */}
+            )}{" "}
+            {/* Bottom gradient bar */}
             <div className="pointer-events-auto absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-linear-to-t from-black/70 to-transparent">
               <span className="text-xs text-white/40 font-mono">Room: {roomId}</span>
               <span className="text-[0.6rem] text-white/30">Baby Device Mode</span>
             </div>
-
             {/* Audio playing indicator */}
             {isPlayingAudio && (
               <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
@@ -562,21 +603,28 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                   <div className="text-4xl animate-pulse">🔊</div>
                   <div className="text-white font-semibold text-lg">Playing Message</div>
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-2 h-2 bg-coral rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span
+                      className="w-2 h-2 bg-coral rounded-full animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    />
+                    <span
+                      className="w-2 h-2 bg-coral rounded-full animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    />
                   </div>
                 </div>
               </div>
             )}
-
             {/* Boundary overlay — draggable lines directly on the video */}
             <BoundaryOverlay
               leftPct={leftPct}
               rightPct={rightPct}
-              onChange={(l, r) => { setLeftPct(l); setRightPct(r); }}
+              onChange={(l, r) => {
+                setLeftPct(l);
+                setRightPct(r);
+              }}
             />
-
             {/* CVMonitor mounted for motion detection */}
             <CVMonitor
               externalVideoRef={videoRef}
@@ -586,10 +634,10 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
               sendApi={isStreaming}
               showDebugHUD
               onAlertDebug={(a) => {
-                console.log('[Broadcaster] CVMonitor alert received', a, { isStreaming });
+                console.log("[Broadcaster] CVMonitor alert received", a, { isStreaming });
                 if (isStreaming) {
-                  if (a.type === 'ACTIVE') sendMonitorEvent('ACTIVE', a.details);
-                  else if (a.type === 'BOUNDARY') sendMonitorEvent('BOUNDARY', a.details);
+                  if (a.type === "ACTIVE") sendMonitorEvent("ACTIVE", a.details);
+                  else if (a.type === "BOUNDARY") sendMonitorEvent("BOUNDARY", a.details);
                 }
               }}
             />
@@ -628,8 +676,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
 
           {lastEvent && (
             <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-3 mb-4 flex items-center gap-2 text-sm text-blue-200">
-              🔔 Notification sent: <strong>{lastEvent.reason}</strong> at{" "}
-              {new Date(lastEvent.at).toLocaleTimeString()}
+              🔔 Notification sent: <strong>{lastEvent.reason}</strong> at {new Date(lastEvent.at).toLocaleTimeString()}
             </div>
           )}
 

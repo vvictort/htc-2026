@@ -46,7 +46,9 @@ export default function MonitorPage() {
   const [lullabyError, setLullabyError] = useState<string | null>(null);
 
   /* Lullaby remote playback state */
-  const [lullabyRemote, setLullabyRemote] = useState<{ state: string; currentTime: number; duration: number } | null>(null);
+  const [lullabyRemote, setLullabyRemote] = useState<{ state: string; currentTime: number; duration: number } | null>(
+    null,
+  );
 
   // Update roomId when currentUser changes
   useEffect(() => {
@@ -74,19 +76,19 @@ export default function MonitorPage() {
       }
     });
 
-      return () => {
-        console.log("[MonitorPage] Disconnecting Socket.IO");
-        socketRef.current?.disconnect();
-        socketRef.current = null;
-      };
+    return () => {
+      console.log("[MonitorPage] Disconnecting Socket.IO");
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
   }, [mode, roomId]);
 
-    // Connect to Socket.IO when in viewer mode
+  // Connect to Socket.IO when in viewer mode
   useEffect(() => {
     if (mode === "viewer" && roomId) {
       console.log("[MonitorPage] Connecting to Socket.IO for room:", roomId);
       socketRef.current = io(BACKEND_URL);
-        
+
       socketRef.current.on("connect", () => {
         console.log("[MonitorPage] Socket connected:", socketRef.current?.id);
         socketRef.current?.emit("join-room", roomId);
@@ -98,8 +100,7 @@ export default function MonitorPage() {
         socketRef.current = null;
       };
     }
-    }, [mode, roomId]);
-
+  }, [mode, roomId]);
 
   useEffect(() => {
     return () => {
@@ -115,20 +116,20 @@ export default function MonitorPage() {
       alert("No authentication token found. Please log in again.");
       return;
     }
-    
+
     if (!socketRef.current?.connected) {
       alert("Not connected to baby device. Please ensure the baby camera is online.");
       return;
     }
-    
+
     const payload = { text: ttsText.trim(), babyDeviceId: roomId };
-    console.log("[TTS] Sending request:", { 
-      endpoint: AUDIO_ENDPOINTS.STREAM, 
+    console.log("[TTS] Sending request:", {
+      endpoint: AUDIO_ENDPOINTS.STREAM,
       payload,
       roomId,
-      hasToken: !!authToken 
+      hasToken: !!authToken,
     });
-    
+
     setTtsSending(true);
     try {
       const res = await fetch(AUDIO_ENDPOINTS.STREAM, {
@@ -136,25 +137,25 @@ export default function MonitorPage() {
         headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      
+
       console.log("[TTS] Response status:", res.status);
-      
+
       if (res.ok) {
         const blob = await res.blob();
-        
+
         // Convert blob to base64 data URL so it can be sent via Socket.IO
         const reader = new FileReader();
         reader.onloadend = () => {
           const audioDataUrl = reader.result as string;
-          
+
           // Send audio data URL to baby device via Socket.IO
           console.log("[TTS] Sending audio to baby device via Socket.IO");
           socketRef.current?.emit("play-audio", roomId, audioDataUrl);
-          
+
           console.log("[TTS] Success! Audio sent to baby device.");
         };
         reader.readAsDataURL(blob);
-        
+
         setTtsText("");
       } else {
         const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
@@ -191,7 +192,12 @@ export default function MonitorPage() {
       });
       if (!res.ok) {
         let msg = `Error ${res.status}`;
-        try { const d = await res.json(); if (d?.error) msg = d.error; } catch { /* ignore */ }
+        try {
+          const d = await res.json();
+          if (d?.error) msg = d.error;
+        } catch {
+          /* ignore */
+        }
         throw new Error(msg);
       }
       const blob = await res.blob();
@@ -202,7 +208,9 @@ export default function MonitorPage() {
       // Send to baby device via socket
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64 = (reader.result as string).replace(/^data:audio\/mpeg;base64,/, "").replace(/^data:[^;]+;base64,/, "");
+        const base64 = (reader.result as string)
+          .replace(/^data:audio\/mpeg;base64,/, "")
+          .replace(/^data:[^;]+;base64,/, "");
         socketRef.current?.emit("lullaby-play", roomId, {
           audioBase64: base64,
           durationMs: DURATION_SECONDS[length] * 1000,
@@ -268,13 +276,12 @@ export default function MonitorPage() {
         {/* ── HUD Layer ── */}
         <div
           className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-300 ${hudVisible ? "opacity-100" : "opacity-0"}`}>
-
           {/* Top bar */}
           <div className="pointer-events-auto flex items-center justify-between px-4 py-3 bg-linear-to-b from-black/70 to-transparent">
             <div className="flex items-center gap-3">
               <span className="text-xl">👶</span>
               <span className="text-white font-bold text-sm tracking-wide">
-                Baby<span className="text-coral">Watcher</span>
+                Lulla<span className="text-coral">link</span>
               </span>
               <span className="ml-1 flex items-center gap-1.5 text-xs text-white/60">
                 <span className="inline-block w-2 h-2 bg-coral rounded-full animate-pulse" />
@@ -282,7 +289,10 @@ export default function MonitorPage() {
               </span>
             </div>
             <button
-              onClick={(e) => { e.stopPropagation(); setMode("select"); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMode("select");
+              }}
               className="px-4 py-1.5 text-sm text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-all">
               ✕ Exit
             </button>
@@ -292,18 +302,28 @@ export default function MonitorPage() {
           <div className="pointer-events-auto absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3">
             {/* TTS button */}
             <button
-              onClick={(e) => { e.stopPropagation(); setTtsOpen((v) => !v); setLullabyOpen(false); }}
-              className={`group w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-lg ${ttsOpen ? "bg-coral text-white" : "bg-white/15 hover:bg-white/25 text-white"
-                }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setTtsOpen((v) => !v);
+                setLullabyOpen(false);
+              }}
+              className={`group w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-lg ${
+                ttsOpen ? "bg-coral text-white" : "bg-white/15 hover:bg-white/25 text-white"
+              }`}
               title="Talk to baby">
               <span className="text-xl">🎤</span>
             </button>
 
             {/* Lullaby button */}
             <button
-              onClick={(e) => { e.stopPropagation(); setLullabyOpen((v) => !v); setTtsOpen(false); }}
-              className={`group w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-lg ${lullabyOpen ? "bg-soft-blue text-white" : "bg-white/15 hover:bg-white/25 text-white"
-                }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLullabyOpen((v) => !v);
+                setTtsOpen(false);
+              }}
+              className={`group w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-lg ${
+                lullabyOpen ? "bg-soft-blue text-white" : "bg-white/15 hover:bg-white/25 text-white"
+              }`}
               title="Generate lullaby">
               <span className="text-xl">🎶</span>
             </button>
@@ -332,7 +352,9 @@ export default function MonitorPage() {
                   type="text"
                   value={ttsText}
                   onChange={(e) => setTtsText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleTts(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleTts();
+                  }}
                   placeholder="Type a message to say…"
                   className="flex-1 px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white text-sm placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-coral/50"
                 />
@@ -369,10 +391,11 @@ export default function MonitorPage() {
                         type="button"
                         key={v.value}
                         onClick={() => setVibe(v.value)}
-                        className={`py-2 px-1 rounded-lg text-center text-xs font-medium transition-all ${vibe === v.value
+                        className={`py-2 px-1 rounded-lg text-center text-xs font-medium transition-all ${
+                          vibe === v.value
                             ? "bg-soft-blue/30 text-white border border-soft-blue/60"
                             : "bg-white/5 text-white/60 border border-transparent hover:bg-white/10"
-                          }`}>
+                        }`}>
                         <span className="block text-base mb-0.5">{v.emoji}</span>
                         {v.label}
                       </button>
@@ -389,10 +412,11 @@ export default function MonitorPage() {
                         type="button"
                         key={l.value}
                         onClick={() => setLength(l.value)}
-                        className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${length === l.value
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                          length === l.value
                             ? "bg-coral/30 text-white border border-coral/60"
                             : "bg-white/5 text-white/60 border border-transparent hover:bg-white/10"
-                          }`}>
+                        }`}>
                         {l.label}
                       </button>
                     ))}
@@ -419,7 +443,10 @@ export default function MonitorPage() {
                       <span className="animate-pulse">🎶</span> Playing on baby device
                     </span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleStopLullaby(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStopLullaby();
+                      }}
                       className="text-[0.65rem] text-red-400 hover:text-red-300 font-semibold">
                       ⏹ Stop
                     </button>
@@ -428,7 +455,9 @@ export default function MonitorPage() {
                   <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-1.5">
                     <div
                       className="h-full bg-purple-400 rounded-full transition-all duration-1000"
-                      style={{ width: `${lullabyRemote.duration ? (lullabyRemote.currentTime / lullabyRemote.duration) * 100 : 0}%` }}
+                      style={{
+                        width: `${lullabyRemote.duration ? (lullabyRemote.currentTime / lullabyRemote.duration) * 100 : 0}%`,
+                      }}
                     />
                   </div>
                   <div className="flex justify-between text-[0.6rem] text-white/40">
@@ -474,9 +503,7 @@ export default function MonitorPage() {
           <h1 className="text-3xl font-extrabold text-charcoal">
             Parent <span className="text-coral">Monitor</span>
           </h1>
-          <p className="text-mid-gray text-sm mt-2">
-            Watch your baby's live stream from anywhere
-          </p>
+          <p className="text-mid-gray text-sm mt-2">Watch your baby's live stream from anywhere</p>
         </div>
 
         {/* Connection card */}
@@ -518,8 +545,12 @@ export default function MonitorPage() {
           <div className="px-6 py-4 bg-ice-blue/40">
             <p className="text-xs font-semibold text-charcoal mb-2">How it works</p>
             <ol className="list-decimal list-inside space-y-1 text-[0.7rem] text-charcoal/70 leading-relaxed">
-              <li>On baby's device, open <strong>/baby</strong> and start the camera</li>
-              <li>On this device, tap <strong>Watch Baby Stream</strong></li>
+              <li>
+                On baby's device, open <strong>/baby</strong> and start the camera
+              </li>
+              <li>
+                On this device, tap <strong>Watch Baby Stream</strong>
+              </li>
               <li>Connection is automatic — same account, same room</li>
             </ol>
           </div>

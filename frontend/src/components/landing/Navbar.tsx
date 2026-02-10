@@ -88,7 +88,7 @@ export default function Navbar() {
           {isLoggedIn ? (
             <>
               <Link
-                to="/monitor"
+                to="/dashboard"
                 className="text-sm font-semibold px-5 py-2 rounded-full text-charcoal hover:bg-warm-cream/60 transition-all no-underline">
                 Dashboard
               </Link>
@@ -156,7 +156,7 @@ export default function Navbar() {
                 {isLoggedIn ? (
                   <>
                     <Link
-                      to="/monitor"
+                      to="/dashboard"
                       className="btn-secondary text-center no-underline rounded-full"
                       onClick={() => setMenuOpen(false)}>
                       Dashboard

@@ -1,8 +1,12 @@
+import { useEffect } from "react";
 import { Navbar, Footer } from "../components/landing";
 import { motion } from "framer-motion";
 import { BabySun, BabyHeart, BabyCloud, BabyStar } from "../components/landing/BabyIcons";
 
 export default function AboutPage() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   return (
     <div className="min-h-screen bg-warm-white">
       <Navbar />
@@ -53,7 +57,7 @@ export default function AboutPage() {
               <span className="text-coral">Little One's Safety</span>
             </h1>
             <p className="text-mid-gray mt-6 max-w-2xl mx-auto text-base leading-relaxed">
-              BabyWatcher was born from a simple idea: parents deserve peace of mind. We're building the most intuitive,
+              Lullalink was born from a simple idea: parents deserve peace of mind. We're building the most intuitive,
               reliable baby monitoring solution for modern families.
             </p>
           </motion.div>
