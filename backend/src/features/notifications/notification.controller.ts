@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Notification from "../../shared/models/Notification";
 import User from "../../shared/models/User";
-import { sendEmail, sendSms, buildNotificationEmail, createSnapshotAttachment } from "./notification.service";
+import { sendEmail, buildNotificationEmail, createSnapshotAttachment } from "./notification.service";
 
 // Shared reference to Socket.IO instance — set from index.ts
 let ioInstance: any = null;
@@ -90,7 +90,6 @@ export const createNotification = async (req: Request, res: Response): Promise<v
     // ────── External delivery (fire-and-forget) ──────
     const prefs = user.notificationPreferences || {
       email: true,
-      sms: false,
       push: true,
     };
     const timeStr = new Date().toLocaleTimeString();
@@ -103,10 +102,6 @@ export const createNotification = async (req: Request, res: Response): Promise<v
         buildNotificationEmail(type, message, timeStr, !!snapshot),
         attachments,
       ).catch((e) => console.error("Email send error:", e));
-    }
-
-    if (prefs.sms && user.phone) {
-      sendSms(user.phone, `Lullalink: ${message} (${timeStr})`).catch((e) => console.error("SMS send error:", e));
     }
 
     res.status(201).json({
@@ -219,13 +214,11 @@ export const markAllAsRead = async (req: Request, res: Response): Promise<void> 
 
 export const updatePreferences = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, sms, push, phone } = req.body;
+    const { email, push } = req.body;
 
     const update: Record<string, unknown> = {};
     if (email !== undefined) update["notificationPreferences.email"] = !!email;
-    if (sms !== undefined) update["notificationPreferences.sms"] = !!sms;
     if (push !== undefined) update["notificationPreferences.push"] = !!push;
-    if (phone !== undefined) update.phone = phone;
 
     const user = await User.findOneAndUpdate({ firebaseUid: req.user?.uid }, { $set: update }, { new: true });
 
@@ -236,7 +229,6 @@ export const updatePreferences = async (req: Request, res: Response): Promise<vo
 
     res.json({
       notificationPreferences: user.notificationPreferences,
-      phone: user.phone,
     });
   } catch (err) {
     console.error("Error updating preferences:", err);
@@ -257,10 +249,8 @@ export const getPreferences = async (req: Request, res: Response): Promise<void>
     res.json({
       notificationPreferences: user.notificationPreferences || {
         email: true,
-        sms: false,
         push: true,
       },
-      phone: user.phone || "",
     });
   } catch (err) {
     console.error("Error fetching preferences:", err);

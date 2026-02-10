@@ -12,9 +12,8 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
-    phone: "",
     enableCustomVoice: true,
-    notifications: { email: true, sms: false, push: true },
+    notifications: { email: true, push: true },
   });
 
   const [voiceMode, setVoiceMode] = useState<"preset" | "clone">("preset");
@@ -29,22 +28,11 @@ export default function ProfilePage() {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleNotificationChange = (id: "email" | "sms" | "push") => {
+  const handleNotificationChange = (id: "email" | "push") => {
     setFormData((prev) => ({
       ...prev,
       notifications: { ...prev.notifications, [id]: !prev.notifications[id] },
     }));
-  };
-
-  // Validate phone number format (accepts various formats, will be normalized on backend)
-  const validatePhone = (phone: string): { valid: boolean; normalized: string | null } => {
-    if (!phone) return { valid: true, normalized: null }; // Empty is OK
-    const digits = phone.replace(/\D/g, "");
-    if (digits.length < 10) return { valid: false, normalized: null };
-    if (digits.length === 10) return { valid: true, normalized: `+1${digits}` };
-    if (digits.length === 11 && digits.startsWith("1")) return { valid: true, normalized: `+${digits}` };
-    if (digits.length >= 10 && phone.startsWith("+")) return { valid: true, normalized: `+${digits}` };
-    return { valid: false, normalized: null };
   };
 
   // Load notification prefs + phone on mount
@@ -60,10 +48,8 @@ export default function ProfilePage() {
           const data = await res.json();
           setFormData((prev) => ({
             ...prev,
-            phone: data.phone || "",
             notifications: {
               email: data.notificationPreferences?.email ?? true,
-              sms: data.notificationPreferences?.sms ?? false,
               push: data.notificationPreferences?.push ?? true,
             },
           }));
@@ -199,9 +185,7 @@ export default function ProfilePage() {
         },
         body: JSON.stringify({
           email: formData.notifications.email,
-          sms: formData.notifications.sms,
           push: formData.notifications.push,
-          phone: formData.phone || undefined,
         }),
       });
 
@@ -262,33 +246,6 @@ export default function ProfilePage() {
                     className="w-full px-4 py-3 rounded-xl bg-warm-white border border-warm-cream focus:outline-none focus:ring-2 focus:ring-coral"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-semibold text-charcoal mb-2">
-                    Phone Number <span className="text-mid-gray font-normal">(for SMS alerts)</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="(555) 123-4567"
-                    className={`w-full px-4 py-3 rounded-xl bg-warm-white border focus:outline-none focus:ring-2 transition-all ${
-                      formData.phone
-                        ? validatePhone(formData.phone).valid
-                          ? "border-soft-green focus:ring-soft-green/50 focus:border-soft-green"
-                          : "border-coral focus:ring-coral/50 focus:border-coral"
-                        : "border-warm-cream focus:ring-coral"
-                    }`}
-                  />
-                  {formData.phone && (
-                    <p
-                      className={`text-xs mt-1 ${validatePhone(formData.phone).valid ? "text-soft-green" : "text-coral"}`}>
-                      {validatePhone(formData.phone).valid
-                        ? `✓ Will be saved as ${validatePhone(formData.phone).normalized}`
-                        : "Enter at least 10 digits (e.g., (555) 123-4567 or +15551234567)"}
-                    </p>
-                  )}
-                </div>
               </div>
             </div>
           </section>
@@ -300,19 +257,13 @@ export default function ProfilePage() {
             <h3 className="text-xl font-bold text-charcoal mb-6 flex items-center gap-2">
               <span className="text-2xl">🔔</span> Notification Preferences
             </h3>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 gap-6">
               {[
                 {
                   id: "email",
                   label: "Email Alerts",
                   icon: "📧",
                   desc: "Get daily summaries and important alerts via email.",
-                },
-                {
-                  id: "sms",
-                  label: "SMS Messages",
-                  icon: "📱",
-                  desc: "Receive instant text messages for critical events.",
                 },
                 {
                   id: "push",
@@ -348,7 +299,7 @@ export default function ProfilePage() {
                       type="checkbox"
                       className="hidden"
                       checked={formData.notifications[item.id as keyof typeof formData.notifications]}
-                      onChange={() => handleNotificationChange(item.id as "email" | "sms" | "push")}
+                      onChange={() => handleNotificationChange(item.id as "email" | "push")}
                     />
                   </div>
                   <span className="font-bold text-charcoal mb-1">{item.label}</span>

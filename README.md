@@ -41,7 +41,6 @@ graph TB
         ELEVEN["🎵 ElevenLabs<br/><i>TTS · Cloning · Music</i>"]
         GEMINI["🤖 Google Gemini<br/><i>Threat Classification</i>"]
         SG["📧 SendGrid"]
-        TW["📱 Twilio"]
         TURN["🌐 TURN Server"]
     end
 
@@ -63,7 +62,6 @@ graph TB
     AUTHCTRL <--> MONGO
     NCTRL <--> MONGO
     NCTRL --> SG
-    NCTRL --> TW
     NCTRL --> SIG
     ACTRL --> ELEVEN
     ACTRL <--> MONGO
@@ -80,7 +78,6 @@ graph TB
     style FB fill:#FFA000,color:#fff,stroke:#e69000
     style MONGO fill:#47A248,color:#fff,stroke:#3a8a3c
     style SG fill:#1A82E2,color:#fff,stroke:#1570c6
-    style TW fill:#F22F46,color:#fff,stroke:#d92a3f
 ```
 
 ## Workflow
@@ -94,10 +91,9 @@ sequenceDiagram
     participant FB as Firebase Auth
     participant EL as ElevenLabs
     participant SG as SendGrid
-    participant TW as Twilio
 
     Note over Parent, Baby: 1️⃣ Authentication
-    Parent->>BE: POST /api/auth/signup {email, password, phone}
+    Parent->>BE: POST /api/auth/signup {email, password}
     BE->>FB: createUser()
     FB-->>BE: uid + customToken
     BE->>DB: Create User document
@@ -131,7 +127,6 @@ sequenceDiagram
         BE->>DB: Create Notification
         BE-->>Parent: Socket: new-notification
         BE->>SG: Send email alert (async)
-        BE->>TW: Send SMS alert (async)
     end
 
     Note over Parent, Baby: 5️⃣ Legacy Monitor Events
@@ -140,7 +135,6 @@ sequenceDiagram
     BE->>DB: Save notification
     BE-->>Parent: Socket: new-notification
     BE->>SG: Send email alert (async)
-    BE->>TW: Send SMS alert (async)
 
     Note over Parent, Baby: 6️⃣ Parent Interacts
     Parent->>BE: POST /api/audio/stream {text}
@@ -248,26 +242,26 @@ htc-2026/
 
 ## Technology Stack
 
-| Technology          | Purpose                                                        |
-| ------------------- | -------------------------------------------------------------- |
-| **Node.js**         | Backend runtime                                                |
-| **TypeScript**      | Type-safe development (frontend & backend)                     |
-| **Express**         | REST API framework                                             |
-| **MongoDB Atlas**   | User profiles, notifications, audio logs, motion logs          |
-| **Mongoose**        | MongoDB ODM with schemas & validation                          |
-| **Firebase**        | Authentication (Admin SDK + client SDK + REST API)             |
-| **Socket.IO**       | Real-time notification push + WebRTC signaling                 |
-| **WebRTC**          | Peer-to-peer video streaming (STUN + TURN)                     |
-| **ElevenLabs**      | TTS (`eleven_turbo_v2`), voice cloning, music gen (`music_v1`) |
-| **SendGrid**        | Email notification delivery                                    |
-| **Twilio**          | SMS notification delivery                                      |
-| **React 19 + Vite** | Frontend SPA                                                   |
-| **Tailwind CSS v4** | Utility-first styling                                          |
-| **Framer Motion**   | Page & component animations                                    |
-| **Lenis**           | Smooth scrolling                                               |
-| **TensorFlow.js**   | Baby pose detection                                            |
-| **OpenCV**          | Baby motion detection & categorization (Python)                |
-| **Google Gemini**   | AI threat classification (`gemini-2.0-flash`)                  |
+| Technology        | Purpose                                                        |
+| ----------------- | -------------------------------------------------------------- |
+| **Node.js**       | Backend runtime                                                |
+| **TypeScript**    | Type-safe development (frontend & backend)                     |
+| **Express**       | REST API framework                                             |
+| **MongoDB Atlas** | User profiles, notifications, audio logs, motion logs          |
+| **Mongoose**      | MongoDB ODM with schemas & validation                          |
+| **Firebase**      | Authentication (Admin SDK + client SDK + REST API)             |
+| **Socket.IO**     | Real-time notification push + WebRTC signaling                 |
+| **WebRTC**        | Peer-to-peer video streaming (STUN + TURN)                     |
+| **ElevenLabs**    | TTS (`eleven_turbo_v2`), voice cloning, music gen (`music_v1`) |
+| **SendGrid**      | Email notification delivery                                    |
+
+| **React 19 + Vite** | Frontend SPA |
+| **Tailwind CSS v4** | Utility-first styling |
+| **Framer Motion** | Page & component animations |
+| **Lenis** | Smooth scrolling |
+| **TensorFlow.js** | Baby pose detection |
+| **OpenCV** | Baby motion detection & categorization (Python) |
+| **Google Gemini** | AI threat classification (`gemini-2.0-flash`) |
 
 ---
 
@@ -325,8 +319,8 @@ htc-2026/
 
 #### Profile & Settings (`/profile`)
 
-- Profile details: display name, email, phone (for SMS alerts)
-- Notification preferences: email / SMS / push toggle cards
+- Profile details: display name, email
+- Notification preferences: email / push toggle cards
 - **Voice Dubbing** (tabbed UI):
   - **Preset Voices** tab — browse & select from ElevenLabs voice library
   - **My Voice Clone** tab — record audio samples, upload for cloning
@@ -364,8 +358,7 @@ Content-Type: application/json
 {
   "email": "parent@example.com",
   "password": "securePassword123",
-  "displayName": "Parent Name",
-  "phone": "+15551234567"           // optional, for SMS alerts
+  "displayName": "Parent Name"
 }
 ```
 
@@ -630,7 +623,6 @@ Content-Type: application/json
 
 - Emits `new-notification` via Socket.IO to `user:<firebaseUid>` room
 - Sends email via SendGrid (if `notificationPreferences.email` is `true`)
-- Sends SMS via Twilio (if `notificationPreferences.sms` is `true` and `phone` is set)
 
 #### List Notifications (Paginated)
 
@@ -678,10 +670,8 @@ Authorization: Bearer <token>
 {
   "notificationPreferences": {
     "email": true,
-    "sms": false,
     "push": true
-  },
-  "phone": "+15551234567"
+  }
 }
 ```
 
@@ -694,9 +684,7 @@ Content-Type: application/json
 
 {
   "email": true,
-  "sms": true,
-  "push": true,
-  "phone": "+15551234567"
+  "push": true
 }
 ```
 
@@ -762,7 +750,6 @@ Content-Type: application/json
 - Creates a `Notification` record
 - Emits `new-notification` via Socket.IO
 - Sends email via SendGrid (if `notificationPreferences.email`)
-- Sends SMS via Twilio (if `notificationPreferences.sms` + `phone`)
 
 **Fallback:** If `GEMINI_API_KEY` is not set, a rule-based classifier is used (e.g. `face_covered` → always `danger`).
 
@@ -1027,7 +1014,6 @@ Devices on the **same account** connect automatically without manual room entry.
 - ElevenLabs API key
 - Google Gemini API key (for AI threat classification)
 - SendGrid API key (for email alerts)
-- Twilio account (for SMS alerts)
 
 ### Environment Variables
 
@@ -1054,11 +1040,6 @@ ELEVENLABS_VOICE_ID=default_voice_id
 # SendGrid (Email)
 SENDGRID_API_KEY=SG.xxxxxxxxxxxxx
 SENDGRID_FROM_EMAIL=noreply@yourdomain.com
-
-# Twilio (SMS)
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxx
-TWILIO_FROM_NUMBER=+15551234567
 
 # Google Gemini (AI threat classification)
 GEMINI_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

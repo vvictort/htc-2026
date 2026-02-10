@@ -3,12 +3,7 @@ import MotionLog, { MOTION_CATEGORIES, MotionCategory } from "../../shared/model
 import Notification from "../../shared/models/Notification";
 import User from "../../shared/models/User";
 import { classifyMotion } from "./gemini.service";
-import {
-  sendEmail,
-  sendSms,
-  buildNotificationEmail,
-  createSnapshotAttachment,
-} from "../notifications/notification.service";
+import { sendEmail, buildNotificationEmail, createSnapshotAttachment } from "../notifications/notification.service";
 
 // Socket.IO instance (shared from index.ts via notification controller)
 let ioInstance: any = null;
@@ -189,7 +184,6 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
       // ── External delivery (fire-and-forget) ──
       const prefs = user.notificationPreferences || {
         email: true,
-        sms: false,
         push: true,
       };
 
@@ -214,15 +208,6 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
           buildNotificationEmail(classification.threatLevel, message, timeStr, !!snapshot),
           attachments,
         ).catch((e) => console.error("Email send error:", e));
-      }
-
-      if (prefs.sms && user.phone) {
-        console.log(`📱 Sending SMS to ${user.phone}...`);
-        sendSms(user.phone, `Lullalink ${emoji}: ${classification.reason} (${timeStr})`).catch((e) =>
-          console.error("SMS send error:", e),
-        );
-      } else if (prefs.sms && !user.phone) {
-        console.warn("⚠️ SMS preference enabled but no phone number on user profile");
       }
     }
 

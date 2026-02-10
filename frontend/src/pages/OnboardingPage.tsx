@@ -204,7 +204,7 @@ export default function OnboardingPage() {
                   </p>
 
                   <div className="space-y-4">
-                    {["Push Notifications", "Email Alerts", "SMS Messages"].map((method) => (
+                    {["Push Notifications", "Email Alerts"].map((method) => (
                       <label
                         key={method}
                         className="flex items-center gap-4 p-4 rounded-xl border border-warm-cream cursor-pointer hover:bg-warm-white transition-colors">
