@@ -18,7 +18,7 @@ export default function Sidebar() {
     try {
       // Use centralized logout utility
       await logout();
-      
+
       // Redirect to home page
       navigate("/");
     } catch (error) {
@@ -44,12 +44,20 @@ export default function Sidebar() {
         } rounded-r-3xl my-2 ml-2 h-[calc(100vh-16px)] group overflow-hidden`}>
         {/* Logo Area - Clickable to go home */}
         <button
-          onClick={() => navigate("/")}
+          onClick={() => {
+            navigate("/");
+            setIsMobileMenuOpen(false);
+          }}
           className="p-8 border-b border-warm-cream/50 flex items-center gap-3 overflow-hidden whitespace-nowrap hover:bg-warm-cream/30 transition-colors duration-300 w-full text-left cursor-pointer">
           <span className="text-4xl animate-bounce-slow shrink-0">👶</span>
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-x-10 group-hover:translate-x-0">
+          <div
+            className={`transition-all duration-300 ${
+              isMobileMenuOpen
+                ? "opacity-100 translate-x-0"
+                : "opacity-0 lg:opacity-0 lg:group-hover:opacity-100 translate-x-10 lg:group-hover:translate-x-0"
+            }`}>
             <h1 className="font-extrabold text-2xl text-charcoal leading-none tracking-tight">
-              Baby<span className="text-coral">Watcher</span>
+              Lulla<span className="text-coral">link</span>
             </h1>
             <span className="text-[0.65rem] text-mid-gray tracking-[0.2em] uppercase font-bold bg-warm-white px-2 py-0.5 rounded-full mt-1 inline-block">
               Dashboard
@@ -76,7 +84,12 @@ export default function Sidebar() {
                       className={`text-2xl shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover/item:scale-110"}`}>
                       {item.icon}
                     </span>
-                    <span className="relative z-10 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-10 group-hover:translate-x-0">
+                    <span
+                      className={`relative z-10 transition-all duration-300 ${
+                        isMobileMenuOpen
+                          ? "opacity-100 translate-x-0"
+                          : "opacity-0 lg:opacity-0 lg:group-hover:opacity-100 translate-x-10 lg:group-hover:translate-x-0"
+                      }`}>
                       {item.label}
                     </span>
 
@@ -97,7 +110,12 @@ export default function Sidebar() {
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-mid-gray hover:bg-red-50 hover:text-red-500 transition-all duration-300 font-bold group/logout">
             <span className="text-2xl group-hover/logout:-translate-x-1 transition-transform shrink-0">🚪</span>
-            <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-10 group-hover:translate-x-0">
+            <span
+              className={`transition-all duration-300 ${
+                isMobileMenuOpen
+                  ? "opacity-100 translate-x-0"
+                  : "opacity-0 lg:opacity-0 lg:group-hover:opacity-100 translate-x-10 lg:group-hover:translate-x-0"
+              }`}>
               Log Out
             </span>
           </button>
