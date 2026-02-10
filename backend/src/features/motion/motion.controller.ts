@@ -109,9 +109,27 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
     // ── Rate limit check (before any DB / Gemini calls) ──
     const uid = req.user?.uid || "anon";
     const rl = checkRateLimit(uid, category);
+
+    // Default: try to use Gemini if allowed
+    let useGemini = rl.allowed;
+
     if (!rl.allowed) {
-      res.status(429).json({ error: "Rate limited", reason: rl.reason });
-      return;
+      // If blocked by duplicate category spam, reject entirely
+      if (rl.reason?.includes("Duplicate")) {
+        res.status(429).json({ error: "Rate limited", reason: rl.reason });
+        return;
+      }
+
+      // If blocked by quota (MAX_EVENTS_PER_WINDOW), we proceed but SKIP Gemini.
+      // This ensures safety events are still logged via fallback rules.
+      if (rl.reason?.includes("Rate limit exceeded")) {
+        console.warn(`[rate-limit] User ${uid} exceeded Gemini quota. Falling back to rules for ${category}.`);
+        useGemini = false;
+      } else {
+        // Any other reason (buffers, etc) -> block
+        res.status(429).json({ error: "Rate limited", reason: rl.reason });
+        return;
+      }
     }
 
     // Validate confidence
@@ -129,8 +147,9 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
     }
 
     // ── Gemini classification ──
-    console.log(`[motion] 📥 Received: category="${category}", confidence=${conf}`);
-    const classification = await classifyMotion(category as MotionCategory, conf, metadata);
+    console.log(`[motion] 📥 Received: category="${category}", confidence=${conf} | useGemini=${useGemini}`);
+    // Pass !useGemini as the skipGemini flag
+    const classification = await classifyMotion(category as MotionCategory, conf, metadata, !useGemini);
     console.log(`[motion] 🤖 Gemini result: ${classification.threatLevel} — "${classification.reason}"`);
 
     const shouldNotify = classification.threatLevel === "caution" || classification.threatLevel === "danger";

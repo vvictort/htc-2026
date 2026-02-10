@@ -20,6 +20,85 @@ const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 /**
+ * Deterministic rule-based classification fallback.
+ * Uses the same logic described in the Gemini prompt to ensure consistency
+ * when the API is unavailable or rate-limited.
+ */
+export function ruleBasedClassification(category: MotionCategory, confidence: number): GeminiClassification {
+  // High-risk categories
+  if (category === "face_covered") {
+    return {
+      threatLevel: "danger",
+      reason: "Face covered detected. Potential suffocation risk.",
+    };
+  }
+
+  // Medium-risk / Caution categories
+  if (category === "crying_motion") {
+    return {
+      threatLevel: "caution",
+      reason: "Crying motion detected. Baby may need attention.",
+    };
+  }
+
+  if (category === "flailing") {
+    return {
+      threatLevel: "caution",
+      reason: "Flailing detected. Baby may be in distress.",
+    };
+  }
+
+  if (category === "out_of_frame") {
+    return {
+      threatLevel: "caution",
+      reason: "Baby not detected in frame. Please check monitor.",
+    };
+  }
+
+  if (category === "standing") {
+    return {
+      threatLevel: "caution",
+      reason: "Baby is standing up. Caution advised regarding fall risk.",
+    };
+  }
+
+  if (category === "unknown") {
+    return {
+      threatLevel: "caution",
+      reason: "Unrecognised motion detected. Please check monitor.",
+    };
+  }
+
+  // Developmental milestones (usually safe unless low confidence)
+  if (["rolling", "crawling", "sitting_up"].includes(category)) {
+    if (confidence < 0.5) {
+      return {
+        threatLevel: "caution",
+        reason: `Possible ${category} detected with low confidence.`,
+      };
+    }
+    return {
+      threatLevel: "safe",
+      reason: `Baby is ${category.replace("_", " ")}.`,
+    };
+  }
+
+  // Low risk
+  if (category === "still") {
+    return {
+      threatLevel: "safe",
+      reason: "Baby is still (sleeping or resting).",
+    };
+  }
+
+  // Default / slight_movement
+  return {
+    threatLevel: "safe",
+    reason: "Normal baby activity detected.",
+  };
+}
+
+/**
  * Build the prompt for Gemini. We give it structured context so the
  * response is deterministic and parseable.
  */
@@ -60,15 +139,20 @@ export async function classifyMotion(
   category: MotionCategory,
   confidence: number,
   metadata?: Record<string, unknown>,
+  skipGemini = false,
 ): Promise<GeminiClassification> {
+  // Immediate fallback if requested
+  if (skipGemini) {
+    console.log(`[gemini] Skipping API call for ${category}, using rule-based fallback.`);
+    return ruleBasedClassification(category, confidence);
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
     console.error("❌ GEMINI_API_KEY not set — cannot classify motion");
-    return {
-      threatLevel: "caution",
-      reason: "GEMINI_API_KEY missing. Cannot classify.",
-    };
+    console.error("❌ GEMINI_API_KEY not set — using rule-based fallback");
+    return ruleBasedClassification(category, confidence);
   }
 
   try {
@@ -96,17 +180,13 @@ export async function classifyMotion(
       console.error(`❌ Gemini API error (${res.status}):`, errText);
 
       if (res.status === 429) {
-        return {
-          threatLevel: "safe",
-          reason: "Gemini rate limit exceeded. Skipping classification (assumed safe).",
-        };
+        console.warn("⚠️ Gemini rate limit (429) — using rule-based fallback");
+        return ruleBasedClassification(category, confidence);
       }
 
       // Return safe to avoid notifying users about API errors
-      return {
-        threatLevel: "safe",
-        reason: "Classification temporarily unavailable. Assumed safe.",
-      };
+      console.warn(`⚠️ Gemini error ${res.status} — using rule-based fallback`);
+      return ruleBasedClassification(category, confidence);
     }
 
     const data = (await res.json()) as {
@@ -177,9 +257,7 @@ export async function classifyMotion(
   } catch (err) {
     console.error("❌ Gemini classification failed:", err);
     // Return safe to avoid notifying users about internal errors
-    return {
-      threatLevel: "safe",
-      reason: "Classification temporarily unavailable. Assumed safe.",
-    };
+    console.warn("⚠️ Gemini exception — using rule-based fallback");
+    return ruleBasedClassification(category, confidence);
   }
 }
