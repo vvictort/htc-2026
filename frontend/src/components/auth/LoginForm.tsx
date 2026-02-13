@@ -44,22 +44,16 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Sanitize input - remove any potentially harmful characters
   const sanitizeInput = (value: string): string => {
     return value
       .trim()
-      .replace(/[<>]/g, "") // Remove angle brackets to prevent XSS
-      .substring(0, 255); // Limit length
+      .replace(/[<>]/g, "")
+      .substring(0, 255);
   };
-
-  // Validate email format
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
-
-  // Handle input change with sanitization
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const sanitizedValue = sanitizeInput(value);
@@ -68,8 +62,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       ...prev,
       [name]: sanitizedValue,
     }));
-
-    // Clear errors for this field
     setErrors((prev) => ({
       ...prev,
       [name]: "",
@@ -77,19 +69,13 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     setApiError("");
     setApiHelp("");
   };
-
-  // Validate form before submission
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginFormData> = {};
-
-    // Email validation
     if (!formData.email) {
       newErrors.email = "Email is required";
     } else if (!validateEmail(formData.email)) {
       newErrors.email = "Please enter a valid email address";
     }
-
-    // Password validation
     if (!formData.password) {
       newErrors.password = "Password is required";
     }
@@ -97,14 +83,10 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  // Handle form submission
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setApiError("");
     setApiHelp("");
-
-    // Validate form
     if (!validateForm()) {
       return;
     }
@@ -126,31 +108,25 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       const data: ApiError | ApiSuccess = await response.json();
 
       if (!response.ok) {
-        // Handle error response
         const errorData = data as ApiError;
         setApiError(errorData.error || "Login failed");
         if (errorData.help) {
           setApiHelp(errorData.help);
         }
       } else {
-        // Handle success response
         const successData = data as ApiSuccess;
-
-        // Store tokens (use localStorage or sessionStorage based on "Remember Me")
         const storage = rememberMe ? localStorage : sessionStorage;
         storage.setItem("idToken", successData.idToken);
         storage.setItem("refreshToken", successData.refreshToken);
         storage.setItem("user", JSON.stringify(successData.user));
 
         console.log("Login successful:", successData.user);
-
-        // Redirect based on user status (new vs returning)
         if (onSuccess) {
           onSuccess();
         } else {
           const isNewUser = sessionStorage.getItem("isNewUser") === "true";
           if (isNewUser) {
-            sessionStorage.removeItem("isNewUser"); // Clear flag
+            sessionStorage.removeItem("isNewUser");
             setTimeout(() => {
               window.location.href = "/onboarding";
             }, 500);
@@ -168,22 +144,15 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       setIsLoading(false);
     }
   };
-
-  // Handle Google Sign-In
   const handleGoogleSignIn = async () => {
     setApiError("");
     setApiHelp("");
     setIsGoogleLoading(true);
 
     try {
-      // Sign in with Google popup
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-
-      // Get the ID token from Firebase
       const idToken = await user.getIdToken();
-
-      // Send token to backend for verification and MongoDB user creation
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       const response = await fetch(`${apiUrl}/auth/google`, {
         method: "POST",
@@ -198,7 +167,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       const data: ApiError | ApiSuccess = await response.json();
 
       if (!response.ok) {
-        // Handle error response
         const errorData = data as ApiError;
         setApiError(errorData.error || "Google sign-in failed");
         if (errorData.help) {
@@ -206,11 +174,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         }
         return;
       }
-
-      // Handle success response
       const successData = data as ApiSuccess;
-
-      // Store tokens (use localStorage for Google sign-in by default)
       const storage = rememberMe ? localStorage : sessionStorage;
       storage.setItem("idToken", successData.idToken);
       if (successData.refreshToken) {
@@ -219,8 +183,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       storage.setItem("user", JSON.stringify(successData.user));
 
       console.log("Google sign-in successful:", successData.user);
-
-      // Redirect to dashboard
       if (onSuccess) {
         onSuccess();
       } else {
@@ -254,8 +216,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       <div className="bg-white rounded-card border border-white/60 shadow-[0_20px_50px_rgba(31,29,43,0.15)] p-8">
         <h2 className="text-3xl font-extrabold text-charcoal mb-2 text-center">Welcome Back</h2>
         <p className="text-mid-gray text-center mb-6">Log in to your Lullalink account</p>
-
-        {/* Error Message */}
         {apiError && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -267,7 +227,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
         )}
 
         <form onSubmit={handleSubmit} noValidate>
-          {/* Email */}
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-semibold text-charcoal mb-1.5">
               Email Address
@@ -285,8 +244,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             />
             {errors.email && <p className="text-xs text-coral mt-1">{errors.email}</p>}
           </div>
-
-          {/* Password */}
           <div className="mb-4">
             <label htmlFor="password" className="block text-sm font-semibold text-charcoal mb-1.5">
               Password
@@ -342,8 +299,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             </div>
             {errors.password && <p className="text-xs text-coral mt-1">{errors.password}</p>}
           </div>
-
-          {/* Remember Me & Forgot Password */}
           <div className="flex items-center justify-between mb-6">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -358,8 +313,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
               Forgot password?
             </a>
           </div>
-
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
@@ -367,16 +320,12 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             {isLoading ? "Logging In..." : "Log In"}
           </button>
         </form>
-
-        {/* Link to Sign Up */}
         <p className="text-sm text-center text-mid-gray mt-6">
           Don't have an account?{" "}
           <a href="/signup" className="text-coral hover:text-coral-dark font-semibold">
             Sign Up
           </a>
         </p>
-
-        {/* Divider */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-warm-cream"></div>
@@ -385,8 +334,6 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
             <span className="bg-white px-2 text-light-gray">Or continue with</span>
           </div>
         </div>
-
-        {/* Social Login (Optional - for future implementation) */}
         <div className="flex justify-center">
           <button
             type="button"

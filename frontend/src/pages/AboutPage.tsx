@@ -12,7 +12,6 @@ export default function AboutPage() {
       <Navbar />
 
       <main className="pt-24 pb-16 relative overflow-hidden">
-        {/* Decorative icons */}
         <motion.div
           className="absolute top-32 right-10 w-20 h-20 pointer-events-none"
           animate={{ rotate: [0, 5, -5, 0] }}
@@ -42,7 +41,6 @@ export default function AboutPage() {
         </motion.div>
 
         <div className="max-w-4xl mx-auto px-6">
-          {/* Hero */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -61,8 +59,6 @@ export default function AboutPage() {
               reliable baby monitoring solution for modern families.
             </p>
           </motion.div>
-
-          {/* Mission Section */}
           <motion.section
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -77,8 +73,6 @@ export default function AboutPage() {
               </p>
             </div>
           </motion.section>
-
-          {/* Values Grid */}
           <motion.section
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -122,8 +116,6 @@ export default function AboutPage() {
               ))}
             </div>
           </motion.section>
-
-          {/* Team Placeholder */}
           <motion.section
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -134,8 +126,6 @@ export default function AboutPage() {
             <p className="text-mid-gray mb-8">
               A passionate group of engineers and parents building the future of baby care.
             </p>
-
-            {/* Team placeholder */}
             <div className="bg-charcoal/5 rounded-3xl p-12 flex items-center justify-center">
               <div className="text-center text-charcoal/30">
                 <span className="text-5xl block mb-3">👨‍👩‍👧‍👦</span>

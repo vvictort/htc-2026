@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { BabyBottle, BabyPacifier, BabyStroller, BabyCrib, BabyMobile, BabyBib } from "./BabyIcons";
 
-// Scattered icons for HowItWorks section
 const howItWorksIcons = [
   { Icon: BabyBottle, top: "12%", right: "6%", size: "w-10 h-14", color: "text-soft-blue/20", rotate: 15 },
   { Icon: BabyPacifier, top: "30%", left: "4%", size: "w-14 h-10", color: "text-coral/18", rotate: -10 },
@@ -41,7 +40,6 @@ const steps = [
 export default function HowItWorks() {
   return (
     <section id="how-it-works" className="relative py-24 overflow-hidden">
-      {/* Seamless gradient from Features (white) and preparing for Footer transition */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -53,13 +51,9 @@ export default function HowItWorks() {
                     )`,
         }}
       />
-
-      {/* Decorative blobs */}
       <div className="absolute top-1/4 left-0 w-64 h-64 rounded-full bg-soft-green/10 blur-[70px]" />
       <div className="absolute bottom-1/4 right-0 w-72 h-72 rounded-full bg-soft-blue/12 blur-[80px]" />
       <div className="absolute bottom-0 left-1/3 w-56 h-56 rounded-full bg-coral/8 blur-[60px]" />
-
-      {/* Scattered playful icons */}
       {howItWorksIcons.map((item, idx) => (
         <motion.div
           key={idx}
@@ -79,7 +73,6 @@ export default function HowItWorks() {
       ))}
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
-        {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
           <motion.span
             initial={{ opacity: 0, y: 10 }}
@@ -107,8 +100,6 @@ export default function HowItWorks() {
             Get started in under a minute. No downloads, no fuss — just open your browser and start watching.
           </motion.p>
         </div>
-
-        {/* Steps */}
         <div className="grid md:grid-cols-3 gap-8">
           {steps.map((item, i) => (
             <motion.div
@@ -118,10 +109,7 @@ export default function HowItWorks() {
               viewport={{ once: true }}
               transition={{ delay: i * 0.15, duration: 0.5 }}
               className={`clay-step-card relative rounded-[28px] border ${item.borderColor} ${item.color} p-8 flex flex-col gap-4`}>
-              {/* Step number */}
               <span className="text-5xl font-black text-charcoal/8">{item.step}</span>
-
-              {/* Emoji badge */}
               <motion.div
                 whileHover={{ rotate: [0, -10, 10, 0], transition: { duration: 0.4 } }}
                 className="w-14 h-14 rounded-2xl bg-white shadow-[0_6px_20px_rgba(31,29,43,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] flex items-center justify-center">
@@ -130,8 +118,6 @@ export default function HowItWorks() {
 
               <h3 className="text-xl font-bold">{item.title}</h3>
               <p className="text-sm leading-relaxed">{item.description}</p>
-
-              {/* Connector line (except last) */}
               {i < steps.length - 1 && (
                 <div className="hidden md:block absolute top-1/2 -right-4 w-8 border-t-2 border-dashed border-light-gray" />
               )}

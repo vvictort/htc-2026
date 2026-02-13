@@ -31,26 +31,25 @@ export default function MonitorPage() {
   const [roomId, setRoomId] = useState(defaultRoom);
   const socketRef = useRef<Socket | null>(null);
 
-  /* ── HUD state ── */
+  
   const [hudVisible, setHudVisible] = useState(true);
   const [ttsOpen, setTtsOpen] = useState(false);
   const [lullabyOpen, setLullabyOpen] = useState(false);
   const [ttsText, setTtsText] = useState("");
   const [ttsSending, setTtsSending] = useState(false);
 
-  /* Lullaby state */
+  
   const [vibe, setVibe] = useState<LullabyVibe>("lullaby");
   const [length, setLength] = useState<LullabyLength>("medium");
   const [lullabyLoading, setLullabyLoading] = useState(false);
   const [lullabyUrl, setLullabyUrl] = useState<string | null>(null);
   const [lullabyError, setLullabyError] = useState<string | null>(null);
 
-  /* Lullaby remote playback state */
+  
   const [lullabyRemote, setLullabyRemote] = useState<{ state: string; currentTime: number; duration: number } | null>(
     null,
   );
 
-  // Update roomId when currentUser changes
   useEffect(() => {
     if (currentUser?.uid) {
       const newRoomId = `baby-${currentUser.uid.slice(0, 12)}`;
@@ -59,7 +58,6 @@ export default function MonitorPage() {
     }
   }, [currentUser]);
 
-  // Open a lightweight socket connection when in viewer mode for lullaby signaling
   useEffect(() => {
     if (mode !== "viewer") return;
     const sock = io(BACKEND_URL);
@@ -83,7 +81,6 @@ export default function MonitorPage() {
     };
   }, [mode, roomId]);
 
-  // Connect to Socket.IO when in viewer mode
   useEffect(() => {
     if (mode === "viewer" && roomId) {
       console.log("[MonitorPage] Connecting to Socket.IO for room:", roomId);
@@ -108,7 +105,7 @@ export default function MonitorPage() {
     };
   }, [lullabyUrl]);
 
-  /* ── TTS handler ── */
+  
   const handleTts = async () => {
     if (!ttsText.trim() || ttsSending) return;
     const authToken = authCtxToken || getAuthToken();
@@ -143,12 +140,10 @@ export default function MonitorPage() {
       if (res.ok) {
         const blob = await res.blob();
 
-        // Convert blob to base64 data URL so it can be sent via Socket.IO
         const reader = new FileReader();
         reader.onloadend = () => {
           const audioDataUrl = reader.result as string;
 
-          // Send audio data URL to baby device via Socket.IO
           console.log("[TTS] Sending audio to baby device via Socket.IO");
           socketRef.current?.emit("play-audio", roomId, audioDataUrl);
 
@@ -170,7 +165,7 @@ export default function MonitorPage() {
     }
   };
 
-  /* ── Lullaby handler ── */
+  
   const DURATION_SECONDS: Record<LullabyLength, number> = { short: 30, medium: 60, long: 120 };
 
   const handleLullaby = async (e: FormEvent) => {
@@ -196,7 +191,7 @@ export default function MonitorPage() {
           const d = await res.json();
           if (d?.error) msg = d.error;
         } catch {
-          /* ignore */
+          
         }
         throw new Error(msg);
       }
@@ -205,7 +200,6 @@ export default function MonitorPage() {
       if (lullabyUrl) URL.revokeObjectURL(lullabyUrl);
       setLullabyUrl(url);
 
-      // Send to baby device via socket
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64 = (reader.result as string)
@@ -264,19 +258,15 @@ export default function MonitorPage() {
     );
   }
 
-  /* ── Full-screen viewer mode with HUD ── */
+  
   if (mode === "viewer") {
     return (
       <div className="fixed inset-0 bg-black flex flex-col" onClick={() => setHudVisible((v) => !v)}>
-        {/* Full-screen video (behind everything) */}
         <div className="absolute inset-0">
           <Viewer roomId={roomId} fullscreen />
         </div>
-
-        {/* ── HUD Layer ── */}
         <div
           className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-300 ${hudVisible ? "opacity-100" : "opacity-0"}`}>
-          {/* Top bar */}
           <div className="pointer-events-auto flex items-center justify-between px-4 py-3 bg-linear-to-b from-black/70 to-transparent">
             <div className="flex items-center gap-3">
               <span className="text-xl">👶</span>
@@ -297,10 +287,7 @@ export default function MonitorPage() {
               ✕ Exit
             </button>
           </div>
-
-          {/* ── Floating action buttons (right edge) ── */}
           <div className="pointer-events-auto absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3">
-            {/* TTS button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -313,8 +300,6 @@ export default function MonitorPage() {
               title="Talk to baby">
               <span className="text-xl">🎤</span>
             </button>
-
-            {/* Lullaby button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -327,8 +312,6 @@ export default function MonitorPage() {
               title="Generate lullaby">
               <span className="text-xl">🎶</span>
             </button>
-
-            {/* Dashboard shortcut */}
             <a
               href="/dashboard"
               onClick={(e) => e.stopPropagation()}
@@ -337,8 +320,6 @@ export default function MonitorPage() {
               <span className="text-xl">📊</span>
             </a>
           </div>
-
-          {/* ── TTS Panel (slides in from right) ── */}
           {ttsOpen && (
             <div
               className="pointer-events-auto absolute right-20 top-1/2 -translate-y-1/2 w-80 bg-black/70 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl p-5 animate-in slide-in-from-right"
@@ -370,8 +351,6 @@ export default function MonitorPage() {
               </p>
             </div>
           )}
-
-          {/* ── Lullaby Panel (slides in from right) ── */}
           {lullabyOpen && (
             <div
               className="pointer-events-auto absolute right-20 top-1/2 -translate-y-1/2 w-80 max-h-[80vh] overflow-y-auto bg-black/70 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl p-5"
@@ -382,7 +361,6 @@ export default function MonitorPage() {
               </div>
 
               <form onSubmit={handleLullaby} className="space-y-4">
-                {/* Vibes grid */}
                 <div>
                   <span className="text-xs text-white/50 font-medium block mb-2">Vibe</span>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -402,8 +380,6 @@ export default function MonitorPage() {
                     ))}
                   </div>
                 </div>
-
-                {/* Duration pills */}
                 <div>
                   <span className="text-xs text-white/50 font-medium block mb-2">Duration</span>
                   <div className="flex gap-2">
@@ -434,8 +410,6 @@ export default function MonitorPage() {
                   {lullabyLoading ? "Generating…" : "🎵 Generate & Play on Baby Device"}
                 </button>
               </form>
-
-              {/* Remote playback status */}
               {lullabyRemote && (
                 <div className="mt-4 bg-purple-500/10 rounded-xl p-3 border border-purple-400/20">
                   <div className="flex items-center justify-between mb-2">
@@ -451,7 +425,6 @@ export default function MonitorPage() {
                       ⏹ Stop
                     </button>
                   </div>
-                  {/* Progress bar */}
                   <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-1.5">
                     <div
                       className="h-full bg-purple-400 rounded-full transition-all duration-1000"
@@ -466,8 +439,6 @@ export default function MonitorPage() {
                   </div>
                 </div>
               )}
-
-              {/* Download link (only when not playing) */}
               {lullabyUrl && !lullabyRemote && (
                 <div className="mt-3 text-center">
                   <a
@@ -480,8 +451,6 @@ export default function MonitorPage() {
               )}
             </div>
           )}
-
-          {/* Bottom bar */}
           <div className="pointer-events-auto absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-linear-to-t from-black/70 to-transparent">
             <span className="text-xs text-white/40 font-mono">Room: {roomId}</span>
             <span className="text-[0.6rem] text-white/30">Tap screen to toggle HUD</span>
@@ -491,11 +460,10 @@ export default function MonitorPage() {
     );
   }
 
-  /* ── Select / connect screen ── */
+  
   return (
     <div className="min-h-screen bg-warm-white flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
-        {/* Header */}
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-coral/10 mb-4">
             <span className="text-4xl">📹</span>
@@ -505,11 +473,8 @@ export default function MonitorPage() {
           </h1>
           <p className="text-mid-gray text-sm mt-2">Watch your baby's live stream from anywhere</p>
         </div>
-
-        {/* Connection card */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <div className="p-6 space-y-5">
-            {/* Room ID */}
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-base">📡</span>
@@ -527,8 +492,6 @@ export default function MonitorPage() {
                 Automatically paired to your account. Both devices on the same account connect instantly.
               </p>
             </div>
-
-            {/* CTA */}
             <button
               className="w-full py-4 rounded-xl bg-coral hover:bg-coral-dark active:scale-[0.98] text-white font-bold text-base flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
               onClick={() => setMode("viewer")}
@@ -537,11 +500,7 @@ export default function MonitorPage() {
               Watch Baby Stream
             </button>
           </div>
-
-          {/* Divider */}
           <div className="h-px bg-warm-cream" />
-
-          {/* How it works */}
           <div className="px-6 py-4 bg-ice-blue/40">
             <p className="text-xs font-semibold text-charcoal mb-2">How it works</p>
             <ol className="list-decimal list-inside space-y-1 text-[0.7rem] text-charcoal/70 leading-relaxed">
@@ -555,8 +514,6 @@ export default function MonitorPage() {
             </ol>
           </div>
         </div>
-
-        {/* Footer links */}
         <div className="flex items-center justify-center gap-4 text-sm">
           <a href="/baby" className="text-soft-blue hover:text-soft-blue/80 font-medium transition-colors">
             Switch to Baby Device →

@@ -21,7 +21,6 @@ export default function NotificationsPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Fetch notifications from API
   const fetchNotifications = useCallback(async () => {
     const authToken = token || getAuthToken();
     if (!authToken) return;
@@ -42,12 +41,10 @@ export default function NotificationsPage() {
     }
   }, [token]);
 
-  // Initial fetch
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Socket.IO — realtime notification updates
   useEffect(() => {
     if (!currentUser?.uid) return;
 
@@ -67,7 +64,6 @@ export default function NotificationsPage() {
     };
   }, [currentUser?.uid]);
 
-  // Mark single notification as read
   const markAsRead = async (id: string) => {
     const authToken = token || getAuthToken();
     if (!authToken) return;
@@ -84,7 +80,6 @@ export default function NotificationsPage() {
     }
   };
 
-  // Mark all as read
   const markAllAsRead = async () => {
     const authToken = token || getAuthToken();
     if (!authToken) return;
@@ -173,7 +168,6 @@ export default function NotificationsPage() {
                 key={notif.id}
                 onClick={() => !notif.read && markAsRead(notif.id)}
                 className={`p-4 hover:bg-warm-cream/20 transition-colors flex items-start gap-4 cursor-pointer ${!notif.read ? "bg-ice-blue/10" : ""}`}>
-                {/* Snapshot thumbnail or icon */}
                 {notif.snapshot ? (
                   <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-warm-cream">
                     <img

@@ -24,7 +24,6 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
     { urls: "stun:stun1.l.google.com:19302" },
   ]);
 
-  // Fetch TURN/STUN servers from backend for cross-network connectivity
   useEffect(() => {
     fetch(WEBRTC_ENDPOINTS.ICE_SERVERS)
       .then((r) => r.json())
@@ -84,7 +83,6 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
       console.log("Broadcaster exists:", broadcasterId);
       broadcasterIdRef.current = broadcasterId;
       setWaitingForBroadcaster(false);
-      // Broadcaster will send offer to us automatically
     });
 
     socketRef.current.on("broadcaster-ready", async (broadcasterId: string) => {
@@ -92,13 +90,10 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
       broadcasterIdRef.current = broadcasterId;
       setWaitingForBroadcaster(false);
 
-      // Automatically start connection when broadcaster comes online
-      // Close existing connection if any
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
       }
 
-      // The broadcaster will now send us an offer since we're already in the room
       setError(null);
     });
 
@@ -137,23 +132,19 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
       }
     });
 
-    // Cleanup function - called when component unmounts or roomId changes
     return () => {
       console.log("Viewer component unmounting - cleaning up for room:", roomId);
 
-      // Close peer connection
       if (peerConnectionRef.current) {
         console.log("Closing peer connection");
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
-        // Stop video
         const videoElement = videoRef.current;
         if (videoElement) {
           videoElement.srcObject = null;
         }
       }
 
-      // Disconnect socket - this will trigger server-side cleanup
       if (socketRef.current) {
         console.log("Disconnecting viewer socket:", socketRef.current.id);
         socketRef.current.disconnect();
@@ -190,7 +181,7 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
       default:
         return "⚪";
     }
-  };  /* ── Fullscreen mode: video fills entire container ── */
+  };  
   if (fullscreen) {
     return (
       <div className="relative w-full h-full bg-black">
@@ -201,8 +192,6 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
           className="absolute inset-0 w-full h-full object-cover"
           style={{ transform: 'scaleX(-1)' }}
         />
-
-        {/* Waiting / error overlay */}
         {!isConnected && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className="text-center space-y-4">
@@ -224,8 +213,6 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
             </div>
           </div>
         )}
-
-        {/* Connection indicator pill (top-right, over video) */}
         {isConnected && (
           <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
             <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse" />
@@ -236,7 +223,7 @@ export default function Viewer({ roomId, fullscreen = false }: ViewerProps) {
     );
   }
 
-  /* ── Default card layout (legacy) ── */
+  
   return (
     <div className="flex flex-col gap-4 p-6 max-w-4xl w-full">
       <div className="bg-gray-800 rounded-xl shadow-2xl">

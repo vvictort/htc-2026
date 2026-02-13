@@ -29,7 +29,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Firebase client SDK login (e.g. Google popup)
         try {
           const idToken = await getIdToken(user, true);
           console.log("AuthContext: Got Firebase token for", user.email);
@@ -39,11 +38,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           localStorage.setItem("idToken", idToken);
         } catch (error) {
           console.error("AuthContext: Failed to get Firebase token", error);
-          // Fall through to check storage
           checkStorageAuth();
         }
       } else {
-        // No Firebase user — check if logged in via backend API
         console.log("AuthContext: No Firebase user, checking storage...");
         checkStorageAuth();
       }

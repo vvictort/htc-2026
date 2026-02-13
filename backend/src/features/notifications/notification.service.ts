@@ -6,13 +6,12 @@
  *   SENDGRID_FROM_EMAIL    — verified sender email
  */
 
-// ────────────────────────────── Email (SendGrid REST API) ──────────────────────────────
 
 interface EmailAttachment {
-  content: string; // Base64 encoded content (without data URI prefix)
+  content: string;
   filename: string;
-  type: string; // MIME type, e.g. "image/jpeg"
-  content_id: string; // CID for inline referencing in HTML
+  type: string;
+  content_id: string;
   disposition: "inline" | "attachment";
 }
 
@@ -38,7 +37,6 @@ export async function sendEmail(
       content: [{ type: "text/html", value: htmlBody }],
     };
 
-    // Add attachments if provided
     if (attachments && attachments.length > 0) {
       emailData.attachments = attachments;
     }
@@ -66,7 +64,6 @@ export async function sendEmail(
   }
 }
 
-// ────────────────────────────── Build notification email HTML ──────────────────────────────
 
 const SNAPSHOT_CID = "baby-snapshot";
 
@@ -99,7 +96,6 @@ export function createSnapshotAttachment(snapshotBase64: string): {
   content_id: string;
   disposition: "inline";
 } {
-  // Remove data URI prefix if present (e.g., "data:image/jpeg;base64,")
   const base64Content = snapshotBase64.includes(",") ? snapshotBase64.split(",")[1] : snapshotBase64;
 
   return {

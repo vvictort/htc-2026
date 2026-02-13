@@ -24,7 +24,6 @@ export default function AuthShowcase() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-8 mb-12">
-                    {/* Sign Up Form */}
                     <div>
                         <h2 className="text-2xl font-bold text-charcoal mb-6 text-center">
                             Sign Up Form
@@ -44,8 +43,6 @@ export default function AuthShowcase() {
                             </ul>
                         </div>
                     </div>
-
-                    {/* Login Form */}
                     <div>
                         <h2 className="text-2xl font-bold text-charcoal mb-6 text-center">
                             Login Form
@@ -66,8 +63,6 @@ export default function AuthShowcase() {
                         </div>
                     </div>
                 </div>
-
-                {/* API Testing Info */}
                 <div className="bg-white/80 backdrop-blur-xl rounded-[var(--radius-card)] border border-white/60 shadow-[0_12px_40px_rgba(31,29,43,0.12)] p-8">
                     <h2 className="text-2xl font-bold text-charcoal mb-4">
                         API Endpoints
@@ -107,8 +102,6 @@ export default function AuthShowcase() {
                         </p>
                     </div>
                 </div>
-
-                {/* Security Features */}
                 <div className="mt-8 bg-white/80 backdrop-blur-xl rounded-[var(--radius-card)] border border-white/60 shadow-[0_12px_40px_rgba(31,29,43,0.12)] p-8">
                     <h2 className="text-2xl font-bold text-charcoal mb-4">
                         Security Features

@@ -15,13 +15,11 @@ export default function OnboardingPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   const handleNext = async () => {
-    // Validate Step 2 (Voice)
     if (step === 2) {
       if (voiceMethod === "clone" && recordedBlobs.length === 0) {
         alert("Please record at least one sample.");
         return;
       }
-      // ... (rest of validation)
       if (voiceMethod === "preset" && !selectedVoiceId) {
         alert("Please select a voice.");
         return;
@@ -30,14 +28,12 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Step 3: Finish & Save All
     if (step === 3) {
       setIsUploading(true);
       try {
         const token = sessionStorage.getItem("idToken") || localStorage.getItem("idToken");
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-        // 1. Save Voice (Clone or Preset)
         if (voiceMethod === "clone" && recordedBlobs.length > 0) {
           const formData = new FormData();
           formData.append("name", "My Voice");
@@ -53,7 +49,6 @@ export default function OnboardingPage() {
           });
           if (!response.ok) throw new Error("Failed to upload voice");
         } else if (voiceMethod === "preset" && selectedVoiceId) {
-          // ... (preset logic)
           const response = await fetch(`${apiUrl}/audio/voice`, {
             method: "PUT",
             headers: {
@@ -84,7 +79,6 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-warm-white flex items-center justify-center p-4">
       <div className="w-full max-w-4xl bg-white rounded-card shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-screen md:min-h-[600px] lg:min-h-[700px]">
-        {/* Left Panel - Progress/Info */}
         <div className="bg-coral/10 p-6 md:p-8 md:w-1/3 flex flex-col justify-between border-b md:border-b-0 md:border-r border-warm-cream">
           <div>
             <div className="text-3xl md:text-4xl mb-4 md:mb-6">👶</div>
@@ -99,8 +93,6 @@ export default function OnboardingPage() {
             <StepIndicator current={step} number={2} title="Voice Selection" />
             <StepIndicator current={step} number={3} title="Notifications" />
           </div>
-
-          {/* Mobile Steps */}
           <div className="flex md:hidden gap-2 mt-4">
             {[1, 2, 3].map((i) => (
               <div
@@ -112,8 +104,6 @@ export default function OnboardingPage() {
 
           <div className="text-xs text-mid-gray/50 mt-4 md:mt-0">Step {step} of 3</div>
         </div>
-
-        {/* Right Panel - Content */}
         <div className="p-6 md:p-8 md:w-2/3 flex flex-col">
           <div className="flex-1">
             <AnimatePresence mode="wait">
@@ -225,8 +215,6 @@ export default function OnboardingPage() {
               )}
             </AnimatePresence>
           </div>
-
-          {/* Footer Navigation (only for steps > 1) */}
           {step > 1 && (
             <div className="mt-8 pt-6 border-t border-warm-cream flex justify-end">
               <button onClick={handleNext} className="btn-primary" disabled={isUploading}>

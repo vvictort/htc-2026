@@ -15,17 +15,13 @@ import motionRoutes from './features/motion/motion.routes';
 import { setIO } from './features/notifications/notification.controller';
 import { setMotionIO } from './features/motion/motion.controller';
 
-// Load environment variables
 dotenv.config();
 
-// Initialize Firebase
 initializeFirebase();
 
-// Create Express app
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// Create HTTP server and Socket.IO instance
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
@@ -34,23 +30,19 @@ const io = new Server(httpServer, {
     }
 });
 
-// Share Socket.IO instance with notification + motion controllers for realtime push
 setIO(io);
 setMotionIO(io);
 
-// Middleware
-app.use(helmet()); // Security headers
-app.use(cors()); // Enable CORS
-app.use(morgan('dev')); // Logging
-app.use(express.json({ limit: '5mb' })); // Parse JSON bodies (increased for base64 snapshots)
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(helmet());
+app.use(cors());
+app.use(morgan('dev'));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-// Health check route
 app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
-// Root route
 app.get('/', (_req: Request, res: Response) => {
     res.status(200).json({
         message: 'Welcome to the TypeScript Express API',
@@ -62,24 +54,18 @@ app.get('/', (_req: Request, res: Response) => {
     });
 });
 
-// API routes
 app.get('/api', (_req: Request, res: Response) => {
     res.status(200).json({ message: 'Welcome to the API' });
 });
 
-// Auth routes
 app.use('/api/auth', authRoutes);
 
-// Audio routes
 app.use('/api/audio', audioRoutes);
 
-// Notification routes
 app.use('/api/notifications', notificationRoutes);
 
-// Motion event routes (OpenCV camera → Gemini classification)
 app.use('/api/motion', motionRoutes);
 
-// Protected route example - requires authentication
 app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => {
     res.status(200).json({
         message: 'This is a protected route',
@@ -90,7 +76,6 @@ app.get('/api/protected', verifyFirebaseToken, (req: Request, res: Response) => 
     });
 });
 
-// WebRTC Signaling with Socket.IO
 interface Room {
     broadcaster?: string;
     viewers: Set<string>;
@@ -98,7 +83,6 @@ interface Room {
 
 const rooms = new Map<string, Room>();
 
-// Live status endpoint — exposes active monitors / viewers from in-memory rooms
 app.get('/api/status', (_req: Request, res: Response) => {
     let activeMonitors = 0;
     let totalViewers = 0;
@@ -125,7 +109,6 @@ app.get('/api/status', (_req: Request, res: Response) => {
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
-    // Allow authenticated clients to join a user-specific room for realtime notifications
     socket.on('subscribe-notifications', (firebaseUid: string) => {
         socket.join(`user:${firebaseUid}`);
         console.log(`Socket ${socket.id} subscribed to notifications for user ${firebaseUid}`);
@@ -140,7 +123,6 @@ io.on('connection', (socket) => {
 
         const room = rooms.get(roomId)!;
 
-        // If there's already a broadcaster, tell this viewer about them
         if (room.broadcaster) {
             socket.emit('broadcaster-exists', room.broadcaster);
         }
@@ -153,10 +135,8 @@ io.on('connection', (socket) => {
         if (room) {
             room.broadcaster = socket.id;
 
-            // Notify all viewers in the room that broadcaster is ready
             socket.to(roomId).emit('broadcaster-ready', socket.id);
 
-            // Tell the broadcaster about all existing viewers so it can send offers
             room.viewers.forEach(viewerId => {
                 socket.emit('viewer-joined', viewerId);
                 console.log(`Notifying broadcaster ${socket.id} about existing viewer ${viewerId}`);
@@ -187,7 +167,6 @@ io.on('connection', (socket) => {
         socket.to(id).emit('ice-candidate', socket.id, candidate);
     });
 
-    // ── Lullaby relay: viewer → broadcaster (same room) ──
     socket.on('lullaby-play', (roomId: string, payload: { audioBase64: string; durationMs: number; vibe: string }) => {
         const room = rooms.get(roomId);
         if (room?.broadcaster) {
@@ -204,12 +183,10 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Broadcaster → viewers: playback status updates
     socket.on('lullaby-status', (roomId: string, status: { state: string; currentTime: number; duration: number }) => {
         socket.to(roomId).emit('lullaby-status', status);
     });
 
-    // ── TTS relay: viewer → broadcaster (same room) ──
     socket.on('tts-play', (roomId: string, payload: { audioBase64: string }) => {
         const room = rooms.get(roomId);
         if (room?.broadcaster) {
@@ -218,7 +195,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Audio playback forwarding - send audio URL to baby device
     socket.on('play-audio', (roomId: string, audioUrl: string) => {
         console.log(`[play-audio] Forwarding audio to room ${roomId}`);
         const room = rooms.get(roomId);
@@ -233,21 +209,17 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
 
-        // Clean up rooms when broadcaster or viewer disconnects
         rooms.forEach((room, roomId) => {
-            // If disconnected client was the broadcaster
             if (room.broadcaster === socket.id) {
                 console.log(`Broadcaster ${socket.id} disconnected from room ${roomId}`);
                 socket.to(roomId).emit('broadcaster-disconnected');
                 room.broadcaster = undefined;
             }
 
-            // If disconnected client was a viewer
             if (room.viewers.has(socket.id)) {
                 console.log(`Viewer ${socket.id} disconnected from room ${roomId}`);
                 room.viewers.delete(socket.id);
 
-                // Notify broadcaster that viewer left
                 if (room.broadcaster) {
                     io.to(room.broadcaster).emit('viewer-disconnected', socket.id);
                     console.log(`Notified broadcaster ${room.broadcaster} about viewer ${socket.id} disconnect`);
@@ -257,15 +229,12 @@ io.on('connection', (socket) => {
     });
 });
 
-// WebRTC ICE server credentials endpoint
-// Returns STUN + TURN servers for NAT traversal across different networks
 app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
     const iceServers: Array<{ urls: string; username?: string; credential?: string }> = [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
     ];
 
-    // Add TURN server if configured
     const turnUrl = process.env.TURN_SERVER_URL;
     const turnUser = process.env.TURN_USERNAME;
     const turnCred = process.env.TURN_CREDENTIAL;
@@ -275,7 +244,6 @@ app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
             { urls: turnUrl, username: turnUser, credential: turnCred },
         );
     } else {
-        // Fallback: open relay TURN servers for development/hackathon
         iceServers.push(
             {
                 urls: 'turn:openrelay.metered.ca:80',
@@ -298,12 +266,10 @@ app.get('/api/webrtc/ice-servers', (_req: Request, res: Response) => {
     res.json({ iceServers });
 });
 
-// 404 handler
 app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'Route not found' });
 });
 
-// Connect to MongoDB and start server
 const startServer = async () => {
     try {
         await connectDB();

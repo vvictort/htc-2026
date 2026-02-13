@@ -3,13 +3,11 @@ import Notification from "../../shared/models/Notification";
 import User from "../../shared/models/User";
 import { sendEmail, buildNotificationEmail, createSnapshotAttachment } from "./notification.service";
 
-// Shared reference to Socket.IO instance — set from index.ts
 let ioInstance: any = null;
 export function setIO(io: any) {
   ioInstance = io;
 }
 
-// ─────────── helpers ───────────
 
 function mapEventTypeToNotificationType(reason: string): "motion" | "boundary" | "unknown" | "sound" | "system" {
   switch (reason) {
@@ -41,14 +39,12 @@ function buildMessage(type: string, details?: Record<string, unknown>): string {
   }
 }
 
-// ─────────── POST /api/notifications ───────────
-// Called by the broadcaster/camera frontend when a monitor event fires.
 
 export const createNotification = async (req: Request, res: Response): Promise<void> => {
   try {
     const { reason, snapshot, details } = req.body as {
       reason: string;
-      snapshot?: string; // base64 JPEG (no data-url prefix)
+      snapshot?: string;
       details?: Record<string, unknown>;
     };
 
@@ -57,7 +53,6 @@ export const createNotification = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Find user in DB
     const user = await User.findOne({ firebaseUid: req.user?.uid });
     if (!user) {
       res.status(404).json({ error: "User not found" });
@@ -75,7 +70,6 @@ export const createNotification = async (req: Request, res: Response): Promise<v
       details,
     });
 
-    // ────── Realtime push via Socket.IO ──────
     if (ioInstance) {
       ioInstance.to(`user:${user.firebaseUid}`).emit("new-notification", {
         id: notification._id,
@@ -87,7 +81,6 @@ export const createNotification = async (req: Request, res: Response): Promise<v
       });
     }
 
-    // ────── External delivery (fire-and-forget) ──────
     const prefs = user.notificationPreferences || {
       email: true,
       push: true,
@@ -108,7 +101,7 @@ export const createNotification = async (req: Request, res: Response): Promise<v
       id: notification._id,
       type: notification.type,
       message: notification.message,
-      snapshot: notification.snapshot ? true : false, // don't echo full base64 back
+      snapshot: notification.snapshot ? true : false,
       time: notification.createdAt,
       read: notification.read,
     });
@@ -118,7 +111,6 @@ export const createNotification = async (req: Request, res: Response): Promise<v
   }
 };
 
-// ─────────── GET /api/notifications ───────────
 
 export const getNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -163,7 +155,6 @@ export const getNotifications = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// ─────────── PUT /api/notifications/:id/read ───────────
 
 export const markAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -191,7 +182,6 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// ─────────── PUT /api/notifications/read-all ───────────
 
 export const markAllAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -210,7 +200,6 @@ export const markAllAsRead = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// ─────────── PUT /api/notifications/preferences ───────────
 
 export const updatePreferences = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -236,7 +225,6 @@ export const updatePreferences = async (req: Request, res: Response): Promise<vo
   }
 };
 
-// ─────────── GET /api/notifications/preferences ───────────
 
 export const getPreferences = async (req: Request, res: Response): Promise<void> => {
   try {

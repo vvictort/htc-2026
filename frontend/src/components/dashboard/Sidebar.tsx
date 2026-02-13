@@ -16,33 +16,26 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      // Use centralized logout utility
       await logout();
 
-      // Redirect to home page
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
-      // Redirect anyway
       navigate("/");
     }
   };
 
   return (
     <>
-      {/* Mobile Menu Button */}
       <button
         className="lg:hidden fixed top-4 right-4 z-50 p-2 bg-white rounded-full shadow-md text-2xl"
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
         {isMobileMenuOpen ? "✕" : "🍔"}
       </button>
-
-      {/* Sidebar Container */}
       <aside
         className={`peer fixed inset-y-0 left-0 z-40 bg-white/95 backdrop-blur-xl border-r border-warm-cream shadow-2xl flex flex-col transition-all duration-300 ease-in-out ${
           isMobileMenuOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0 lg:w-28 lg:hover:w-72"
         } rounded-r-3xl my-2 ml-2 h-[calc(100vh-16px)] group overflow-hidden`}>
-        {/* Logo Area - Clickable to go home */}
         <button
           onClick={() => {
             navigate("/");
@@ -64,8 +57,6 @@ export default function Sidebar() {
             </span>
           </div>
         </button>
-
-        {/* Navigation */}
         <nav className="flex-1 p-4 overflow-y-auto no-scrollbar overflow-x-hidden">
           <ul className="space-y-3">
             {menuItems.map((item) => {
@@ -92,8 +83,6 @@ export default function Sidebar() {
                       }`}>
                       {item.label}
                     </span>
-
-                    {/* Hover Effect Background */}
                     {!isActive && (
                       <div className="absolute inset-0 bg-warm-cream/30 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" />
                     )}
@@ -103,8 +92,6 @@ export default function Sidebar() {
             })}
           </ul>
         </nav>
-
-        {/* User / Logout */}
         <div className="p-4 border-t border-warm-cream/50 overflow-hidden whitespace-nowrap">
           <button
             onClick={handleLogout}
@@ -121,8 +108,6 @@ export default function Sidebar() {
           </button>
         </div>
       </aside>
-
-      {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-charcoal/20 backdrop-blur-sm z-30 lg:hidden"

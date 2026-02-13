@@ -16,7 +16,6 @@ export default function CVMonitor({
   leftPct?: number;
   rightPct?: number;
   mirror?: boolean;
-  // when true, CVMonitor is allowed to send API notifications (controlled by Broadcaster start)
   sendApi?: boolean;
   /** Show a real-time debug overlay with state, speeds, scores */
   showDebugHUD?: boolean;
@@ -27,7 +26,6 @@ export default function CVMonitor({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<PoseEngine | null>(null);
 
-  // If an external videoRef is provided (e.g. from Broadcaster), use it instead of creating our own stream
   const effectiveVideoRef = externalVideoRef ?? internalVideoRef;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -42,12 +40,9 @@ export default function CVMonitor({
   const lastCategoryAtRef = useRef(0);
   const pendingRef = useRef(false);
 
-  // When mirrored, PoseEngine reports boundary sides in video-space;
-  // flip the label so it matches what the user sees on screen.
   const flipSide = (side: "left" | "right" | null | undefined) =>
     !side ? side : mirror ? (side === "left" ? "right" : "left") : side;
 
-  // Show a caption that fades out whenever the state changes
   const lastCaptionStateRef = useRef<string>("");
   useEffect(() => {
     if (!metrics) return;
@@ -67,7 +62,6 @@ export default function CVMonitor({
     setCaption({ text: label, color, key: Date.now() });
   }, [metrics?.state, metrics?.breachedBoundary]);
 
-  // Auto-clear caption after 3 s
   useEffect(() => {
     if (!caption) return;
     const t = setTimeout(() => setCaption(null), 3000);
@@ -104,13 +98,10 @@ export default function CVMonitor({
 
     const category = mapToCategory(type);
 
-    // Global cooldown
     if (now - lastTriggerAtRef.current < GLOBAL_COOLDOWN_MS) return;
 
-    // Same-category dedup
     if (category === lastCategoryRef.current && now - lastCategoryAtRef.current < SAME_CATEGORY_COOLDOWN_MS) return;
 
-    // Prevent concurrent requests
     if (pendingRef.current) return;
 
     lastTriggerAtRef.current = now;
@@ -120,7 +111,6 @@ export default function CVMonitor({
 
     const confidence = metrics?.poseConfidence ?? 0.5;
 
-    // Get a fresh Firebase ID token (auto-refreshes if expired)
     let token: string | null = null;
     try {
       token = (await auth.currentUser?.getIdToken()) ?? null;
@@ -150,7 +140,6 @@ export default function CVMonitor({
     }
   };
 
-  // initialize engine
   useEffect(() => {
     let stream: MediaStream | null = null;
     let cancelled = false;
@@ -159,16 +148,12 @@ export default function CVMonitor({
       const video = effectiveVideoRef.current;
       if (!video) return;
 
-      // If there is no external videoRef, we need to open the camera ourselves
       if (externalVideoRef == null) {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         video.srcObject = stream;
         await video.play();
       }
 
-      // Wait until the video has valid dimensions (avoids TF.js 0x0 texture error)
-      // The loadeddata event may have already fired (external video from Broadcaster),
-      // so we poll as a fallback.
       const waitForDimensions = (): Promise<boolean> =>
         new Promise((resolve) => {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -183,7 +168,6 @@ export default function CVMonitor({
             resolve(video.videoWidth > 0 && video.videoHeight > 0);
           };
           video.addEventListener("loadeddata", onReady);
-          // Poll every 200ms as fallback (event may have already fired)
           const poll = setInterval(() => {
             if (resolved) {
               clearInterval(poll);
@@ -196,7 +180,6 @@ export default function CVMonitor({
               resolve(true);
             }
           }, 200);
-          // Give up after 5 seconds
           setTimeout(() => {
             if (!resolved) {
               resolved = true;
@@ -216,8 +199,6 @@ export default function CVMonitor({
       const engine = new PoseEngine(
         video,
         () => roiRef.current,
-        // Compute boundaries on the fly from current pct refs.
-        // When mirrored, screen-left = video-right, so swap & flip.
         () => {
           const vw = video.videoWidth;
           if (!vw) return {};
@@ -234,21 +215,17 @@ export default function CVMonitor({
           activeSpeedPxPerSec: 35,
           activeLimbSpeedNormPerSec: 0.5,
           activityWindowMs: 5000,
-          // require 100% activity over the window to trigger ACTIVE (resets after firing)
           activeRatioThreshold: 1.0,
         },
         (m) => setMetrics(m),
         (a) => {
-          // Forward to debug/parent callback (Broadcaster uses this to send with snapshot)
           onAlertDebug?.(a);
-          // Only send from CVMonitor directly when standalone (no onAlertDebug = not inside Broadcaster)
           if (sendApiRef.current && !onAlertDebug) {
             triggerApi(a.type, a.details ?? {});
           }
         },
       );
 
-      // Defer heavy init to next frame so UI can paint loading state first
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
       await engine.init();
@@ -267,11 +244,9 @@ export default function CVMonitor({
     };
   }, [externalVideoRef]);
 
-  // sync prop boundaries into refs (no state, no re-render loop)
   useEffect(() => {
     if (propLeftPct != null) leftPctRef.current = propLeftPct;
     if (propRightPct != null) rightPctRef.current = propRightPct;
-    // Keep ROI in sync with video dimensions
     const video = effectiveVideoRef.current;
     if (video && video.videoWidth) {
       const w = video.videoWidth;
@@ -285,7 +260,6 @@ export default function CVMonitor({
     }
   }, [propLeftPct, propRightPct]);
 
-  // Also update boundaries when video dimensions become available
   useEffect(() => {
     const video = effectiveVideoRef.current;
     if (!video) return;
@@ -301,11 +275,10 @@ export default function CVMonitor({
       ];
     };
     video.addEventListener("loadedmetadata", onMeta);
-    onMeta(); // run immediately in case already loaded
+    onMeta();
     return () => video.removeEventListener("loadedmetadata", onMeta);
   }, [effectiveVideoRef]);
 
-  // draw overlay canvas based on effective video
   useEffect(() => {
     const canvas = canvasRef.current;
     const video = effectiveVideoRef.current;
@@ -313,7 +286,6 @@ export default function CVMonitor({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // ensure canvas is positioned over the video element but under UI controls
     canvas.style.position = "fixed";
     canvas.style.pointerEvents = "none";
     canvas.style.zIndex = "1";
@@ -321,7 +293,6 @@ export default function CVMonitor({
     let raf = 0;
     const render = () => {
       const rect = video.getBoundingClientRect();
-      // size the canvas to the video's on-screen size and position it
       const w = Math.max(1, Math.round(rect.width));
       const h = Math.max(1, Math.round(rect.height));
       if (canvas.width !== w) canvas.width = w;
@@ -331,7 +302,6 @@ export default function CVMonitor({
       canvas.style.width = rect.width + "px";
       canvas.style.height = rect.height + "px";
 
-      // Keep ROI in sync with video dimensions
       if (video.videoWidth && video.videoHeight) {
         const vw = video.videoWidth;
         const vh = video.videoHeight;
@@ -345,11 +315,9 @@ export default function CVMonitor({
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // ── Centroid dot: mirrored to match the baby's position on mirrored video ──
       if (metrics?.centroid && video.videoWidth && video.videoHeight) {
         const sx = canvas.width / video.videoWidth;
         const sy = canvas.height / video.videoHeight;
-        // PoseEngine returns raw (unmirrored) coords, so mirror the x
         const cx = mirror ? canvas.width - metrics.centroid.x * sx : metrics.centroid.x * sx;
         const cy2 = metrics.centroid.y * sy;
 
@@ -369,7 +337,6 @@ export default function CVMonitor({
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 1001, pointerEvents: "none" }}>
       <div style={{ position: "relative", width: "100%", height: "100%", zIndex: 1002 }}>
-        {/* internal video is used only if no external video passed */}
         {externalVideoRef == null && (
           <video
             ref={internalVideoRef}
@@ -390,8 +357,6 @@ export default function CVMonitor({
             zIndex: 1,
           }}
         />
-
-        {/* ── Loading overlay while PoseEngine initializes ── */}
         {isLoading && (
           <div
             style={{
@@ -425,8 +390,6 @@ export default function CVMonitor({
             to { transform: rotate(360deg); }
           }
         `}</style>
-
-        {/* ── Fading category caption ── */}
         {caption && (
           <div
             key={caption.key}
@@ -460,11 +423,8 @@ export default function CVMonitor({
                         100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
                     }
                 `}</style>
-
-        {/* ── Debug HUD overlay ── */}
         {showDebugHUD && metrics && (
           <>
-            {/* Top status pill */}
             <div
               style={{
                 position: "absolute",
@@ -485,7 +445,6 @@ export default function CVMonitor({
                 color: "#fff",
                 boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
               }}>
-              {/* State badge */}
               <span
                 style={{
                   fontWeight: 800,
@@ -502,13 +461,10 @@ export default function CVMonitor({
                 {metrics.breachedBoundary ? `⚠️ ${flipSide(metrics.breachedBoundary)!.toUpperCase()}` : metrics.state}
               </span>
               <span style={{ width: 1, height: 18, background: "rgba(255,255,255,0.2)" }} />
-              {/* Pose confidence */}
               <span style={{ color: metrics.poseOk ? "#4ade80" : "#f87171", fontWeight: 600 }}>
                 {metrics.poseOk ? "✓" : "✗"} {(metrics.poseConfidence * 100).toFixed(0)}%
               </span>
             </div>
-
-            {/* Bottom metrics bar */}
             <div
               style={{
                 position: "absolute",

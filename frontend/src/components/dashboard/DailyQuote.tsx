@@ -16,7 +16,6 @@ export default function DailyQuote() {
   const [quote, setQuote] = useState(() => quotes[Math.floor(Math.random() * quotes.length)]);
 
   useEffect(() => {
-    // Rotate every 30 seconds
     const interval = setInterval(() => {
       setQuote(quotes[Math.floor(Math.random() * quotes.length)]);
     }, 30000);
@@ -26,7 +25,6 @@ export default function DailyQuote() {
 
   return (
     <div className="bg-linear-to-r from-coral/10 to-soft-blue/10 p-6 rounded-card border border-white/60 shadow-sm mb-8 relative overflow-hidden">
-      {/* Decorative background elements */}
       <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-yellow-200 rounded-full opacity-20 blur-xl"></div>
       <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-16 h-16 bg-pink-200 rounded-full opacity-20 blur-xl"></div>
 

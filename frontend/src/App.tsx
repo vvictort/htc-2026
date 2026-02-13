@@ -25,11 +25,7 @@ function App() {
         <Route path="/cv-debug" element={<CVDebug />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/auth-showcase" element={<AuthShowcase />} />
-
-        {/* Onboarding Route */}
         <Route path="/onboarding" element={<OnboardingPage />} />
-
-        {/* Dashboard Routes */}
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/notifications" element={<NotificationsPage />} />

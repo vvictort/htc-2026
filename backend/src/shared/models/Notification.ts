@@ -4,7 +4,7 @@ export interface INotification extends Document {
     userId: mongoose.Types.ObjectId;
     type: "motion" | "sound" | "boundary" | "unknown" | "system";
     message: string;
-    snapshot?: string; // base64-encoded JPEG image
+    snapshot?: string;
     read: boolean;
     details?: Record<string, unknown>;
     createdAt: Date;
@@ -29,7 +29,7 @@ const NotificationSchema: Schema = new Schema(
             required: true,
         },
         snapshot: {
-            type: String, // base64 JPEG
+            type: String,
         },
         read: {
             type: Boolean,
@@ -44,7 +44,6 @@ const NotificationSchema: Schema = new Schema(
     }
 );
 
-// Index for efficient queries: recent notifications for a user
 NotificationSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.model<INotification>("Notification", NotificationSchema);

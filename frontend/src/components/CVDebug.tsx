@@ -24,13 +24,12 @@ export default function CVDebug() {
             type: a.type,
             details: a.details ? JSON.stringify(a.details) : "",
         };
-        setEventLog((prev) => [...prev.slice(-99), entry]); // keep last 100
+        setEventLog((prev) => [...prev.slice(-99), entry]);
         setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     }, []);
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#111", color: "#eee", fontFamily: "sans-serif" }}>
-            {/* Top bar */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: "#1a1a2e", borderBottom: "1px solid #333" }}>
                 <h2 style={{ margin: 0, fontSize: 18 }}>🔬 CV Debug &nbsp;
                     <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.6 }}>real-time motion categorization</span>
@@ -43,10 +42,7 @@ export default function CVDebug() {
                     {open ? "⏹ Stop" : "▶ Start"}
                 </button>
             </div>
-
-            {/* Content */}
             <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-                {/* Camera + overlay */}
                 <div style={{ flex: 2, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", background: "#000" }}>
                     {open ? (
                         <CVMonitor
@@ -59,11 +55,7 @@ export default function CVDebug() {
                         <div style={{ color: "#666", fontSize: 20 }}>Camera stopped</div>
                     )}
                 </div>
-
-                {/* Sidebar — controls + event log */}
                 <div style={{ flex: 1, minWidth: 280, maxWidth: 360, display: "flex", flexDirection: "column", borderLeft: "1px solid #333", background: "#16161a" }}>
-
-                    {/* Boundary sliders */}
                     <div style={{ padding: 16, borderBottom: "1px solid #333" }}>
                         <h3 style={{ margin: "0 0 10px", fontSize: 14 }}>🔲 Boundary Zone</h3>
                         <label style={{ display: "block", fontSize: 12, marginBottom: 4 }}>
@@ -85,8 +77,6 @@ export default function CVDebug() {
                             style={{ width: "100%", accentColor: "#f59e0b" }}
                         />
                     </div>
-
-                    {/* Event log */}
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                         <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", borderBottom: "1px solid #333" }}>
                             <h3 style={{ margin: 0, fontSize: 14, flex: 1 }}>📋 Alert Log ({eventLog.length})</h3>

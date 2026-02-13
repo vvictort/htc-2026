@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useAuth } from "../../context/useAuth";
 import { AUDIO_ENDPOINTS, getAuthToken } from "../../utils/api";
 
@@ -30,7 +31,6 @@ export default function LullabyGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Revoke object URL when replaced/unmounted
   useEffect(() => {
     return () => {
       if (audioUrl) URL.revokeObjectURL(audioUrl);
@@ -76,7 +76,6 @@ export default function LullabyGenerator() {
           const data = await res.json();
           if (data?.error) message = data.error;
         } catch {
-          // ignore JSON parse errors
         }
         throw new Error(message);
       }

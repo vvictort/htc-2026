@@ -11,7 +11,6 @@ import { verifyFirebaseToken } from "../../shared/middleware/authMiddleware";
 
 const router = express.Router();
 
-// All routes are protected
 router.post("/", verifyFirebaseToken, createNotification);
 router.get("/", verifyFirebaseToken, getNotifications);
 router.put("/read-all", verifyFirebaseToken, markAllAsRead);

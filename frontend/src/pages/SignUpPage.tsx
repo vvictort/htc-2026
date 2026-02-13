@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 export default function SignUpPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
-      {/* Logo */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -18,11 +17,7 @@ export default function SignUpPage() {
           </span>
         </Link>
       </motion.div>
-
-      {/* Sign Up Form */}
       <SignUpForm onSuccess={() => (window.location.href = "/onboarding")} />
-
-      {/* Back to Home Link */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

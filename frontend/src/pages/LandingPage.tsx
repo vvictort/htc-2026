@@ -7,7 +7,6 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (hash) {
-      // Small delay to ensure DOM is ready and bypass potential strict mode double-mount issues
       const timer = setTimeout(() => {
         const element = document.querySelector(hash);
         if (element) {

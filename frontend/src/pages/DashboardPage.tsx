@@ -38,7 +38,6 @@ export default function DashboardPage() {
     uptime: 0,
   });
 
-  // Fetch recent notifications
   useEffect(() => {
     const fetchRecent = async () => {
       const authToken = token || getAuthToken();
@@ -61,7 +60,6 @@ export default function DashboardPage() {
     fetchRecent();
   }, [token]);
 
-  // Socket.IO — live notification updates
   useEffect(() => {
     if (!currentUser?.uid) return;
 
@@ -81,7 +79,6 @@ export default function DashboardPage() {
     };
   }, [currentUser?.uid]);
 
-  // Fetch server status (active monitors, viewers) — poll every 10s
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -188,7 +185,6 @@ export default function DashboardPage() {
       }
       subtitle="Here's what's happening with your little one today.">
       <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
-        {/* Row 1: Quote + Stats */}
         <motion.div variants={item}>
           <DailyQuote />
         </motion.div>
@@ -209,10 +205,7 @@ export default function DashboardPage() {
             </motion.div>
           ))}
         </motion.div>
-
-        {/* Row 2: Monitor + Alerts  (equal height, 2 columns) */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Monitor Card */}
           <motion.div
             variants={item}
             whileHover={{ scale: 1.01 }}
@@ -234,8 +227,6 @@ export default function DashboardPage() {
               Open Monitor
             </Link>
           </motion.div>
-
-          {/* Notifications Card */}
           <motion.div
             variants={item}
             whileHover={{ scale: 1.01 }}
@@ -294,8 +285,6 @@ export default function DashboardPage() {
             </Link>
           </motion.div>
         </div>
-
-        {/* Row 3: Lullaby Generator (full width) */}
         <motion.div variants={item}>
           <LullabyGenerator />
         </motion.div>

@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { admin } from "../../shared/config/firebase";
 import User from "../../shared/models/User";
 
-// Firebase REST API response types
 interface FirebaseAuthResponse {
   localId: string;
   idToken: string;
@@ -16,18 +15,15 @@ interface FirebaseErrorResponse {
   };
 }
 
-// Sign up - Create new user with Firebase Auth
 export const signUp = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, displayName } = req.body;
 
-    // Validate input
     if (!email || !password) {
       res.status(400).json({ error: "Email and password are required" });
       return;
     }
 
-    // OWASP password validation
     if (password.length < 8) {
       res.status(400).json({ error: "Password must be at least 8 characters long" });
       return;
@@ -55,14 +51,12 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Create user in Firebase Auth (Firebase handles password hashing automatically with scrypt)
     const userRecord = await admin.auth().createUser({
       email,
       password,
       displayName: displayName || undefined,
     });
 
-    // Create MongoDB reference for this Firebase user
     const newUser = new User({
       firebaseUid: userRecord.uid,
       email: userRecord.email,
@@ -71,7 +65,6 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
     await newUser.save();
     console.log(`✓ User created in MongoDB: ${userRecord.uid}`);
 
-    // Generate custom token for immediate login
     const customToken = await admin.auth().createCustomToken(userRecord.uid);
 
     res.status(201).json({
@@ -92,7 +85,6 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Handle MongoDB duplicate key error
     if (error.code === 11000) {
       res.status(400).json({ error: "User already exists in database" });
       return;
@@ -102,12 +94,10 @@ export const signUp = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Login - Verify credentials using Firebase REST API and return token
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    // Validate input
     if (!email || !password) {
       res.status(400).json({ error: "Email and password are required" });
       return;
@@ -120,7 +110,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Call Firebase REST API to verify credentials
     const response = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
       {
@@ -161,15 +150,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Get user details from Firebase Admin
     const authData = data as FirebaseAuthResponse;
     const userRecord = await admin.auth().getUser(authData.localId);
 
-    // Get or create MongoDB user record
     let mongoUser = await User.findOne({ firebaseUid: authData.localId });
 
     if (!mongoUser) {
-      // Create MongoDB record if it doesn't exist (for legacy users)
       mongoUser = new User({
         firebaseUid: authData.localId,
         email: userRecord.email,
@@ -185,7 +171,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         uid: userRecord.uid,
         email: userRecord.email,
         displayName: userRecord.displayName,
-        mongoId: mongoUser._id, // MongoDB reference ID
+        mongoId: mongoUser._id,
       },
       idToken: authData.idToken,
       refreshToken: authData.refreshToken,
@@ -197,7 +183,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Get current user info (requires authentication)
 export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user) {
@@ -207,7 +192,6 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
 
     const userRecord = await admin.auth().getUser(req.user.uid);
 
-    // Get MongoDB user data
     const mongoUser = await User.findOne({ firebaseUid: req.user.uid });
 
     res.status(200).json({
@@ -226,30 +210,24 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// Google OAuth Login/Sign-Up - Verify Google ID token and return custom token
 export const googleLogin = async (req: Request, res: Response): Promise<void> => {
   try {
     const { idToken } = req.body;
 
-    // Validate input
     if (!idToken) {
       res.status(400).json({ error: "Google ID token is required" });
       return;
     }
 
-    // Verify the Google ID token using Firebase Admin
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
-    // Get user details from Firebase
     const userRecord = await admin.auth().getUser(uid);
 
-    // Get or create MongoDB user record
     let mongoUser = await User.findOne({ firebaseUid: uid });
     let isNewUser = false;
 
     if (!mongoUser) {
-      // Create MongoDB record for new Google user
       mongoUser = new User({
         firebaseUid: uid,
         email: userRecord.email,
@@ -260,7 +238,6 @@ export const googleLogin = async (req: Request, res: Response): Promise<void> =>
       console.log(`✓ Created MongoDB record for Google user: ${uid}`);
     }
 
-    // Generate a custom token (optional, for refresh purposes)
     const customToken = await admin.auth().createCustomToken(uid);
 
     res.status(200).json({
@@ -272,9 +249,9 @@ export const googleLogin = async (req: Request, res: Response): Promise<void> =>
         photoURL: userRecord.photoURL,
         mongoId: mongoUser._id,
       },
-      idToken: idToken, // Return the same token
+      idToken: idToken,
       customToken: customToken,
-      expiresIn: "3600", // Google tokens expire in 1 hour
+      expiresIn: "3600",
     });
   } catch (error: any) {
     console.error("Google auth error:", error);

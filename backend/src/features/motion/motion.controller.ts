@@ -5,17 +5,14 @@ import User from "../../shared/models/User";
 import { classifyMotion } from "./gemini.service";
 import { sendEmail, buildNotificationEmail, createSnapshotAttachment } from "../notifications/notification.service";
 
-// Socket.IO instance (shared from index.ts via notification controller)
 let ioInstance: any = null;
 export function setMotionIO(io: any) {
   ioInstance = io;
 }
 
-// ── Per-user rate limiting ──
-// Prevents amassing requests from the continuously-running OpenCV detector
-const RATE_WINDOW_MS = 60_000; // 1-minute window
-const MAX_EVENTS_PER_WINDOW = 5; // max 5 events / user / minute (very conservative for free tier)
-const SAME_CATEGORY_COOLDOWN_MS = 10_000; // same category within 10s → skip (prevent spamming same event)
+const RATE_WINDOW_MS = 60_000;
+const MAX_EVENTS_PER_WINDOW = 5;
+const SAME_CATEGORY_COOLDOWN_MS = 10_000;
 
 interface UserRateBucket {
   count: number;
@@ -26,7 +23,6 @@ interface UserRateBucket {
 
 const userRateBuckets = new Map<string, UserRateBucket>();
 
-// Cleanup stale buckets every 5 minutes to prevent memory leak
 setInterval(() => {
   const now = Date.now();
   for (const [uid, bucket] of userRateBuckets) {
@@ -45,13 +41,11 @@ function checkRateLimit(uid: string, category: string): { allowed: boolean; reas
     userRateBuckets.set(uid, bucket);
   }
 
-  // Reset window if expired
   if (now - bucket.windowStart > RATE_WINDOW_MS) {
     bucket.count = 0;
     bucket.windowStart = now;
   }
 
-  // Same category cooldown
   if (category === bucket.lastCategory && now - bucket.lastCategoryAt < SAME_CATEGORY_COOLDOWN_MS) {
     return {
       allowed: false,
@@ -59,7 +53,6 @@ function checkRateLimit(uid: string, category: string): { allowed: boolean; reas
     };
   }
 
-  // Per-window cap
   if (bucket.count >= MAX_EVENTS_PER_WINDOW) {
     return {
       allowed: false,
@@ -67,14 +60,12 @@ function checkRateLimit(uid: string, category: string): { allowed: boolean; reas
     };
   }
 
-  // Allow
   bucket.count++;
   bucket.lastCategory = category;
   bucket.lastCategoryAt = now;
   return { allowed: true };
 }
 
-// ─────────── POST /api/motion ───────────
 /**
  * Receives a motion event from the OpenCV camera monitor.
  * 1. Rate-limits per user (max 10/min, same-category cooldown 30 s)
@@ -92,7 +83,6 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
       metadata?: Record<string, unknown>;
     };
 
-    // Validate category
     if (!category || !MOTION_CATEGORIES.includes(category as MotionCategory)) {
       res.status(400).json({
         error: "Invalid or missing 'category'",
@@ -101,55 +91,44 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // ── Rate limit check (before any DB / Gemini calls) ──
     const uid = req.user?.uid || "anon";
     const rl = checkRateLimit(uid, category);
 
-    // Default: try to use Gemini if allowed
     let useGemini = rl.allowed;
 
     if (!rl.allowed) {
-      // If blocked by duplicate category spam, reject entirely
       if (rl.reason?.includes("Duplicate")) {
         res.status(429).json({ error: "Rate limited", reason: rl.reason });
         return;
       }
 
-      // If blocked by quota (MAX_EVENTS_PER_WINDOW), we proceed but SKIP Gemini.
-      // This ensures safety events are still logged via fallback rules.
       if (rl.reason?.includes("Rate limit exceeded")) {
         console.warn(`[rate-limit] User ${uid} exceeded Gemini quota. Falling back to rules for ${category}.`);
         useGemini = false;
       } else {
-        // Any other reason (buffers, etc) -> block
         res.status(429).json({ error: "Rate limited", reason: rl.reason });
         return;
       }
     }
 
-    // Validate confidence
     const conf = typeof confidence === "number" ? confidence : 0.5;
     if (conf < 0 || conf > 1) {
       res.status(400).json({ error: "'confidence' must be between 0 and 1" });
       return;
     }
 
-    // Find user
     const user = await User.findOne({ firebaseUid: req.user?.uid });
     if (!user) {
       res.status(404).json({ error: "User not found" });
       return;
     }
 
-    // ── Gemini classification ──
     console.log(`[motion] 📥 Received: category="${category}", confidence=${conf} | useGemini=${useGemini}`);
-    // Pass !useGemini as the skipGemini flag
     const classification = await classifyMotion(category as MotionCategory, conf, metadata, !useGemini);
     console.log(`[motion] 🤖 Gemini result: ${classification.threatLevel} — "${classification.reason}"`);
 
     const shouldNotify = classification.threatLevel === "caution" || classification.threatLevel === "danger";
 
-    // ── Save motion log ──
     const motionLog = await MotionLog.create({
       userId: user._id,
       category,
@@ -162,12 +141,10 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
     });
     console.log(`[motion] 💾 Saved MotionLog ${motionLog._id} | notify=${shouldNotify}`);
 
-    // ── If threat → create notification + deliver alerts ──
     if (shouldNotify) {
       const emoji = classification.threatLevel === "danger" ? "🚨" : "⚠️";
       const message = `${emoji} ${classification.reason}`;
 
-      // Save to Notifications collection
       const notification = await Notification.create({
         userId: user._id,
         type: classification.threatLevel === "danger" ? "boundary" : "motion",
@@ -181,13 +158,11 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
         },
       });
 
-      // ── External delivery (fire-and-forget) ──
       const prefs = user.notificationPreferences || {
         email: true,
         push: true,
       };
 
-      // ── Realtime push via Socket.IO ──
       if (ioInstance && prefs.push) {
         ioInstance.to(`user:${user.firebaseUid}`).emit("new-notification", {
           id: notification._id,
@@ -226,7 +201,6 @@ export const logMotionEvent = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// ─────────── GET /api/motion ───────────
 /**
  * List motion logs for the authenticated user (paginated).
  */
@@ -242,7 +216,6 @@ export const getMotionLogs = async (req: Request, res: Response): Promise<void> 
     const limit = parseInt(req.query.limit as string) || 50;
     const skip = (page - 1) * limit;
 
-    // Optional filters
     const filter: Record<string, unknown> = { userId: user._id };
     if (req.query.threatLevel) {
       filter.threatLevel = req.query.threatLevel;
@@ -289,7 +262,6 @@ export const getMotionLogs = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// ─────────── GET /api/motion/categories ───────────
 /**
  * Return the list of valid motion categories (handy reference for the OpenCV client).
  */

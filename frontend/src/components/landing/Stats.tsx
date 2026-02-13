@@ -8,7 +8,6 @@ const stats = [
   { number: 10, suffix: "s", label: "Quick setup time", color: "text-purple-500" },
 ];
 
-// Animated counter component
 function AnimatedNumber({ value, suffix, color }: { value: number; suffix: string; color: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -16,7 +15,7 @@ function AnimatedNumber({ value, suffix, color }: { value: number; suffix: strin
 
   useEffect(() => {
     if (isInView) {
-      const duration = 1500; // ms
+      const duration = 1500;
       const steps = 40;
       const increment = value / steps;
       let current = 0;

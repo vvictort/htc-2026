@@ -12,7 +12,6 @@ if (!admin.apps.length) {
 }
 
 async function testMotion() {
-    // Get a user
     const listResult = await admin.auth().listUsers(1);
     if (listResult.users.length === 0) {
         console.log('No users found');
@@ -21,7 +20,6 @@ async function testMotion() {
     const uid = listResult.users[0].uid;
     console.log('User UID:', uid);
 
-    // Get an ID token
     const customToken = await admin.auth().createCustomToken(uid);
     const apiKey = process.env.FIREBASE_API_KEY;
     const tokenResp = await fetch(
@@ -40,7 +38,6 @@ async function testMotion() {
     const idToken = tokenData.idToken;
     console.log('✅ Got Firebase ID token');
 
-    // Test 1: face_covered (should be DANGER → SMS + Email)
     console.log('\n━━━ Test 1: face_covered (expect DANGER) ━━━');
     const res1 = await fetch('http://localhost:5000/api/motion', {
         method: 'POST',
@@ -57,7 +54,6 @@ async function testMotion() {
     console.log(`Status: ${res1.status}`);
     console.log('Response:', JSON.stringify(data1, null, 2));
 
-    // Wait 31s to avoid same-category cooldown, but let's test a different category instead
     console.log('\n━━━ Test 2: flailing (expect CAUTION) ━━━');
     const res2 = await fetch('http://localhost:5000/api/motion', {
         method: 'POST',
@@ -74,7 +70,6 @@ async function testMotion() {
     console.log(`Status: ${res2.status}`);
     console.log('Response:', JSON.stringify(data2, null, 2));
 
-    // Test 3: still (should be SAFE → no notification)
     console.log('\n━━━ Test 3: still (expect SAFE, no notif) ━━━');
     const res3 = await fetch('http://localhost:5000/api/motion', {
         method: 'POST',

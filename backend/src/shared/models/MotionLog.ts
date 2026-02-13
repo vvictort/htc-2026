@@ -4,17 +4,17 @@ import mongoose, { Document, Schema } from "mongoose";
  * Predefined baby motion categories detected by the OpenCV camera monitor.
  */
 export const MOTION_CATEGORIES = [
-    "still",            // Baby lying still / sleeping
-    "slight_movement",  // Minor twitching, subtle shifts
-    "rolling",          // Rolling over
-    "crawling",         // Crawling movement
-    "sitting_up",       // Sitting up from lying position
-    "standing",         // Pulling to stand / standing
-    "flailing",         // Erratic arm/leg flailing
-    "crying_motion",    // Body shaking associated with crying
-    "face_covered",     // Face covered by blanket/object
-    "out_of_frame",     // Baby moved out of camera frame
-    "unknown",          // Unclassifiable motion
+    "still",
+    "slight_movement",
+    "rolling",
+    "crawling",
+    "sitting_up",
+    "standing",
+    "flailing",
+    "crying_motion",
+    "face_covered",
+    "out_of_frame",
+    "unknown",
 ] as const;
 
 export type MotionCategory = (typeof MOTION_CATEGORIES)[number];
@@ -24,12 +24,12 @@ export type ThreatLevel = "safe" | "caution" | "danger";
 export interface IMotionLog extends Document {
     userId: mongoose.Types.ObjectId;
     category: MotionCategory;
-    confidence: number;            // 0–1 confidence from OpenCV detector
-    threatLevel: ThreatLevel;      // Gemini classification result
-    threatReason: string;          // Gemini's explanation
-    notified: boolean;             // Whether an alert was sent
-    snapshot?: string;             // Base64 JPEG thumbnail
-    metadata?: Record<string, unknown>; // Extra OpenCV data (e.g. bounding boxes)
+    confidence: number;
+    threatLevel: ThreatLevel;
+    threatReason: string;
+    notified: boolean;
+    snapshot?: string;
+    metadata?: Record<string, unknown>;
     createdAt: Date;
     updatedAt: Date;
 }

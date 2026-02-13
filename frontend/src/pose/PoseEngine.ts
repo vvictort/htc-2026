@@ -1,8 +1,4 @@
-// src/pose/PoseEngine.ts
-// Copied and adapted from baby-watcher implementation
-// TensorFlow imports are loaded dynamically in init() to avoid blocking the main thread
 
-// Types imported statically (no runtime cost)
 import type * as posedetection from "@tensorflow-models/pose-detection";
 
 export type MonitorState = "STILL" | "ACTIVE" | "UNKNOWN";
@@ -14,36 +10,35 @@ export interface RoiPoint {
 }
 
 export interface PoseEngineConfig {
-  minKpScore: number; // e.g., 0.25
-  inferFps: number; // e.g., 5
-  breachMs: number; // e.g., 800
-  activeMs: number; // e.g., 1500
-  cooldownMs: number; // e.g., 15000
+  minKpScore: number;
+  inferFps: number;
+  breachMs: number;
+  activeMs: number;
+  cooldownMs: number;
 
-  // Motion thresholds
-  activeSpeedPxPerSec: number; // centroid px/sec threshold (original-style)
-  activeLimbSpeedNormPerSec?: number; // limb speed normalized by torso length (1/sec)
+  activeSpeedPxPerSec: number;
+  activeLimbSpeedNormPerSec?: number;
 
-  activityWindowMs?: number; // e.g., 5000
-  activeRatioThreshold?: number; // e.g., 0.6
+  activityWindowMs?: number;
+  activeRatioThreshold?: number;
 }
 
 export interface Boundaries {
-  leftX?: number; // left boundary x coordinate
-  rightX?: number; // right boundary x coordinate
+  leftX?: number;
+  rightX?: number;
 }
 
 export interface PoseMetrics {
   tEpochMs: number;
   poseOk: boolean;
-  poseConfidence: number; // 0..1
+  poseConfidence: number;
   centroid?: { x: number; y: number };
   bbox?: { x1: number; y1: number; x2: number; y2: number };
-  centroidSpeed?: number; // px/sec
-  movementSpeed?: number; // px/sec (overall body movement)
-  movementSpeedNorm?: number; // 1/sec (limb motion normalized by torso length)
-  torsoLen?: number; // px
-  activeScore?: number; // 0..1 (fraction of recent frames considered "moving")
+  centroidSpeed?: number;
+  movementSpeed?: number;
+  movementSpeedNorm?: number;
+  torsoLen?: number;
+  activeScore?: number;
   state: MonitorState;
   insideRoi?: boolean;
   breachedBoundary?: "left" | "right" | null;
@@ -100,12 +95,10 @@ export class PoseEngine {
   }
 
   async init() {
-    // Dynamic imports to avoid blocking main thread on initial page load
     const [tf, posedetectionModule] = await Promise.all([
       import("@tensorflow/tfjs-core"),
       import("@tensorflow-models/pose-detection"),
     ]);
-    // Load WebGL backend (side effect import)
     await import("@tensorflow/tfjs-backend-webgl");
 
     await tf.setBackend("webgl");
@@ -136,7 +129,6 @@ export class PoseEngine {
       return;
     }
 
-    // Skip frame if video has no valid dimensions (avoids TF.js 0x0 texture crash)
     if (!this.video.videoWidth || !this.video.videoHeight) {
       requestAnimationFrame(this.loop);
       return;
@@ -165,7 +157,6 @@ export class PoseEngine {
         })()
       : undefined;
 
-    // ---- centroid (trunk) for boundary positioning (unchanged conceptually) ----
     const trunkIndices = [5, 6, 11, 12];
     const trunk = trunkIndices.map((i) => kps[i]).filter((k) => k && (k.score ?? 0) >= this.cfg.minKpScore);
 
@@ -188,7 +179,6 @@ export class PoseEngine {
           })()
         : undefined;
 
-    // centroid speed (always contributes to motion)
     let centroidSpeed: number | undefined;
     if (centroid) {
       if (this.lastCentroid) {
@@ -203,7 +193,6 @@ export class PoseEngine {
       this.lastCentroid = { ...centroid, t: now };
     }
 
-    // ---- torso metric (shoulder/hip distance) for normalizing limb motion ----
     const kpLS = kps[5];
     const kpRS = kps[6];
     const kpLH = kps[11];
@@ -227,8 +216,6 @@ export class PoseEngine {
 
     const torsoLen = torsoSamples.length ? torsoSamples.reduce((a, b) => a + b, 0) / torsoSamples.length : undefined;
 
-    // ---- limb motion (arms/legs) normalized by torsoLen ----
-    // Use elbows/wrists/knees/ankles for limb motion; exclude shoulders/hips to avoid overlapping centroid/trunk.
     const limbIndices = [7, 8, 9, 10, 13, 14, 15, 16];
     const limbPtsByIndex: Partial<Record<number, { x: number; y: number; w: number }>> = {};
     for (const i of limbIndices) {
@@ -276,20 +263,16 @@ export class PoseEngine {
       this.lastLimbs = { ptsByIndex: limbPtsByIndex, t: now };
     }
 
-    // Keep movementSpeed fields for UI (movementSpeed now represents limb px/sec proxy if available)
     const movementSpeed = limbSpeedNorm != null && torsoLen ? limbSpeedNorm * torsoLen : undefined;
     const movementSpeedNorm = limbSpeedNorm;
 
-    // ---- immediate motion detection: moving if centroid OR limbs indicate motion ----
     const centroidMoving = centroidSpeed != null && centroidSpeed >= this.cfg.activeSpeedPxPerSec;
     const limbThr = this.cfg.activeLimbSpeedNormPerSec ?? 0.06;
     const limbsMoving = limbSpeedNorm != null && limbSpeedNorm >= limbThr;
     const movingNow = centroidMoving || limbsMoving;
 
-    // State is ACTIVE immediately when either centroid or limbs are moving
     const nextState = poseOk ? (movingNow ? "ACTIVE" : "STILL") : "UNKNOWN";
 
-    // Activity score (5s window) is used only for the 5s sustained API timer
     const windowMs = this.cfg.activityWindowMs ?? 5000;
     const minT = now - windowMs;
 
@@ -309,7 +292,6 @@ export class PoseEngine {
       this.onStateChange?.(nextState);
     }
 
-    // ROI/boundary checks remain centroid-based
     const roi = this.getRoi();
     const insideRoi = centroid ? pointInPoly(centroid, roi) : undefined;
 
@@ -354,7 +336,6 @@ export class PoseEngine {
 
     if (nowEpoch - this.lastAlertAt < this.cfg.cooldownMs) return;
 
-    // Boundary breach debounce (either ROI breach or boundary breach)
     if (insideRoi === false || breachedBoundary) {
       this.breachSince ??= nowPerf;
       if (nowPerf - this.breachSince > this.cfg.breachMs) {
@@ -365,11 +346,9 @@ export class PoseEngine {
       this.breachSince = null;
     }
 
-    // Active based on recent activity window: fire when activeScore reaches configured threshold
     const score = activeScore ?? 0;
     const thr = this.cfg.activeRatioThreshold ?? 1.0;
     if (score >= thr) {
-      // we consider this a sustained activity over the window; fire ACTIVE
       this.fire("ACTIVE");
     }
   }
@@ -377,7 +356,6 @@ export class PoseEngine {
   private fire(type: AlertType) {
     this.lastAlertAt = Date.now();
     this.onAlert({ type, tEpochMs: this.lastAlertAt });
-    // If we've fired an ACTIVE alert, reset recent activity history so activeScore goes back to 0
     if (type === "ACTIVE") {
       this.activityHistory = [];
     }

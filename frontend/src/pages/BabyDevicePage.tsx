@@ -14,7 +14,6 @@ export default function BabyDevicePage() {
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const roomId = currentUser?.uid ? `baby-${currentUser.uid.slice(0, 12)}` : "";
 
-  // Keep screen awake while monitoring
   useEffect(() => {
     let lock: WakeLockSentinel | null = null;
 
@@ -38,7 +37,6 @@ export default function BabyDevicePage() {
     };
   }, [started]);
 
-  // Re-acquire wake lock when tab becomes visible again
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "visible" && started && !wakeLock) {
@@ -129,12 +127,9 @@ export default function BabyDevicePage() {
     );
   }
 
-  // Camera is active — full-screen broadcaster with HUD
   return (
     <div className="fixed inset-0 bg-black">
       <Broadcaster roomId={roomId} fullscreen autoStart onStop={() => setStarted(false)} />
-
-      {/* Wake lock indicator (subtle, bottom-right) */}
       <div className="fixed bottom-12 right-4 z-30">
         <span className="text-[0.6rem] text-white/25">{wakeLock ? "🔋 Screen on" : "💤 Screen may sleep"}</span>
       </div>

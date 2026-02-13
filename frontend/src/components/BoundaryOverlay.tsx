@@ -72,7 +72,6 @@ export default function BoundaryOverlay({ leftPct, rightPct, onChange }: Boundar
             ref={containerRef}
             style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 10 }}
         >
-            {/* Safe zone highlight */}
             <div
                 style={{
                     position: "absolute",
@@ -85,8 +84,6 @@ export default function BoundaryOverlay({ leftPct, rightPct, onChange }: Boundar
                     borderBottom: "2px solid rgba(34,197,94,0.15)",
                 }}
             />
-
-            {/* Left boundary */}
             <div
                 onMouseDown={(e) => startDrag("left", e)}
                 onTouchStart={(e) => startDrag("left", e)}
@@ -110,8 +107,6 @@ export default function BoundaryOverlay({ leftPct, rightPct, onChange }: Boundar
                     L
                 </span>
             </div>
-
-            {/* Right boundary */}
             <div
                 onMouseDown={(e) => startDrag("right", e)}
                 onTouchStart={(e) => startDrag("right", e)}

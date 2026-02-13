@@ -19,7 +19,6 @@ interface LullabyRequest {
   length?: LullabyLength;
 }
 
-// Music generation prompts for each vibe — to help baby sleep
 const MUSIC_PROMPTS: Record<LullabyVibe, { prompt: string; instrumental: boolean }> = {
   lullaby: {
     prompt:
@@ -68,9 +67,9 @@ const MUSIC_PROMPTS: Record<LullabyVibe, { prompt: string; instrumental: boolean
 };
 
 const DURATION_MS: Record<LullabyLength, number> = {
-  short: 30000,    // 30 seconds
-  medium: 60000,   // 1 minute
-  long: 120000,    // 2 minutes
+  short: 30000,
+  medium: 60000,
+  long: 120000,
 };
 
 const streamFromElevenLabs = async ({
@@ -108,7 +107,6 @@ const streamFromElevenLabs = async ({
   return { buffer: Buffer.from(audioBuffer), status: 200 };
 };
 
-// Generate and stream audio directly (no storage)
 export const streamAudio = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log("[streamAudio] Raw request body:", JSON.stringify(req.body));
@@ -126,7 +124,6 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
       userId: req.user?.uid
     });
 
-    // Validate input - check for both falsy and empty strings
     if (!text || text.trim() === "" || !babyDeviceId || babyDeviceId.trim() === "") {
       console.error("[streamAudio] Validation failed:", { 
         text: text, 
@@ -151,7 +148,6 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Get user's custom voice if available
     let voice = voiceId;
 
     if (!voice && req.user?.uid) {
@@ -163,7 +159,6 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
         console.log(`⚠️ Custom voice disabled by user ${req.user.email}, using default`);
       }
     }
-    // Fallback to default voice
     voice = voice || process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB";
 
     console.log(`🎵 Streaming audio for device ${babyDeviceId}: "${text}"`);
@@ -186,29 +181,23 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
 
     console.log(`✓ Audio generated (${buffer.length} bytes) - streaming to client`);
 
-    // Set headers for audio streaming
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Content-Length", buffer.length);
     res.setHeader("Content-Disposition", `attachment; filename="message-${Date.now()}.mp3"`);
     res.setHeader("X-Baby-Device-Id", babyDeviceId);
 
-    // Send audio buffer
     res.send(buffer);
 
-    // Async logging after response (fire and forget pattern for performance?)
-    // Or await it.
     if (req.user?.uid) {
-      // We need 'User' model which is already imported.
       User.findOne({ firebaseUid: req.user.uid })
         .then(async (user) => {
           if (user) {
-            // Dynamically import AudioLog or use if available
             const AudioLog = (await import("../../shared/models/AudioLog")).default;
 
             await AudioLog.create({
               userId: user._id,
               babyDeviceId,
-              text: text.substring(0, 1000), // Cap length
+              text: text.substring(0, 1000),
               voiceId: voice,
               characterCount: text.length,
               status: "success",
@@ -221,7 +210,6 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
   } catch (error: any) {
     console.error("❌ Stream audio error:", error);
 
-    // Log failure
     if (req.user?.uid) {
       User.findOne({ firebaseUid: req.user.uid })
         .then(async (user) => {
@@ -247,7 +235,6 @@ export const streamAudio = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-// Generate a soothing lullaby using ElevenLabs Music Generation API
 export const streamLullaby = async (req: Request, res: Response): Promise<void> => {
   try {
     const { babyDeviceId, vibe, length } = req.body as LullabyRequest;
@@ -315,7 +302,6 @@ export const streamLullaby = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// Get available voices from ElevenLabs
 export const getVoices = async (_req: Request, res: Response): Promise<void> => {
   try {
     const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
@@ -351,7 +337,6 @@ export const getVoices = async (_req: Request, res: Response): Promise<void> => 
   }
 };
 
-// Create custom voice from audio samples (voice cloning)
 export const createCustomVoice = async (req: Request, res: Response): Promise<void> => {
   try {
     const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
@@ -389,14 +374,12 @@ export const createCustomVoice = async (req: Request, res: Response): Promise<vo
       }
 
       try {
-        // Prepare FormData for ElevenLabs API
         const formData = new FormData();
         formData.append("name", name);
         if (description) {
           formData.append("description", description);
         }
 
-        // Add audio files
         const samples = Array.isArray(files.samples) ? files.samples : [files.samples];
 
         for (const sample of samples) {
@@ -407,7 +390,6 @@ export const createCustomVoice = async (req: Request, res: Response): Promise<vo
 
         console.log(`🎤 Creating custom voice "${name}" for user ${req.user!.email}`);
 
-        // Call ElevenLabs voice cloning API
         const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
           method: "POST",
           headers: {
@@ -416,7 +398,6 @@ export const createCustomVoice = async (req: Request, res: Response): Promise<vo
           body: formData,
         });
 
-        // Clean up temp files
         for (const sample of samples) {
           fs.unlinkSync(sample.filepath);
         }
@@ -434,7 +415,6 @@ export const createCustomVoice = async (req: Request, res: Response): Promise<vo
         const voiceData: any = await response.json();
         const voiceId = voiceData.voice_id;
 
-        // Save voice ID to user's database record
         const user = await User.findOneAndUpdate(
           { firebaseUid: req.user!.uid },
           { customVoiceId: voiceId },
@@ -470,7 +450,6 @@ export const createCustomVoice = async (req: Request, res: Response): Promise<vo
   }
 };
 
-// Get user's custom voice details
 export const getCustomVoice = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user?.uid) {
@@ -492,7 +471,6 @@ export const getCustomVoice = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Get voice details from ElevenLabs
     const response = await fetch(`https://api.elevenlabs.io/v1/voices/${user.customVoiceId}`, {
       headers: {
         "xi-api-key": elevenLabsApiKey,
@@ -519,7 +497,6 @@ export const getCustomVoice = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// Delete user's custom voice
 export const deleteCustomVoice = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user?.uid) {
@@ -543,7 +520,6 @@ export const deleteCustomVoice = async (req: Request, res: Response): Promise<vo
 
     console.log(`🗑️ Deleting custom voice ${user.customVoiceId} for user ${req.user.email}`);
 
-    // Delete voice from ElevenLabs
     const response = await fetch(`https://api.elevenlabs.io/v1/voices/${user.customVoiceId}`, {
       method: "DELETE",
       headers: {
@@ -561,7 +537,6 @@ export const deleteCustomVoice = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // Remove voice ID from user's database record
     await User.findOneAndUpdate({ firebaseUid: req.user.uid }, { $unset: { customVoiceId: "" } });
 
     console.log(`✓ Custom voice deleted`);

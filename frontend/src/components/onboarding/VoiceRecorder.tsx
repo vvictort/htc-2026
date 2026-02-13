@@ -83,7 +83,6 @@ export default function VoiceRecorder({ onSamplesChange }: VoiceRecorderProps) {
 
   return (
     <div className="flex flex-col items-center gap-6 p-8 bg-warm-white rounded-xl border-2 border-dashed border-warm-cream">
-      {/* Sample List */}
       {samples.length > 0 && (
         <div className="w-full max-w-md space-y-2 mb-4">
           <h4 className="text-sm font-bold text-charcoal mb-2">Your Voice Samples:</h4>
@@ -105,10 +104,7 @@ export default function VoiceRecorder({ onSamplesChange }: VoiceRecorderProps) {
           ))}
         </div>
       )}
-
-      {/* Controls */}
       <div className="flex gap-4">
-        {/* Record Button */}
         <button
           onClick={toggleRecording}
           className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${
@@ -116,8 +112,6 @@ export default function VoiceRecorder({ onSamplesChange }: VoiceRecorderProps) {
           }`}>
           <span className="text-h1 text-white">{isRecording ? "⬛" : "🎤"}</span>
         </button>
-
-        {/* Upload Button */}
         <button
           onClick={() => fileInputRef.current?.click()}
           className="w-20 h-20 rounded-full flex items-center justify-center bg-white border-2 border-warm-cream hover:border-coral shadow-lg transition-all hover:scale-105"

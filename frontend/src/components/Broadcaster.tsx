@@ -41,7 +41,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     { urls: "stun:stun1.l.google.com:19302" },
   ]);
 
-  // Fetch TURN/STUN servers from backend for cross-network connectivity
   useEffect(() => {
     fetch(WEBRTC_ENDPOINTS.ICE_SERVERS)
       .then((r) => r.json())
@@ -52,7 +51,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       .catch((err) => console.warn("[ICE] Failed to fetch ICE servers, using STUN-only fallback:", err));
   }, []);
 
-  // Capture a JPEG snapshot from the live video element
   const captureSnapshot = (): string | undefined => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return undefined;
@@ -61,7 +59,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       canvasSnapRef.current = document.createElement("canvas");
     }
     const canvas = canvasSnapRef.current;
-    // Thumbnail size to keep payload small
     const scale = 320 / video.videoWidth;
     canvas.width = 320;
     canvas.height = Math.round(video.videoHeight * scale);
@@ -69,12 +66,9 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     if (!ctx) return undefined;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    // Return raw base64 without the data-url prefix
     return canvas.toDataURL("image/jpeg", 0.7).replace(/^data:image\/jpeg;base64,/, "");
   };
 
-  // Send a monitor event to the backend notifications endpoint
-  // Rate-limited: 30 s global cooldown + 60 s same-reason dedup
   const lastReasonRef = useRef("");
   const lastReasonAtRef = useRef(0);
   const eventPendingRef = useRef(false);
@@ -129,7 +123,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
 
     const snapshot = captureSnapshot();
 
-    // Get a fresh Firebase ID token (auto-refreshes if expired)
     let token: string | null = null;
     try {
       token = (await auth.currentUser?.getIdToken()) ?? null;
@@ -184,13 +177,11 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
   };
 
   const stopStreaming = () => {
-    // Stop all tracks
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
 
-    // Close all peer connections
     peerConnectionsRef.current.forEach((pc) => pc.close());
     peerConnectionsRef.current.clear();
 
@@ -215,7 +206,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     socketRef.current.on("viewer-joined", async (viewerId: string) => {
       console.log("Viewer joined:", viewerId);
 
-      // Check if we already have a connection with this viewer
       if (peerConnectionsRef.current.has(viewerId)) {
         console.log("Already have connection with viewer:", viewerId);
         return;
@@ -226,14 +216,12 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       const peerConnection = createPeerConnection(viewerId);
       peerConnectionsRef.current.set(viewerId, peerConnection);
 
-      // Add stream tracks to peer connection
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => {
           peerConnection.addTrack(track, streamRef.current!);
         });
       }
 
-      // Create and send offer
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
       socketRef.current?.emit("offer", viewerId, offer);
@@ -242,7 +230,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     socketRef.current.on("viewer-disconnected", (viewerId: string) => {
       console.log("Viewer disconnected:", viewerId);
 
-      // Close and remove peer connection
       const peerConnection = peerConnectionsRef.current.get(viewerId);
       if (peerConnection) {
         peerConnection.close();
@@ -264,7 +251,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       if (peerConnection) {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       }
-    }); // Audio playback - listen for audio from monitor
+    });
     socketRef.current.on("play-audio", (audioUrl: string) => {
       console.log("[Broadcaster] Received play-audio event, data length:", audioUrl.length);
       setIsPlayingAudio(true);
@@ -276,7 +263,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
           .then(() => console.log("[Broadcaster] Audio playing on baby device"))
           .catch((err) => console.error("[Broadcaster] Audio playback error:", err));
 
-        // Clean up the audio element after it finishes
         audio.onended = () => {
           console.log("[Broadcaster] Audio playback completed");
           setIsPlayingAudio(false);
@@ -294,19 +280,16 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       }
     });
 
-    // ── Lullaby playback commands from parent viewer ──
     socketRef.current.on("lullaby-play", (payload: { audioBase64: string; durationMs: number; vibe: string }) => {
       console.log(
         `[Broadcaster] 🎶 Received lullaby-play (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.vibe})`,
       );
-      // Stop any existing lullaby
       if (lullabyAudioRef.current) {
         lullabyAudioRef.current.pause();
         lullabyAudioRef.current = null;
       }
       if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
 
-      // Decode base64 and play
       const byteString = atob(payload.audioBase64);
       const ab = new ArrayBuffer(byteString.length);
       const ia = new Uint8Array(ab);
@@ -320,7 +303,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
         .play()
         .then(() => {
           setLullabyPlaying(true);
-          // Report status back to viewers every second
           lullabyIntervalRef.current = setInterval(() => {
             if (!audio.paused && socketRef.current) {
               const status = {
@@ -359,19 +341,16 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
         socketRef.current.emit("lullaby-status", roomId, { state: "stopped", currentTime: 0, duration: 0 });
     });
 
-    // ── Lullaby playback commands from parent viewer ──
     socketRef.current.on("lullaby-play", (payload: { audioBase64: string; durationMs: number; vibe: string }) => {
       console.log(
         `[Broadcaster] 🎶 Received lullaby-play (${(payload.audioBase64.length / 1024).toFixed(0)} KB, ${payload.vibe})`,
       );
-      // Stop any existing lullaby
       if (lullabyAudioRef.current) {
         lullabyAudioRef.current.pause();
         lullabyAudioRef.current = null;
       }
       if (lullabyIntervalRef.current) clearInterval(lullabyIntervalRef.current);
 
-      // Decode base64 and play
       const byteString = atob(payload.audioBase64);
       const ab = new ArrayBuffer(byteString.length);
       const ia = new Uint8Array(ab);
@@ -385,7 +364,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
         .play()
         .then(() => {
           setLullabyPlaying(true);
-          // Report status back to viewers every second
           lullabyIntervalRef.current = setInterval(() => {
             if (!audio.paused && socketRef.current) {
               const status = {
@@ -424,11 +402,9 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
         socketRef.current.emit("lullaby-status", roomId, { state: "stopped", currentTime: 0, duration: 0 });
     });
 
-    // Cleanup function
     return () => {
       console.log("Broadcaster component unmounting - cleaning up for room:", roomId);
       stopStreaming();
-      // Clean up lullaby audio
       if (lullabyAudioRef.current) {
         lullabyAudioRef.current.pause();
         lullabyAudioRef.current = null;
@@ -442,7 +418,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     };
   }, [roomId]);
 
-  // Request preview (camera + mic) immediately so CVMonitor can run before "Start"
   useEffect(() => {
     const openPreview = async () => {
       try {
@@ -463,11 +438,9 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
 
     openPreview();
     return () => {
-      // keep preview running until explicit stopStreaming
     };
   }, []);
 
-  // Auto-start camera if prop is set
   useEffect(() => {
     if (autoStart && !isStreaming) {
       startStreaming();
@@ -478,7 +451,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     try {
       setError(null);
 
-      // If preview stream already exists, reuse it; otherwise request it
       if (!streamRef.current) {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -488,7 +460,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
         if (videoRef.current) videoRef.current.srcObject = stream;
       }
 
-      // Announce as broadcaster
       socketRef.current?.emit("broadcaster", roomId);
       setIsStreaming(true);
 
@@ -498,11 +469,10 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
       setError("Failed to access camera. Please grant camera permissions.");
     }
   };
-  /* ── Fullscreen HUD mode ── */
+  
   if (fullscreen) {
     return (
       <div className="absolute inset-0 bg-black">
-        {/* Video fills entire container */}
         <video
           ref={videoRef}
           autoPlay
@@ -510,8 +480,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
           muted
           className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
         />
-
-        {/* Camera-off placeholder */}
         {!isStreaming && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-charcoal/90 z-10">
             <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
@@ -526,11 +494,8 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
             </button>
           </div>
         )}
-
-        {/* ── HUD overlay (only visible when streaming) ── */}
         {isStreaming && (
           <div className="absolute inset-0 z-20 pointer-events-none">
-            {/* Top gradient bar */}
             <div className="pointer-events-auto flex items-center justify-between px-4 py-3 bg-linear-to-b from-black/70 to-transparent">
               <div className="flex items-center gap-3">
                 <span className="text-xl">👶</span>
@@ -552,24 +517,18 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                 ⏹ Stop
               </button>
             </div>
-            {/* ── Floating status pills (right edge) ── */}
             <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 items-end">
-              {/* Viewer count */}
               <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-md rounded-full border border-white/10">
                 <span className="text-base">👁️</span>
                 <span className="text-white font-semibold text-sm">{viewerCount}</span>
                 <span className="text-white/50 text-xs">{viewerCount === 1 ? "viewer" : "viewers"}</span>
               </div>
-
-              {/* Last event indicator */}
               {lastEvent && (
                 <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-soft-blue/20 backdrop-blur-md rounded-full border border-soft-blue/30">
                   <span className="text-base">🔔</span>
                   <span className="text-white/80 text-xs font-medium">{lastEvent.reason}</span>
                 </div>
               )}
-
-              {/* Lullaby playing indicator */}
               {lullabyPlaying && lullabyProgress && (
                 <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-purple-500/20 backdrop-blur-md rounded-full border border-purple-400/30">
                   <span className="text-base animate-pulse">🎶</span>
@@ -579,7 +538,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                 </div>
               )}
             </div>
-            {/* Error toast */}
             {error && (
               <div className="pointer-events-auto absolute top-16 left-1/2 -translate-x-1/2 max-w-sm w-full mx-4">
                 <div className="bg-red-500/80 backdrop-blur-md text-white text-sm rounded-xl px-4 py-3 flex items-center gap-2 shadow-lg border border-red-400/30">
@@ -591,12 +549,10 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                 </div>
               </div>
             )}{" "}
-            {/* Bottom gradient bar */}
             <div className="pointer-events-auto absolute bottom-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-linear-to-t from-black/70 to-transparent">
               <span className="text-xs text-white/40 font-mono">Room: {roomId}</span>
               <span className="text-[0.6rem] text-white/30">Baby Device Mode</span>
             </div>
-            {/* Audio playing indicator */}
             {isPlayingAudio && (
               <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
                 <div className="bg-black/80 backdrop-blur-xl rounded-2xl px-8 py-6 flex flex-col items-center gap-3 shadow-2xl border border-white/10">
@@ -616,7 +572,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                 </div>
               </div>
             )}
-            {/* Boundary overlay — draggable lines directly on the video */}
             <BoundaryOverlay
               leftPct={leftPct}
               rightPct={rightPct}
@@ -625,7 +580,6 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
                 setRightPct(r);
               }}
             />
-            {/* CVMonitor mounted for motion detection */}
             <CVMonitor
               externalVideoRef={videoRef}
               leftPct={leftPct}
@@ -647,7 +601,7 @@ export default function Broadcaster({ roomId, fullscreen = false, onStop, autoSt
     );
   }
 
-  /* ── Legacy card mode (fallback) ── */
+  
   return (
     <div className="flex flex-col gap-4 p-6 max-w-4xl w-full">
       <div className="bg-gray-800 rounded-xl shadow-2xl">

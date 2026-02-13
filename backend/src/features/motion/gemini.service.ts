@@ -25,7 +25,6 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
  * when the API is unavailable or rate-limited.
  */
 export function ruleBasedClassification(category: MotionCategory, confidence: number): GeminiClassification {
-  // High-risk categories
   if (category === "face_covered") {
     return {
       threatLevel: "danger",
@@ -33,7 +32,6 @@ export function ruleBasedClassification(category: MotionCategory, confidence: nu
     };
   }
 
-  // Medium-risk / Caution categories
   if (category === "crying_motion") {
     return {
       threatLevel: "caution",
@@ -69,7 +67,6 @@ export function ruleBasedClassification(category: MotionCategory, confidence: nu
     };
   }
 
-  // Developmental milestones (usually safe unless low confidence)
   if (["rolling", "crawling", "sitting_up"].includes(category)) {
     if (confidence < 0.5) {
       return {
@@ -83,7 +80,6 @@ export function ruleBasedClassification(category: MotionCategory, confidence: nu
     };
   }
 
-  // Low risk
   if (category === "still") {
     return {
       threatLevel: "safe",
@@ -91,7 +87,6 @@ export function ruleBasedClassification(category: MotionCategory, confidence: nu
     };
   }
 
-  // Default / slight_movement
   return {
     threatLevel: "safe",
     reason: "Normal baby activity detected.",
@@ -141,7 +136,6 @@ export async function classifyMotion(
   metadata?: Record<string, unknown>,
   skipGemini = false,
 ): Promise<GeminiClassification> {
-  // Immediate fallback if requested
   if (skipGemini) {
     console.log(`[gemini] Skipping API call for ${category}, using rule-based fallback.`);
     return ruleBasedClassification(category, confidence);
@@ -169,7 +163,7 @@ export async function classifyMotion(
           },
         ],
         generationConfig: {
-          temperature: 0.1, // near-deterministic
+          temperature: 0.1,
           maxOutputTokens: 256,
         },
       }),
@@ -184,7 +178,6 @@ export async function classifyMotion(
         return ruleBasedClassification(category, confidence);
       }
 
-      // Return safe to avoid notifying users about API errors
       console.warn(`⚠️ Gemini error ${res.status} — using rule-based fallback`);
       return ruleBasedClassification(category, confidence);
     }
@@ -195,13 +188,10 @@ export async function classifyMotion(
       }>;
     };
 
-    // Extract the text from Gemini's response
     const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     console.log("📝 Gemini raw response:", text);
 
-    // Try to parse as JSON first
     try {
-      // Strip potential markdown fences just in case
       const cleaned = text.replace(/```json\s*|```/g, "").trim();
       const parsed = JSON.parse(cleaned) as {
         threatLevel?: string;
@@ -220,12 +210,10 @@ export async function classifyMotion(
         reason: parsed.reason || "Baby activity detected.",
       };
     } catch {
-      // Try to extract threatLevel from partial/truncated JSON like `{"threatLevel": "safe`
       const partialMatch = text.match(/"threatLevel"\s*:\s*"?(safe|caution|danger)/i);
       if (partialMatch) {
         const level = partialMatch[1].toLowerCase() as ThreatLevel;
         console.log(`⚠️ Parsed threat level from partial JSON: ${level}`);
-        // Return user-friendly messages based on threat level
         const friendlyReasons: Record<ThreatLevel, string> = {
           danger: "Potential safety concern detected. Please check on your baby.",
           caution: "Unusual activity detected. You may want to check in.",
@@ -233,7 +221,6 @@ export async function classifyMotion(
         };
         return { threatLevel: level, reason: friendlyReasons[level] };
       }
-      // Fallback: extract threat level from prose response
       console.warn("⚠️ Gemini returned non-JSON response, attempting to extract threat level...");
       const lowerText = text.toLowerCase();
 
@@ -247,7 +234,6 @@ export async function classifyMotion(
         return { threatLevel: "safe", reason: "Normal baby behaviour detected." };
       }
 
-      // Default to safe for slight_movement and still categories
       if (category === "slight_movement" || category === "still") {
         return { threatLevel: "safe", reason: "Baby is resting peacefully." };
       }
@@ -256,7 +242,6 @@ export async function classifyMotion(
     }
   } catch (err) {
     console.error("❌ Gemini classification failed:", err);
-    // Return safe to avoid notifying users about internal errors
     console.warn("⚠️ Gemini exception — using rule-based fallback");
     return ruleBasedClassification(category, confidence);
   }

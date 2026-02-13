@@ -33,7 +33,6 @@ const features = [
   },
 ];
 
-// Organic wavy clip-path for images
 const WavyImagePlaceholder = ({ emoji, label, large = false }: { emoji: string; label: string; large?: boolean }) => (
   <div className="relative w-full h-full">
     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 200" preserveAspectRatio="none">
@@ -58,7 +57,6 @@ const WavyImagePlaceholder = ({ emoji, label, large = false }: { emoji: string; 
 export default function Features() {
   return (
     <section id="features" className="py-24 bg-warm-white relative">
-      {/* Decorative Icons */}
       <motion.div
         className="absolute top-16 right-10 w-16 h-16 pointer-events-none"
         initial={{ opacity: 0 }}
@@ -96,7 +94,6 @@ export default function Features() {
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-6">
-        {/* Header Row */}
         <div className="grid lg:grid-cols-2 gap-12 mb-16">
           <div>
             <motion.span
@@ -129,10 +126,7 @@ export default function Features() {
             </motion.p>
           </div>
         </div>
-
-        {/* Bento Grid */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Large Feature Card */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -146,14 +140,10 @@ export default function Features() {
               className="text-sm font-semibold text-charcoal no-underline flex items-center gap-2 hover:text-coral transition-colors">
               Read More <span>→</span>
             </Link>
-
-            {/* Placeholder Image with wavy edge */}
             <div className="mt-auto pt-8">
               <WavyImagePlaceholder emoji={features[0].emoji} label={features[0].imageLabel} large />
             </div>
           </motion.div>
-
-          {/* Right Column - Stacked Cards */}
           <div className="flex flex-col gap-6">
             {features.slice(1).map((feature, i) => (
               <motion.div
@@ -172,8 +162,6 @@ export default function Features() {
                     Read More <span>→</span>
                   </Link>
                 </div>
-
-                {/* Placeholder Image with wavy edge */}
                 <div className="w-full md:w-40 shrink-0">
                   <WavyImagePlaceholder emoji={feature.emoji} label={feature.imageLabel} />
                 </div>

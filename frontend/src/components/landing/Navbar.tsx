@@ -40,7 +40,6 @@ export default function Navbar() {
             ? "bg-white/80 backdrop-blur-xl rounded-full px-5 py-3 shadow-[0_4px_20px_rgba(31,29,43,0.08)]"
             : "px-2 py-2"
         }`}>
-        {/* Logo - Simple and clean */}
         <Link to="/" className="flex items-center gap-2 no-underline">
           <motion.img
             src="/logo.svg"
@@ -53,8 +52,6 @@ export default function Navbar() {
             Lulla<span className="text-coral">link</span>
           </span>
         </Link>
-
-        {/* Desktop Nav - Minimal centered links */}
         <div className="hidden md:flex items-center gap-5">
           {navLinks.map((link, i) =>
             link.href.startsWith("/") ? (
@@ -82,8 +79,6 @@ export default function Navbar() {
             ),
           )}
         </div>
-
-        {/* CTA Buttons */}
         <div className="hidden md:flex items-center gap-2">
           {isLoggedIn ? (
             <>
@@ -109,8 +104,6 @@ export default function Navbar() {
             </>
           )}
         </div>
-
-        {/* Mobile Menu Button - Minimal */}
         <button
           className="md:hidden flex flex-col gap-1.5 bg-transparent p-2"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -132,8 +125,6 @@ export default function Navbar() {
           />
         </button>
       </div>
-
-      {/* Mobile Menu */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div

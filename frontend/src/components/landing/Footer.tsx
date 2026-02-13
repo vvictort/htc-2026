@@ -24,15 +24,10 @@ const socialIcons = [
 export default function Footer() {
   return (
     <footer className="relative overflow-hidden">
-      {/* CTA Section */}
       <CTA />
-
-      {/* Main Footer */}
       <div className="bg-soft-yellow/60 pt-16 pb-8">
         <div className="max-w-6xl mx-auto px-6">
-          {/* Centered Logo & Links */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-10 mb-12">
-            {/* Left Links */}
             <motion.nav
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -47,8 +42,6 @@ export default function Footer() {
                 </a>
               ))}
             </motion.nav>
-
-            {/* Center Logo */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -63,8 +56,6 @@ export default function Footer() {
               <p className="text-mid-gray text-sm md:text-base mb-6 max-w-sm">
                 AI-powered peace of mind for modern parents. Watch over your little ones with love and technology.
               </p>
-
-              {/* Social Icons */}
               <div className="flex items-center gap-4 mt-4">
                 {socialIcons.map((social) => (
                   <a
@@ -77,8 +68,6 @@ export default function Footer() {
                 ))}
               </div>
             </motion.div>
-
-            {/* Right Links */}
             <motion.nav
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -95,8 +84,6 @@ export default function Footer() {
               ))}
             </motion.nav>
           </div>
-
-          {/* Newsletter */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -114,8 +101,6 @@ export default function Footer() {
               </button>
             </div>
           </motion.div>
-
-          {/* Bottom Bar */}
           <div className="border-t border-charcoal/10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-mid-gray/80">© {new Date().getFullYear()} Lullalink. All rights reserved.</p>
             <div className="flex items-center gap-2">

@@ -35,7 +35,6 @@ export default function ProfilePage() {
     }));
   };
 
-  // Load notification prefs + phone on mount
   useEffect(() => {
     if (authLoading || !token) return;
     const fetchPrefs = async () => {
@@ -83,11 +82,11 @@ export default function ProfilePage() {
 
           if (voiceData.category === "cloned" || voiceData.category === "generated") {
             setInitialVoiceIsCloned(true);
-            setVoiceMode("clone"); // Default to clone tab if user has one
+            setVoiceMode("clone");
           } else {
             setInitialVoiceIsCloned(false);
             setVoiceMode("preset");
-            setSelectedVoiceId(voiceData.voice_id); // Pre-select
+            setSelectedVoiceId(voiceData.voice_id);
           }
         }
       } catch (error) {
@@ -105,11 +104,8 @@ export default function ProfilePage() {
       if (!token) throw new Error("Not authenticated");
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-      // Logic: If we are replacing a CLONED voice with something else (new clone or preset),
-      // we must DELETE the old one first to avoid hitting ElevenLabs limits.
       let shouldDeleteOld = false;
       if (initialVoiceIsCloned && initialVoiceId) {
-        // If switching to Preset OR (switching to Clone AND we have a NEW recording)
         if (voiceMode === "preset" || (voiceMode === "clone" && recordedBlobs.length > 0)) {
           shouldDeleteOld = true;
         }
@@ -121,17 +117,14 @@ export default function ProfilePage() {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });
-        // Reset flags after deletion
         setInitialVoiceIsCloned(false);
         setInitialVoiceId(null);
       }
 
-      // 1. Upload Voice if recorded and in clone mode
       if (voiceMode === "clone" && recordedBlobs.length > 0) {
         const voiceData = new FormData();
         voiceData.append("name", formData.displayName + "'s Voice");
 
-        // Append all blobs
         recordedBlobs.forEach((blob, index) => {
           voiceData.append("samples", blob, `sample_${index}.webm`);
         });
@@ -144,12 +137,10 @@ export default function ProfilePage() {
 
         if (!voiceRes.ok) throw new Error("Failed to upload voice");
 
-        // Update initial state for next save
         const newVoice = await voiceRes.json();
         setInitialVoiceId(newVoice.voiceId);
         setInitialVoiceIsCloned(true);
       } else if (voiceMode === "preset" && selectedVoiceId) {
-        // Only save if it changed
         if (selectedVoiceId !== initialVoiceId) {
           const voiceRes = await fetch(`${apiUrl}/audio/voice`, {
             method: "PUT",
@@ -166,7 +157,6 @@ export default function ProfilePage() {
         }
       }
 
-      // 2. Update Profile Data
       await fetch(`${apiUrl}/audio/settings`, {
         method: "PUT",
         headers: {
@@ -176,7 +166,6 @@ export default function ProfilePage() {
         body: JSON.stringify({ enableCustomVoice: formData.enableCustomVoice }),
       });
 
-      // 3. Save notification preferences + phone
       await fetch(`${apiUrl}/notifications/preferences`, {
         method: "PUT",
         headers: {
@@ -209,7 +198,6 @@ export default function ProfilePage() {
       />
       <div className="bg-white rounded-card p-8 border border-white/60 shadow-md max-w-4xl mx-auto">
         <form onSubmit={handleSubmit} className="space-y-10">
-          {/* Profile Section */}
           <section>
             <h3 className="text-xl font-bold text-charcoal mb-6 flex items-center gap-2">
               <span className="text-2xl">👤</span> Profile Details
@@ -251,8 +239,6 @@ export default function ProfilePage() {
           </section>
 
           <hr className="border-warm-cream" />
-
-          {/* Notifications Section */}
           <section>
             <h3 className="text-xl font-bold text-charcoal mb-6 flex items-center gap-2">
               <span className="text-2xl">🔔</span> Notification Preferences
@@ -310,8 +296,6 @@ export default function ProfilePage() {
           </section>
 
           <hr className="border-warm-cream" />
-
-          {/* Voice Settings Section */}
           <section>
             <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-6 gap-4">
               <h3 className="text-xl font-bold text-charcoal flex items-center gap-2">

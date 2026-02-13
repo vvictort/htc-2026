@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { admin } from '../config/firebase';
 
-// Extend Express Request type to include user
 declare global {
     namespace Express {
         interface Request {
@@ -25,10 +24,8 @@ export const verifyFirebaseToken = async (
 
         const token = authHeader.split('Bearer ')[1];
 
-        // Verify the Firebase ID token
         const decodedToken = await admin.auth().verifyIdToken(token);
 
-        // Attach user info to request
         req.user = decodedToken;
 
         next();

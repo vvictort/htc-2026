@@ -1,35 +1,28 @@
-// API Configuration
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Auth endpoints
 export const AUTH_ENDPOINTS = {
     SIGNUP: `${API_BASE_URL}/auth/signup`,
     LOGIN: `${API_BASE_URL}/auth/login`,
     ME: `${API_BASE_URL}/auth/me`,
 };
 
-// Audio endpoints
 export const AUDIO_ENDPOINTS = {
     LULLABY: `${API_BASE_URL}/audio/lullaby`,
     STREAM: `${API_BASE_URL}/audio/stream`,
     VOICES: `${API_BASE_URL}/audio/voices`,
 };
 
-// WebRTC endpoints
 export const WEBRTC_ENDPOINTS = {
     ICE_SERVERS: `${API_BASE_URL}/webrtc/ice-servers`,
 };
 
-// Status endpoint
 export const STATUS_ENDPOINT = `${API_BASE_URL}/status`;
 
-// Motion / CV endpoints
 export const MOTION_ENDPOINTS = {
     CREATE: `${API_BASE_URL}/motion`,
     LIST: `${API_BASE_URL}/motion`,
 };
 
-// Notification endpoints
 export const NOTIFICATION_ENDPOINTS = {
     LIST: `${API_BASE_URL}/notifications`,
     CREATE: `${API_BASE_URL}/notifications`,
@@ -38,7 +31,6 @@ export const NOTIFICATION_ENDPOINTS = {
     PREFERENCES: `${API_BASE_URL}/notifications/preferences`,
 };
 
-// API helper function with error handling
 export async function apiCall<T>(
     endpoint: string,
     options?: RequestInit
@@ -73,18 +65,15 @@ export async function apiCall<T>(
     }
 }
 
-// Get auth token from storage
 export function getAuthToken(): string | null {
     return localStorage.getItem('idToken') || sessionStorage.getItem('idToken');
 }
 
-// Set auth token in storage
 export function setAuthToken(token: string, rememberMe: boolean = false): void {
     const storage = rememberMe ? localStorage : sessionStorage;
     storage.setItem('idToken', token);
 }
 
-// Remove auth token from storage
 export function removeAuthToken(): void {
     localStorage.removeItem('idToken');
     sessionStorage.removeItem('idToken');
@@ -94,7 +83,6 @@ export function removeAuthToken(): void {
     sessionStorage.removeItem('user');
 }
 
-// Check if user is authenticated
 export function isAuthenticated(): boolean {
     return getAuthToken() !== null;
 }

@@ -49,21 +49,18 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Sanitize input - remove any potentially harmful characters
   const sanitizeInput = (value: string): string => {
     return value
       .trim()
-      .replace(/[<>]/g, "") // Remove angle brackets to prevent XSS
-      .substring(0, 255); // Limit length
+      .replace(/[<>]/g, "")
+      .substring(0, 255);
   };
 
-  // Validate email format
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // OWASP password strength validation
   const validatePassword = (password: string): string | null => {
     if (password.length < 8) {
       return "Password must be at least 8 characters long";
@@ -86,7 +83,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     return null;
   };
 
-  // Get individual password requirement statuses for UI feedback
   const getPasswordRequirements = (password: string) => {
     return {
       minLength: password.length >= 8,
@@ -97,7 +93,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     };
   };
 
-  // Handle input change with sanitization
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const sanitizedValue = sanitizeInput(value);
@@ -107,7 +102,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
       [name]: sanitizedValue,
     }));
 
-    // Clear errors for this field
     setErrors((prev) => ({
       ...prev,
       [name]: "",
@@ -115,18 +109,15 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     setApiError("");
   };
 
-  // Validate form before submission
   const validateForm = (): boolean => {
     const newErrors: Partial<SignUpFormData> = {};
 
-    // Email validation
     if (!formData.email) {
       newErrors.email = "Email is required";
     } else if (!validateEmail(formData.email)) {
       newErrors.email = "Please enter a valid email address";
     }
 
-    // Password validation
     if (!formData.password) {
       newErrors.password = "Password is required";
     } else {
@@ -136,14 +127,12 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
       }
     }
 
-    // Confirm password validation
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = "Please confirm your password";
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    // Display name validation (optional but sanitized)
     if (formData.displayName && formData.displayName.length > 100) {
       newErrors.displayName = "Display name is too long";
     }
@@ -152,13 +141,11 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setApiError("");
     setApiSuccess("");
 
-    // Validate form
     if (!validateForm()) {
       return;
     }
@@ -178,22 +165,17 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
         }),
       });
 
-      // ... (imports remain)
 
-      // ... inside SignUpForm component ...
 
       const data: ApiError | ApiSuccess = await response.json();
 
       if (!response.ok) {
-        // Handle error response
         const errorData = data as ApiError;
         setApiError(errorData.error || "Sign up failed");
       } else {
-        // Handle success response
         const successData = data as ApiSuccess;
         setApiSuccess(successData.message || "Account created successfully!");
 
-        // If we got a custom token, sign in with it to get a real ID token
         if (successData.customToken) {
           try {
             const userCredential = await signInWithCustomToken(auth, successData.customToken);
@@ -212,7 +194,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
           }
         }
 
-        // Clear form
         setFormData({
           email: "",
           password: "",
@@ -220,15 +201,13 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
           displayName: "",
         });
 
-        // Mark as new user for onboarding redirection after login
         sessionStorage.setItem("isNewUser", "true");
 
-        // Redirect
         if (onSuccess) {
           setTimeout(onSuccess, 1000);
         } else {
           setTimeout(() => {
-            window.location.href = "/onboarding"; // Redirect to onboarding directly
+            window.location.href = "/onboarding";
           }, 1000);
         }
       }
@@ -240,21 +219,17 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
     }
   };
 
-  // Handle Google Sign-Up
   const handleGoogleSignUp = async () => {
     setApiError("");
     setApiSuccess("");
     setIsGoogleLoading(true);
 
     try {
-      // Sign in with Google popup (works for both sign-in and sign-up)
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Get the ID token from Firebase
       const idToken = await user.getIdToken();
 
-      // Send token to backend for verification and MongoDB user creation
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       const response = await fetch(`${apiUrl}/auth/google`, {
         method: "POST",
@@ -269,14 +244,12 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
       const data: ApiError | ApiSuccess = await response.json();
 
       if (!response.ok) {
-        // Handle error response
         const errorData = data as ApiError;
         setApiError(errorData.error || "Google sign-up failed");
         return;
-      } // Handle success response
+      }
       const successData = data as ApiSuccess;
 
-      // Store tokens in localStorage
       localStorage.setItem("idToken", idToken);
       if (successData.refreshToken) {
         localStorage.setItem("refreshToken", successData.refreshToken);
@@ -285,7 +258,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
 
       console.log("Google sign-up successful:", successData.user);
 
-      // Show success message briefly then redirect to dashboard
       setApiSuccess("Account created successfully! Redirecting...");
       if (onSuccess) {
         setTimeout(onSuccess, 1000);
@@ -320,7 +292,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
       <div className="bg-white rounded-card border border-white/60 shadow-[0_20px_50px_rgba(31,29,43,0.15)] p-8">
         <h2 className="text-3xl font-extrabold text-charcoal mb-2 text-center">Create Account</h2>
         <p className="text-mid-gray text-center mb-6">Join Lullalink today</p>
-        {/* Success Message */}
         {apiSuccess && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -329,7 +300,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
             <p className="text-sm text-charcoal font-medium">✓ {apiSuccess}</p>
           </motion.div>
         )}
-        {/* Error Message */}
         {apiError && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -339,7 +309,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
           </motion.div>
         )}
         <form onSubmit={handleSubmit} noValidate>
-          {/* Display Name */}
           <div className="mb-4">
             <label htmlFor="displayName" className="block text-sm font-semibold text-charcoal mb-1.5">
               Display Name <span className="text-mid-gray font-normal">(optional)</span>
@@ -355,8 +324,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
             />
             {errors.displayName && <p className="text-xs text-coral mt-1">{errors.displayName}</p>}
           </div>
-
-          {/* Email */}
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-semibold text-charcoal mb-1.5">
               Email Address <span className="text-coral">*</span>
@@ -373,8 +340,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
             />
             {errors.email && <p className="text-xs text-coral mt-1">{errors.email}</p>}
           </div>
-
-          {/* Password */}
           <div className="mb-4">
             <label htmlFor="password" className="block text-sm font-semibold text-charcoal mb-1.5">
               Password <span className="text-coral">*</span>
@@ -428,8 +393,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
               </button>
             </div>
             {errors.password && <p className="text-xs text-coral mt-1">{errors.password}</p>}
-
-            {/* Password Requirements Indicator */}
             {formData.password && (
               <div className="mt-2 space-y-1">
                 <p className="text-xs font-semibold text-charcoal mb-1.5">Password must contain:</p>
@@ -456,8 +419,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
               </div>
             )}
           </div>
-
-          {/* Confirm Password */}
           <div className="mb-6">
             <label htmlFor="confirmPassword" className="block text-sm font-semibold text-charcoal mb-1.5">
               Confirm Password <span className="text-coral">*</span>
@@ -512,8 +473,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
             </div>
             {errors.confirmPassword && <p className="text-xs text-coral mt-1">{errors.confirmPassword}</p>}
           </div>
-
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
@@ -521,14 +480,12 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
             {isLoading ? "Creating Account..." : "Sign Up"}
           </button>
         </form>{" "}
-        {/* Link to Login */}
         <p className="text-sm text-center text-mid-gray mt-6">
           Already have an account?{" "}
           <a href="/login" className="text-coral hover:text-coral-dark font-semibold">
             Log In
           </a>
         </p>
-        {/* Divider */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-warm-cream"></div>
@@ -537,7 +494,6 @@ export default function SignUpForm({ onSuccess }: SignUpFormProps) {
             <span className="bg-white px-2 text-light-gray">Or continue with</span>
           </div>
         </div>
-        {/* Google Sign-Up */}
         <div className="flex justify-center">
           <button
             type="button"
